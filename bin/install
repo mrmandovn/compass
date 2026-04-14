@@ -1,0 +1,250 @@
+#!/usr/bin/env node
+
+// Compass installer — `npx compass-m`
+// Picks prebuilt @compass-m/cli-{platform} binary, syncs ~/.compass, symlinks commands.
+
+const fs = require('fs');
+const path = require('path');
+const { execSync, spawnSync } = require('child_process');
+
+// Colors
+const C = { reset: '\x1b[0m', cyan: '\x1b[36m', green: '\x1b[32m', yellow: '\x1b[33m', red: '\x1b[31m', bold: '\x1b[1m', dim: '\x1b[2m' };
+const cyan = s => `${C.cyan}${s}${C.reset}`;
+const green = s => `${C.green}${s}${C.reset}`;
+const yellow = s => `${C.yellow}${s}${C.reset}`;
+const red = s => `${C.red}${s}${C.reset}`;
+const bold = s => `${C.bold}${s}${C.reset}`;
+const dim = s => `${C.dim}${s}${C.reset}`;
+
+const HOME = process.env.HOME;
+const COMPASS_DIR = path.join(HOME, '.compass');
+const CLAUDE_DIR = path.join(HOME, '.claude');
+const SCRIPT_DIR = path.resolve(path.join(__dirname, '..'));
+const REPO_URL = 'https://github.com/mrmandovn/compass.git';
+
+// Platform → prebuilt package map
+const PLATFORM_MAP = {
+  'darwin-arm64': '@compass-m/cli-darwin-arm64',
+  'darwin-x64':   '@compass-m/cli-darwin-x64',
+  'linux-x64':    '@compass-m/cli-linux-x64',
+  'linux-arm64':  '@compass-m/cli-linux-arm64',
+};
+
+function readVersion(dir) {
+  try { return fs.readFileSync(path.join(dir || SCRIPT_DIR, 'VERSION'), 'utf8').trim(); }
+  catch { return '1.0.0'; }
+}
+
+// Banner
+console.log(`
+${cyan('   ╔═══════════════════════╗')}
+${cyan('   ║')}  ${bold('COMPASS')}  ${yellow(`v${readVersion()}`)}       ${cyan('║')}
+${cyan('   ║')}  ${dim('PO/PM AI Toolkit')}    ${cyan('║')}
+${cyan('   ╚═══════════════════════╝')}
+`);
+
+// Parse args
+const args = process.argv.slice(2);
+const hasLocal = args.includes('--local') || args.includes('-l');
+const hasUninstall = args.includes('--uninstall') || args.includes('-u');
+const hasHelp = args.includes('--help') || args.includes('-h');
+const hasNoCli = args.includes('--no-cli');
+
+if (hasHelp) {
+  console.log(`${bold('USAGE')}
+  npx compass-m              Install globally
+  npx compass-m --local      Install to ./.claude/ only
+  npx compass-m --no-cli     Skip compass-cli binary install
+  npx compass-m --uninstall  Remove Compass
+  npx compass-m --help       Show this help
+`);
+  process.exit(0);
+}
+
+// Uninstall
+if (hasUninstall) {
+  console.log('  Uninstalling Compass...');
+  const compassCmd = path.join(CLAUDE_DIR, 'commands', 'compass');
+  if (fs.existsSync(compassCmd)) {
+    fs.rmSync(compassCmd, { recursive: true });
+    console.log(`  ${green('✓')} Removed commands`);
+  }
+  console.log(`\n  ${green('Done!')} Source at ~/.compass/ untouched.\n  To fully remove: rm -rf ~/.compass\n`);
+  process.exit(0);
+}
+
+// Copy source to ~/.compass/ (if running from npx temp dir)
+if (SCRIPT_DIR !== COMPASS_DIR) {
+  if (fs.existsSync(path.join(COMPASS_DIR, '.git'))) {
+    console.log('  Updating via git...');
+    const r = spawnSync('git', ['-C', COMPASS_DIR, 'fetch', 'origin', 'main'], { stdio: 'pipe' });
+    spawnSync('git', ['-C', COMPASS_DIR, 'reset', '--hard', 'origin/main'], { stdio: 'pipe' });
+    if (r.status === 0) console.log(`  ${green('✓')} Updated from git`);
+    else console.log(`  ${yellow('⚠')} git fetch failed — using existing`);
+  } else if (fs.existsSync(COMPASS_DIR)) {
+    console.log('  Updating ~/.compass/...');
+    copyDir(SCRIPT_DIR, COMPASS_DIR);
+    console.log(`  ${green('✓')} Updated`);
+  } else {
+    console.log('  Installing to ~/.compass/...');
+    copyDir(SCRIPT_DIR, COMPASS_DIR);
+    try { execSync(`git -C "${COMPASS_DIR}" init -q && git -C "${COMPASS_DIR}" remote add origin "${REPO_URL}"`, { stdio: 'pipe' }); }
+    catch {}
+    console.log(`  ${green('✓')} Installed`);
+  }
+} else {
+  console.log(dim('  Running from ~/.compass/ — skipping copy.'));
+}
+
+// Symlink commands
+const targetDir = hasLocal ? path.join(process.cwd(), '.claude') : CLAUDE_DIR;
+const compassCmd = path.join(targetDir, 'commands', 'compass');
+
+fs.mkdirSync(path.join(targetDir, 'commands'), { recursive: true });
+
+// Remove old symlink or dir
+try {
+  const stat = fs.lstatSync(compassCmd);
+  if (stat.isSymbolicLink()) fs.unlinkSync(compassCmd);
+  else fs.rmSync(compassCmd, { recursive: true });
+} catch {}
+
+fs.symlinkSync(path.join(COMPASS_DIR, 'core', 'commands', 'compass'), compassCmd);
+const count = fs.readdirSync(path.join(COMPASS_DIR, 'core', 'commands', 'compass')).filter(f => f.endsWith('.md')).length;
+console.log(`  ${green('✓')} ${count} commands linked`);
+
+// ─── compass-cli binary install ─────────────────────────────────────────────
+if (!hasNoCli) {
+  installBinary();
+}
+
+// Summary
+const v = readVersion(COMPASS_DIR);
+console.log(`
+  ${green('Done!')} Compass v${v} installed.
+
+  Run: ${cyan('/compass:init')} to set up your first project.
+`);
+
+// ─── Binary install flow ────────────────────────────────────────────────────
+function installBinary() {
+  const key = `${process.platform}-${process.arch}`;
+  const pkgName = PLATFORM_MAP[key];
+  const destBin = path.join(COMPASS_DIR, 'cli', 'target', 'release', 'compass-cli');
+
+  // Skip if already present (e.g. upgrade path, or local run from ~/.compass)
+  if (fs.existsSync(destBin) && SCRIPT_DIR === COMPASS_DIR) {
+    console.log(`  ${green('✓')} compass-cli ready`);
+    linkToPath(destBin);
+    return;
+  }
+
+  if (!pkgName) {
+    console.log(`  ${yellow('⚠')} No prebuilt binary for ${key}.`);
+    if (whichCargo()) {
+      console.log('    Falling back to source build (requires Rust)...');
+      try {
+        execSync(`cd "${path.join(COMPASS_DIR, 'cli')}" && cargo build --release --quiet`, { stdio: 'inherit' });
+        console.log(`  ${green('✓')} compass-cli built from source`);
+        linkToPath(destBin);
+      } catch {
+        console.log(`  ${red('✗')} cargo build failed.`);
+      }
+    } else {
+      console.log(`  ${red('✗')} No fallback available. Install Rust toolchain or open issue:`);
+      console.log(`    https://github.com/mrmandovn/compass/issues`);
+    }
+    return;
+  }
+
+  let binPath;
+  try {
+    binPath = resolveBinary(pkgName);
+  } catch (e) {
+    console.log(`  ${yellow('⚠')} ${e.message}`);
+    if (whichCargo()) {
+      console.log('    Falling back to source build (requires Rust)...');
+      try {
+        execSync(`cd "${path.join(COMPASS_DIR, 'cli')}" && cargo build --release --quiet`, { stdio: 'inherit' });
+        console.log(`  ${green('✓')} compass-cli built from source`);
+        linkToPath(destBin);
+      } catch {
+        console.log(`  ${red('✗')} cargo build failed.`);
+      }
+    }
+    return;
+  }
+
+  // Symlink binary into ~/.compass/cli/target/release/compass-cli (workflow hardcodes this path)
+  fs.mkdirSync(path.dirname(destBin), { recursive: true });
+  try { fs.unlinkSync(destBin); } catch {}
+  try {
+    fs.symlinkSync(binPath, destBin);
+  } catch {
+    // Symlink failed (e.g. cross-device) — copy instead
+    fs.copyFileSync(binPath, destBin);
+    try { fs.chmodSync(destBin, 0o755); } catch {}
+  }
+  console.log(`  ${green('✓')} compass-cli (prebuilt: ${pkgName})`);
+
+  linkToPath(destBin);
+}
+
+function resolveBinary(pkgName) {
+  try {
+    // Resolve from current Node module path
+    return require.resolve(`${pkgName}/compass-cli`);
+  } catch (e) {
+    // Fallback: walk node_modules manually
+    const candidates = [
+      path.join(SCRIPT_DIR, 'node_modules', pkgName, 'compass-cli'),
+      path.join(SCRIPT_DIR, '..', pkgName, 'compass-cli'),
+      path.join(SCRIPT_DIR, '..', '..', pkgName, 'compass-cli'),
+    ];
+    for (const p of candidates) {
+      if (fs.existsSync(p)) return p;
+    }
+    throw new Error(`Cannot find ${pkgName}/compass-cli — was the platform package installed?`);
+  }
+}
+
+function whichCargo() {
+  try { execSync('which cargo', { stdio: 'pipe' }); return true; }
+  catch { return false; }
+}
+
+// Symlink the binary into a PATH-reachable directory (first writable wins)
+function linkToPath(cliBin) {
+  if (!fs.existsSync(cliBin)) return;
+  const linkCandidates = [
+    '/opt/homebrew/bin',
+    path.join(HOME, '.local/bin'),
+    path.join(HOME, 'bin'),
+    '/usr/local/bin',
+  ];
+  for (const dir of linkCandidates) {
+    try {
+      if (!fs.existsSync(dir)) continue;
+      fs.accessSync(dir, fs.constants.W_OK);
+      const linkPath = path.join(dir, 'compass-cli');
+      try { fs.unlinkSync(linkPath); } catch {}
+      fs.symlinkSync(cliBin, linkPath);
+      console.log(`  ${green('✓')} compass-cli linked → ${linkPath}`);
+      return;
+    } catch {}
+  }
+  console.log(`  ${yellow('⚠')} Could not link compass-cli to PATH — add ${cliBin} manually`);
+}
+
+// Helper: recursive copy (skip .git, target, node_modules)
+function copyDir(src, dst) {
+  const skip = ['.git', 'target', 'node_modules', '.DS_Store'];
+  fs.mkdirSync(dst, { recursive: true });
+  for (const entry of fs.readdirSync(src)) {
+    if (skip.includes(entry)) continue;
+    const s = path.join(src, entry);
+    const d = path.join(dst, entry);
+    if (fs.statSync(s).isDirectory()) copyDir(s, d);
+    else fs.copyFileSync(s, d);
+  }
+}

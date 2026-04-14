@@ -1,0 +1,49 @@
+{
+  "plan_version": "0.5",
+  "name": "collab: Sample feature",
+  "workspace_dir": "/Users/acme/projects/sample-feature",
+  "created_at": "2025-11-03T10:15:00Z",
+  "budget_tokens": 18000,
+  "colleagues": [
+    {
+      "id": "C-01",
+      "type": "researcher",
+      "name": "Research sample feature patterns",
+      "complexity": "medium",
+      "budget_tokens": 8000,
+      "output_files": ["research/ACME-sample-feature.md"],
+      "depends_on": [],
+      "briefing": {
+        "context": ["Research/sample-feature-notes.md"],
+        "constraints": ["Must ship before end of quarter."],
+        "stakeholders": ["po@acme-corp.example"],
+        "deadline": "2025-12-20"
+      },
+      "acceptance": {
+        "type": "user-review",
+        "criteria": ["Research file covers top 3 competitors."]
+      },
+      "covers": ["research dossier"]
+    },
+    {
+      "id": "C-02",
+      "type": "writer",
+      "name": "Draft PRD for sample feature",
+      "complexity": "medium",
+      "budget_tokens": 10000,
+      "output_files": ["PRDs/PRD-sample-feature.md"],
+      "depends_on": ["C-01"],
+      "briefing": {
+        "context": ["Research/sample-feature-notes.md"],
+        "constraints": ["Must ship before end of quarter."],
+        "stakeholders": ["po@acme-corp.example"],
+        "deadline": "2025-12-20"
+      },
+      "acceptance": {
+        "type": "user-review",
+        "criteria": ["PRD covers goals, requirements, user flows."]
+      },
+      "covers": ["PRD draft"]
+    }
+  ]
+}

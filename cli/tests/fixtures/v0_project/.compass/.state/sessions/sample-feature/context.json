@@ -1,0 +1,11 @@
+{
+  "title": "Sample feature",
+  "slug": "sample-feature",
+  "created_at": "2025-11-03T10:00:00Z",
+  "goal": "Deliver the sample feature described in the PO brief.",
+  "colleagues_selected": ["researcher", "writer"],
+  "constraints": ["Must ship before end of quarter."],
+  "stakeholders": ["po@acme-corp.example"],
+  "deadline": "2025-12-20",
+  "context_docs": ["Research/sample-feature-notes.md"]
+}

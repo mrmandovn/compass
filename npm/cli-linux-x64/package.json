@@ -1,0 +1,17 @@
+{
+  "name": "@compass-m/cli-linux-x64",
+  "version": "1.0.0",
+  "description": "linux-x64 binary for compass-m",
+  "os": ["linux"],
+  "cpu": ["x64"],
+  "files": [
+    "compass-cli",
+    "README.md"
+  ],
+  "license": "MIT",
+  "homepage": "https://github.com/mrmandovn/compass",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/mrmandovn/compass.git"
+  }
+}

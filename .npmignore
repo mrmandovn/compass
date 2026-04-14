@@ -1,0 +1,46 @@
+# Belt-and-suspenders — package.json "files" whitelist is primary.
+# This file guards against accidental inclusion of large/private artifacts.
+
+# Rust build outputs
+cli/target/
+target/
+
+# Dev artifacts
+.git/
+.github/
+.gitignore
+.file-manifest.json
+.gitnexus/
+.compass/
+
+# Session / scratch
+**/.state/sessions/
+**/sessions/
+
+# OS / editor
+.DS_Store
+*.swp
+*.swo
+*~
+.idea/
+.vscode/
+
+# Test E2E outputs
+tests/integration/*.log
+/tmp/compass-*
+
+# npm / node
+node_modules/
+
+# Backup files
+*.bak
+*.tmp
+projects.json.bak
+
+# Platform packages publish separately — meta tarball excludes them
+npm/cli-*/compass-cli
+npm/cli-*/
+
+# CI artifacts
+.github/
+RELEASE.md

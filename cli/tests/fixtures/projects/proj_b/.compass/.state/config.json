@@ -1,0 +1,12 @@
+{
+  "version": "1.1.1",
+  "project": {"name": "Proj B", "po": "@test"},
+  "lang": "vi",
+  "spec_lang": "vi",
+  "mode": "standalone",
+  "prefix": "PB",
+  "domain": "platform",
+  "output_paths": {"prd":"prd","story":"epics/{EPIC}/user-stories","epic":"epics","ideas":"research","backlog":"research"},
+  "naming": {"prd":"{PREFIX}-{YYYY-MM-DD}-{slug}.md","story":"{PREFIX}-STORY-{NNN}-{slug}.md","epic":"{PREFIX}-EPIC-{NN}-{slug}/epic.md"},
+  "created_at": "2026-04-14T00:00:00Z"
+}

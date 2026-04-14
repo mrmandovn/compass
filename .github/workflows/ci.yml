@@ -1,0 +1,40 @@
+name: CI
+on: [push, pull_request]
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate JSON files
+        run: |
+          for f in core/manifest.json core/colleagues/manifest.json; do
+            echo "Checking $f..."
+            python3 -c "import json; json.load(open('$f'))" || { echo "FAIL: $f is not valid JSON"; exit 1; }
+            echo "OK: $f"
+          done
+
+      - name: Check workflow files exist
+        run: |
+          for cmd in init help setup ideate prd story research prioritize prototype brief plan run check update epic feedback roadmap sprint release undo status; do
+            test -f "core/workflows/${cmd}.md" || { echo "Missing workflow: ${cmd}.md"; exit 1; }
+            echo "OK: core/workflows/${cmd}.md"
+          done
+
+      - name: Check adapters exist
+        run: |
+          for cmd in init help setup ideate prd story research prioritize prototype brief plan run check update epic feedback roadmap sprint release undo status; do
+            test -f "core/commands/compass/${cmd}.md" || { echo "Missing command: ${cmd}.md"; exit 1; }
+            echo "OK: core/commands/compass/${cmd}.md"
+          done
+
+  build-cli:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Build compass-cli
+        run: cd cli && cargo build --release
+      - name: Run basic validation
+        run: cli/target/release/compass-cli version

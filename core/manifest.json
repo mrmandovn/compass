@@ -1,0 +1,172 @@
+{
+  "name": "compass",
+  "version": "1.0.0",
+  "description": "PO/PM productivity toolkit — repo-aware, multi-host, with integrations wizard",
+  "language_default": "en",
+  "commands": [
+    {
+      "name": "init",
+      "description": "Set up Compass for the current project — language, stakeholders, repo-aware mode detection, and integrations wizard (Jira, Figma, Confluence, Vercel)",
+      "workflow": "init.md",
+      "produces": ".state/config.json",
+      "tags": ["setup"]
+    },
+    {
+      "name": "help",
+      "description": "Show all Compass commands",
+      "workflow": "help.md",
+      "tags": ["meta"]
+    },
+    {
+      "name": "setup",
+      "description": "Configure or verify Compass integrations (Jira, Figma, Confluence, Vercel). Run with no args to see status, or /compass:setup <name> to configure one.",
+      "workflow": "setup.md",
+      "tags": ["setup", "integrations"]
+    },
+    {
+      "name": "ideate",
+      "description": "Brainstorm features from a pain point / opportunity / user feedback",
+      "workflow": "ideate.md",
+      "produces": "Ideas/IDEA-<slug>.md or research/IDEA-<PREFIX>-<slug>.md",
+      "tags": ["discovery"]
+    },
+    {
+      "name": "prd",
+      "description": "Write a complete PRD — NO code, follows the team's template. In Silver Tiger mode, auto-discovers dependencies from the capability registry.",
+      "workflow": "prd.md",
+      "produces": "PRDs/PRD-<slug>.md or prd/<PREFIX>-<date>-<slug>.md",
+      "tags": ["spec", "documentation"]
+    },
+    {
+      "name": "story",
+      "description": "Write User Stories + Acceptance Criteria (Given/When/Then). In Silver Tiger mode, stories are linked to epics and inherit their metadata.",
+      "workflow": "story.md",
+      "produces": "Stories/STORY-<slug>.md or epics/<EPIC>/user-stories/<PREFIX>-STORY-<NNN>.md",
+      "tags": ["spec", "documentation"]
+    },
+    {
+      "name": "prioritize",
+      "description": "RICE / MoSCoW / Kano scoring for a backlog",
+      "workflow": "prioritize.md",
+      "produces": "Backlog/BACKLOG-<slug>.md or research/BACKLOG-<PREFIX>-<slug>.md",
+      "tags": ["prioritization"]
+    },
+    {
+      "name": "research",
+      "description": "Structured research — competitive analysis, market research, user feedback, tech evaluation",
+      "workflow": "research.md",
+      "produces": "research/RESEARCH-<slug>.md",
+      "tags": ["research", "discovery"]
+    },
+    {
+      "name": "prototype",
+      "description": "Create a professional UI prototype from a PRD or description. Uses UI/UX Pro Max skill.",
+      "workflow": "prototype.md",
+      "produces": "prototype/<PREFIX>-<slug>/index.html",
+      "tags": ["design", "prototype"]
+    },
+    {
+      "name": "brief",
+      "description": "Gather requirements and identify Colleagues for a complex PO task",
+      "workflow": "brief.md",
+      "category": "collaboration"
+    },
+    {
+      "name": "plan",
+      "description": "Create DAG execution plan from brief session",
+      "workflow": "plan.md",
+      "category": "collaboration"
+    },
+    {
+      "name": "run",
+      "description": "Execute collab plan wave-by-wave with parallel Colleagues",
+      "workflow": "run.md",
+      "category": "collaboration"
+    },
+    {
+      "name": "check",
+      "description": "Validate Colleague outputs and deliver to integrations",
+      "workflow": "check.md",
+      "category": "collaboration"
+    },
+    {
+      "name": "update",
+      "description": "Update Compass to the latest version from GitHub. Checks current version, compares with latest tag, and pulls changes if available.",
+      "workflow": "update.md",
+      "tags": ["meta", "maintenance"]
+    },
+    {
+      "name": "migrate",
+      "description": "Migrate state from v0.x to v1.0 (idempotent, safe to re-run)",
+      "workflow": "migrate.md",
+      "tags": ["setup", "migration"]
+    },
+    {
+      "name": "epic",
+      "description": "Create an epic from a PRD with folder structure and requirements mapping",
+      "workflow": "epic.md",
+      "produces": "epics/EPIC-<slug>/EPIC-<slug>.md",
+      "tags": ["spec", "planning"]
+    },
+    {
+      "name": "feedback",
+      "description": "Quickly collect, structure, and theme user feedback into an actionable report",
+      "workflow": "feedback.md",
+      "produces": "research/FEEDBACK-<slug>.md",
+      "tags": ["research", "discovery"]
+    },
+    {
+      "name": "roadmap",
+      "description": "Create a product roadmap from epics, priorities, and timeline constraints",
+      "workflow": "roadmap.md",
+      "produces": "roadmap/ROADMAP-<slug>.md",
+      "tags": ["planning", "spec"]
+    },
+    {
+      "name": "sprint",
+      "description": "Sprint planning — select stories by priority and capacity",
+      "workflow": "sprint.md",
+      "produces": "sprints/SPRINT-<number>-<slug>.md",
+      "tags": ["planning"]
+    },
+    {
+      "name": "release",
+      "description": "Generate release notes from completed stories and epics",
+      "workflow": "release.md",
+      "produces": "releases/RELEASE-<version>-<slug>.md",
+      "tags": ["documentation", "delivery"]
+    },
+    {
+      "name": "undo",
+      "description": "Restore the previous version of the last modified document. Shows what will be restored, never deletes — renames instead. Confirms with PO before any action.",
+      "workflow": "undo.md",
+      "tags": ["meta", "safety"]
+    },
+    {
+      "name": "status",
+      "description": "Show project dashboard with document counts, progress, and blockers",
+      "workflow": "status.md",
+      "tags": ["meta"]
+    },
+    {
+      "name": "project",
+      "description": "Switch or list Compass projects (registry-backed).",
+      "workflow": "project.md",
+      "args": "[list|use <path>]",
+      "tags": ["infra"]
+    }
+  ],
+  "integrations": [
+    { "name": "jira", "tier": 1, "workflow": "integrations/jira.md", "description": "Search tickets, link epics, push stories" },
+    { "name": "figma", "tier": 1, "workflow": "integrations/figma.md", "description": "Read design context for PRDs" },
+    { "name": "confluence", "tier": 1, "workflow": "integrations/confluence.md", "description": "Publish PRDs to team wiki" },
+    { "name": "vercel", "tier": 2, "workflow": "integrations/vercel.md", "description": "Deploy prototypes to preview URLs" }
+  ],
+  "model_tiers": {
+    "frontier": ["claude-opus-4", "claude-sonnet-4", "gpt-5", "gemini-2.5-pro"],
+    "mid": ["glm-4.6", "qwen-2.5-72b", "deepseek-v3", "gemini-2.5-flash"],
+    "small": ["llama-3.1-8b", "qwen-2.5-7b"]
+  },
+  "host_adapters": ["claude-code"],
+  "colleagues_manifest": "colleagues/manifest.json"
+}

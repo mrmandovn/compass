@@ -1,0 +1,27 @@
+[package]
+name = "compass-cli"
+version = "1.0.0"
+edition = "2021"
+description = "CLI for Compass — PO/PM AI Toolkit"
+license = "MIT"
+repository = "https://github.com/mrmandovn/compass"
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+sha2 = "0.10"
+hex = "0.4"
+regex = "1"
+fs2 = "0.4"
+
+[dev-dependencies]
+tempfile = "3"
+
+[[bin]]
+name = "compass-cli"
+path = "src/main.rs"
+
+[profile.release]
+opt-level = "z"
+lto = true
+strip = true

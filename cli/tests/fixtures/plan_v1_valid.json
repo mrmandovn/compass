@@ -1,0 +1,64 @@
+{
+  "plan_version": "1.0",
+  "session_id": "sample-feature",
+  "colleagues_selected": [
+    "researcher",
+    "writer",
+    "story-breaker"
+  ],
+  "memory_ref": ".compass/.state/project-memory.json",
+  "waves": [
+    {
+      "wave_id": 1,
+      "tasks": [
+        {
+          "task_id": "C-01",
+          "colleague": "researcher",
+          "budget": 10000,
+          "depends_on": [],
+          "briefing_notes": "Survey competitor patterns for the sample feature.",
+          "context_pointers": [
+            "Research/*.md",
+            "core/shared/ux-rules.md"
+          ],
+          "output_pattern": "research/ST-sample-feature.md"
+        },
+        {
+          "task_id": "C-02",
+          "colleague": "market-analyst",
+          "budget": 8000,
+          "depends_on": [],
+          "briefing_notes": "Size the addressable market for the feature.",
+          "context_pointers": [
+            "Research/market-*.md",
+            "PRDs/*.md",
+            "core/shared/ux-rules.md"
+          ],
+          "output_pattern": "research/MARKET-sample-feature.md"
+        }
+      ]
+    },
+    {
+      "wave_id": 2,
+      "tasks": [
+        {
+          "task_id": "C-03",
+          "colleague": "writer",
+          "budget": 15000,
+          "depends_on": [
+            "C-01",
+            "C-02"
+          ],
+          "briefing_notes": "Compose the PRD using the research artifacts from wave 1.",
+          "context_pointers": [
+            "research/ST-sample-feature.md",
+            "research/MARKET-sample-feature.md",
+            "PRDs/*.md",
+            "core/shared/ux-rules.md"
+          ],
+          "output_pattern": "PRDs/PRD-sample-feature.md"
+        }
+      ]
+    }
+  ]
+}

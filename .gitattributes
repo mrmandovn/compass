@@ -1,0 +1,2 @@
+# Hide auto-generated lock file from GitHub Linguist language stats.
+cli/Cargo.lock linguist-generated=true

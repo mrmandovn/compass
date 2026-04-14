@@ -1,0 +1,104 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build:
+    name: build (${{ matrix.platform }})
+    runs-on: ${{ matrix.runs-on }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: aarch64-apple-darwin
+            runs-on: macos-14
+            platform: darwin-arm64
+          - target: x86_64-apple-darwin
+            runs-on: macos-14
+            platform: darwin-x64
+          - target: x86_64-unknown-linux-gnu
+            runs-on: ubuntu-22.04
+            platform: linux-x64
+          - target: aarch64-unknown-linux-gnu
+            runs-on: ubuntu-22.04-arm
+            platform: linux-arm64
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Build release binary
+        working-directory: cli
+        run: cargo build --release --target ${{ matrix.target }}
+
+      - name: Copy binary into platform package
+        run: |
+          cp cli/target/${{ matrix.target }}/release/compass-cli npm/cli-${{ matrix.platform }}/compass-cli
+          chmod +x npm/cli-${{ matrix.platform }}/compass-cli
+
+      - name: Upload platform package artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: cli-${{ matrix.platform }}
+          path: npm/cli-${{ matrix.platform }}/
+          if-no-files-found: error
+          retention-days: 7
+
+  publish:
+    name: publish to npm
+    needs: build
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          registry-url: 'https://registry.npmjs.org/'
+
+      - name: Download all platform artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: npm/
+
+      - name: Restructure artifact dirs
+        # download-artifact@v4 nests each artifact under its own name dir,
+        # so npm/cli-<plat>/ may contain a duplicate cli-<plat>/ inside. Flatten.
+        run: |
+          set -euo pipefail
+          for plat in darwin-arm64 darwin-x64 linux-x64 linux-arm64; do
+            if [ -d "npm/cli-$plat/cli-$plat" ]; then
+              mv npm/cli-$plat/cli-$plat/* npm/cli-$plat/
+              rmdir npm/cli-$plat/cli-$plat
+            fi
+            echo "--- npm/cli-$plat ---"
+            ls -la npm/cli-$plat/
+            chmod +x npm/cli-$plat/compass-cli || true
+          done
+
+      - name: Publish 4 platform packages
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          set -euo pipefail
+          for plat in darwin-arm64 darwin-x64 linux-x64 linux-arm64; do
+            echo "::group::publish cli-$plat"
+            cd npm/cli-$plat
+            npm publish --access public
+            cd ../..
+            echo "::endgroup::"
+          done
+
+      - name: Publish meta package (compass-m) last
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: npm publish --access public

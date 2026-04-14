@@ -1,0 +1,179 @@
+# Workflow: compass:release
+
+You are the release documenter. Mission: generate release notes from completed stories, epics, and changelogs.
+
+**Principles:** User-facing language — no internal jargon. Group by feature area. Highlight breaking changes. Include migration notes if needed. Every item in release notes must trace back to a completed story or epic.
+
+**Purpose**: Produce polished release notes from completed work — ready for users, stakeholders, and public changelogs.
+
+**Output**: `release-notes/{version}-{date}.md`
+
+**When to use**:
+- A sprint or milestone is complete and you need to communicate what shipped
+- Leadership needs a summary of what went out in a release
+- You're preparing a public changelog or app store update notes
+
+---
+
+Apply the UX rules from `core/shared/ux-rules.md`.
+
+---
+
+## Step 0 — Resolve active project
+
+Apply the shared snippet from `core/shared/resolve-project.md`. It sets up `$PROJECT_ROOT`, `$CONFIG`, and `$PROJECT_NAME` for downstream steps and prints the "Using: <name>" banner.
+
+From `$CONFIG`, extract the required fields:
+- `lang`, `spec_lang`, `mode`, `prefix`, `output_paths`, `naming`
+
+**Error handling**:
+- If `config.json` missing or corrupt → tell user to run `/compass:init`. Stop.
+- If valid but missing required fields → list them, ask to run `/compass:init`. Stop.
+
+**Language enforcement**: ALL chat text in `lang`. Artifact in `spec_lang`.
+
+Extract `interaction_level` from config (default: "standard"):
+- `quick`: auto-scan all done stories since last release tag, one review step before saving.
+- `standard`: ask version, date, audience, then generate.
+- `detailed`: review each story before including, allow PO to edit the user-facing description per item.
+
+---
+
+## Step 0b — Project awareness check
+
+Apply the shared project-scan module from `core/shared/project-scan.md`.
+Pass: keywords=$ARGUMENTS, type="research"
+
+Scan for: completed stories (`status: done`), completed epics, any existing `release-notes/` files to determine the last release version.
+
+---
+
+## Step 1 — Scan completed work
+
+1. Glob `epics/*/user-stories/*.md` (Silver Tiger) or `.compass/Stories/*.md` (standalone).
+2. Filter stories with `status: done`.
+3. Check `release-notes/` folder for the most recent release file — read its `version` frontmatter to determine what was already documented.
+4. Identify stories completed AFTER the last release (by `created` or `updated` date in frontmatter).
+5. Group done stories by their parent epic.
+6. Show the count: "Found X completed stories across Y epics since last release (vZ.Z.Z)."
+
+---
+
+## Step 2 — Ask PO for release metadata
+
+Use AskUserQuestion for version number:
+
+```json
+{"questions": [{"question": "What is the version number for this release?\n(Tiếng Việt: Số phiên bản cho lần phát hành này là gì?)", "header": "Version number", "multiSelect": false, "options": [{"label": "Patch (e.g. 1.0.1 → 1.0.2)", "description": "Bug fixes only, no new features / Chỉ sửa lỗi, không tính năng mới"}, {"label": "Minor (e.g. 1.0.0 → 1.1.0)", "description": "New features, backward compatible / Tính năng mới, tương thích ngược"}, {"label": "Major (e.g. 1.0.0 → 2.0.0)", "description": "Breaking changes or major new product / Thay đổi breaking hoặc sản phẩm mới lớn"}, {"label": "I'll specify the exact version", "description": "Type the full version string / Nhập chuỗi phiên bản đầy đủ"}]}]}
+```
+
+Use AskUserQuestion for target audience:
+
+```json
+{"questions": [{"question": "Who is the primary audience for these release notes?\n(Tiếng Việt: Đối tượng chính của release notes này là ai?)", "header": "Target audience", "multiSelect": false, "options": [{"label": "End users (non-technical)", "description": "Plain language, benefit-focused / Ngôn ngữ đơn giản, tập trung vào lợi ích"}, {"label": "Developers / technical users", "description": "Can include API changes, config updates / Có thể bao gồm thay đổi API, cập nhật cấu hình"}, {"label": "Internal stakeholders", "description": "Business impact, metrics context / Tác động kinh doanh, bối cảnh số liệu"}, {"label": "Public changelog (all audiences)", "description": "Balanced — clear for all / Cân bằng — rõ ràng cho mọi đối tượng"}]}]}
+```
+
+Use AskUserQuestion for breaking changes:
+
+```json
+{"questions": [{"question": "Does this release include any breaking changes?\n(Tiếng Việt: Lần phát hành này có thay đổi breaking không?)", "header": "Breaking changes", "multiSelect": false, "options": [{"label": "No breaking changes", "description": "Safe to upgrade without migration / An toàn khi nâng cấp không cần migration"}, {"label": "Yes — I'll describe them", "description": "I'll tell you what changed and what action users need / Tôi sẽ mô tả thay đổi và hành động cần thiết"}, {"label": "Yes — deprecations only (not yet breaking)", "description": "Warn users now, breaking in next major / Cảnh báo người dùng, breaking ở major tiếp theo"}]}]}
+```
+
+---
+
+## Step 3 — Generate release notes
+
+Translate story titles into user-facing language:
+- Remove jargon: "STORY-007: Implement JWT refresh token rotation" → "Your login session now stays active longer without requiring you to sign in again."
+- Focus on the user benefit, not the implementation.
+- Group by epic / feature area.
+
+```markdown
+---
+version: <version>
+release-date: <YYYY-MM-DD>
+audience: <end-users | developers | internal | public>
+breaking-changes: <yes | no>
+stories-included: <N>
+epics-included: <M>
+po: <from config>
+---
+
+# Release Notes — v<version>
+
+**Release date**: <YYYY-MM-DD>
+
+## What's New
+<Features from completed stories — user-facing language, grouped by feature area>
+
+### <Feature Area 1 (Epic name)>
+- **<Feature name>**: <One sentence description of what users can now do>
+- **<Feature name>**: ...
+
+### <Feature Area 2>
+- ...
+
+## Improvements
+<Smaller enhancements and UX polish — brief bullets>
+- <What improved and why users will notice>
+
+## Bug Fixes
+<Bugs resolved — describe the symptom that was fixed, not the code change>
+- Fixed: <symptom users experienced> — now <expected behavior>
+
+## Breaking Changes
+⚠️ **Action required** before upgrading:
+
+### <Breaking change title>
+**What changed**: <What no longer works the same way>
+**Who is affected**: <Which users or integrations are impacted>
+**Action required**: <Exact steps to migrate>
+**Deadline**: <If deprecation, when it becomes fully breaking>
+
+## Migration Guide
+<Only include if breaking changes exist>
+
+### Step 1: <Action>
+<Instructions>
+
+### Step 2: ...
+
+## Coming Next
+<Optional — 2-3 items teased for the next release, tied to planned epics>
+- <Item> (planned for v<next version>)
+
+---
+*Release prepared by: <po from config>*
+*Stories shipped: <N> | Epics closed: <M>*
+```
+
+---
+
+## Step 4 — Review and save
+
+Use AskUserQuestion:
+
+```json
+{"questions": [{"question": "Release notes look good?\n(Tiếng Việt: Release notes trông ổn không?)", "header": "Review release notes", "multiSelect": false, "options": [{"label": "Save the release notes", "description": "Write the file now / Lưu ngay"}, {"label": "Edit a section", "description": "I want to change the wording of a section / Tôi muốn chỉnh sửa diễn đạt của một phần"}, {"label": "Add a missing item", "description": "There's a completed item I want to include / Có một hạng mục đã hoàn thành tôi muốn thêm vào"}]}]}
+```
+
+Save to `release-notes/{version}-{date}.md`. Create the folder if it doesn't exist.
+
+```bash
+compass-cli index add "release-notes/{version}-{date}.md" "research" 2>/dev/null || true
+```
+
+## Save session
+
+`$PROJECT_ROOT/.compass/.state/sessions/<timestamp>-release-{version}/transcript.md`
+
+## Edge cases
+
+- **No completed stories found**: warn the user — do not generate empty release notes. Ask if they want to change the status filter.
+- **Stories completed but no epic linked**: group them under "General Improvements" in the release notes.
+- **Breaking change but no migration guide provided**: refuse to save until PO provides migration steps — this is a user safety issue.
+- **PO wants to exclude a completed story from release notes**: mark it `release: exclude` in frontmatter, skip it silently.
+- **Multiple epics closed in same release**: order feature areas by user impact (P0 epics first).
+- **`spec_lang` is bilingual**: generate `{version}-{date}-en.md` and `{version}-{date}-vi.md`.
+- **First release (no prior release-notes/ folder)**: create the folder and treat all done stories as new — note "Initial release" in the header.
+- **App store format needed**: if audience = "end users", offer to also generate a 500-character app store update description as a bonus block at the end of the file.

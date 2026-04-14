@@ -1,0 +1,22 @@
+# Generated indexes
+.gitnexus/
+
+# Rust build artifacts
+cli/target/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Editor
+*.swp
+*.swo
+*~
+.file-manifest.json
+
+# User-level state (lives in ~/.compass/ alongside source clone)
+/projects.json
+/global-config.json
+
+# Platform binaries — built by CI, not committed
+npm/cli-*/compass-cli

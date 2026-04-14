@@ -1,0 +1,12 @@
+{
+  "version": "1.0",
+  "last_active": "cli/tests/fixtures/projects/proj_a",
+  "projects": [
+    {
+      "path": "cli/tests/fixtures/projects/proj_a",
+      "name": "Proj A",
+      "created_at": "2026-04-01T09:00:00Z",
+      "last_used": "2026-04-10T12:00:00Z"
+    }
+  ]
+}

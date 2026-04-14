@@ -1,0 +1,29 @@
+{
+  "plan_version": "0.5",
+  "name": "collab: Onboarding redesign",
+  "workspace_dir": "/Users/acme/projects/onboarding-redesign",
+  "created_at": "2025-11-10T09:00:00Z",
+  "budget_tokens": 9000,
+  "colleagues": [
+    {
+      "id": "C-01",
+      "type": "writer",
+      "name": "Draft PRD for onboarding redesign",
+      "complexity": "medium",
+      "budget_tokens": 9000,
+      "output_files": ["PRDs/PRD-onboarding-redesign.md"],
+      "depends_on": [],
+      "briefing": {
+        "context": ["Research/onboarding-current-state.md"],
+        "constraints": ["Reuse existing design tokens."],
+        "stakeholders": ["po@acme-corp.example"],
+        "deadline": "2026-01-31"
+      },
+      "acceptance": {
+        "type": "user-review",
+        "criteria": ["PRD clearly contrasts current vs proposed flow."]
+      },
+      "covers": ["PRD draft"]
+    }
+  ]
+}

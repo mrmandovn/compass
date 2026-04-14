@@ -1,0 +1,17 @@
+{
+  "name": "@compass-m/cli-darwin-arm64",
+  "version": "1.0.0",
+  "description": "darwin-arm64 binary for compass-m",
+  "os": ["darwin"],
+  "cpu": ["arm64"],
+  "files": [
+    "compass-cli",
+    "README.md"
+  ],
+  "license": "MIT",
+  "homepage": "https://github.com/mrmandovn/compass",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/mrmandovn/compass.git"
+  }
+}
