@@ -109,7 +109,7 @@ Then show the instructions in a formatted block (same style as the integration s
   ② Settings → Security
   ③ "Personal access tokens" → Generate new token
   ④ Name:        compass-figma
-  ⑤ Expiration:  No expiration (recommended)
+  ⑤ Expiration:  Pick whatever suits you (e.g. 90 days, 1 year, or no expiration)
   ⑥ Scopes:      Enable ALL scopes (full access)
   ⑦ Click "Generate token"
   ⑧ Copy the token NOW — Figma only shows it once!
@@ -126,7 +126,7 @@ Then show the instructions in a formatted block (same style as the integration s
   ② Settings → Security
   ③ "Personal access tokens" → Generate new token
   ④ Tên:          compass-figma
-  ⑤ Hết hạn:      No expiration (khuyến nghị)
+  ⑤ Hết hạn:      Chọn theo ý bạn (ví dụ 90 ngày, 1 năm, hoặc no expiration)
   ⑥ Scopes:       Bật TẤT CẢ scopes (full access)
   ⑦ Click "Generate token"
   ⑧ Copy token NGAY — Figma chỉ hiện 1 lần!
