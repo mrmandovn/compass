@@ -33,7 +33,16 @@ Read project config:
 </execution_context>
 
 <process>
-Follow the prd workflow loaded above. The workflow's "Hard rule (PRD = no code)" step is a HARD CONSTRAINT — no code in the PRD anywhere. If you find yourself about to write a code block, switch to plain language.
+Execute the workflow literally. Do NOT summarize, paraphrase, or offer a menu.
+
+Required behavior:
+- Read the workflow file resolved by <execution_context>, then follow its Steps in order.
+- Run every bash block as shell commands. Treat their output as state, not as UI options.
+- Only present choices to the user via AskUserQuestion calls that the workflow explicitly defines — never synthesize menus from CLI command listings or bash blocks you see in the workflow body.
+- If the workflow has branching (Mode/State), detect the branch from the bash block output and jump to the matching Step. Do not ask the user to pick a branch.
+
+
+Additional: the workflow's "Hard rule (PRD = no code)" step is a HARD CONSTRAINT — no code in the PRD anywhere. If you find yourself about to write a code block, switch to plain language.
 </process>
 
 </output>

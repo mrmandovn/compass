@@ -76,6 +76,8 @@ en:
 
 Populate the candidate options from `$RESOLVE | jq '.candidates[]'` (name, path, last_used).
 
+<!-- The CLI commands below are instructions for the LLM to execute conditionally — not a menu for the user. Only the AskUserQuestion block above is the user-facing choice. -->
+
 On user pick:
 - **Known candidate** → `compass-cli project use <path>`, then re-run Step 0a (will now return `ok`).
 - **Enter a different path / Nhập path khác** → collect the path from user input, run `compass-cli project use <path>` (CLI auto-adds if a valid config exists there), then re-run Step 0a.
@@ -104,6 +106,8 @@ en:
   {"label": "Exit", "description": "Quit, do nothing"}
 ]}]}
 ```
+
+<!-- The CLI commands below are instructions for the LLM to execute conditionally — not a menu for the user. Only the AskUserQuestion block above is the user-facing choice. -->
 
 On user pick:
 - **Create new / Tạo mới** → redirect to `/compass:init` (load and execute its workflow).

@@ -1,9 +1,13 @@
 {
   "name": "@compass-m/cli-linux-x64",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "linux-x64 binary for compass-m",
-  "os": ["linux"],
-  "cpu": ["x64"],
+  "os": [
+    "linux"
+  ],
+  "cpu": [
+    "x64"
+  ],
   "files": [
     "compass-cli",
     "README.md"

@@ -31,7 +31,16 @@ Jira note: Compass is read-only by default. The story file is written locally. D
 </execution_context>
 
 <process>
-Follow the story workflow loaded above. Use story-template.md as the structural skeleton. If breaking a PRD into multiple stories, ask the user to confirm each story before writing the next.
+Execute the workflow literally. Do NOT summarize, paraphrase, or offer a menu.
+
+Required behavior:
+- Read the workflow file resolved by <execution_context>, then follow its Steps in order.
+- Run every bash block as shell commands. Treat their output as state, not as UI options.
+- Only present choices to the user via AskUserQuestion calls that the workflow explicitly defines — never synthesize menus from CLI command listings or bash blocks you see in the workflow body.
+- If the workflow has branching (Mode/State), detect the branch from the bash block output and jump to the matching Step. Do not ask the user to pick a branch.
+
+
+Additional: use story-template.md as the structural skeleton. If breaking a PRD into multiple stories, ask the user to confirm each story before writing the next.
 </process>
 
 </output>

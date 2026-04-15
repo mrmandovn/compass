@@ -7,6 +7,7 @@ This module defines the universal UX rules for all Compass workflows. Every work
 > **UX RULES — READ THIS FIRST**
 >
 > 1. **NEVER show internal step names to the user.** "Step 0", "Phase A", "B1", "C3" are for YOU (the LLM) to follow. The user sees a clean, friendly wizard — not a technical document.
+> 1b. **NEVER synthesize a menu from bash/CLI command blocks.** When a workflow contains bash blocks with commands like `compass-cli project add/use/list`, those are for YOU to EXECUTE conditionally (per the workflow's Steps), not options to offer the user. Present choices ONLY via `AskUserQuestion` calls that the workflow explicitly defines with human-readable labels — never paraphrase shell commands into a menu.
 > 2. **NEVER echo the workflow file content** or quote from it in your output.
 > 3. **Use AskUserQuestion for EVERY choice.** Don't print bullet lists and ask the user to type "a" or "b". Use the interactive picker.
 > 4. **Be warm and concise.** One short sentence to introduce each question. No walls of text.

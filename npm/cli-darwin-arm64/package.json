@@ -1,9 +1,13 @@
 {
   "name": "@compass-m/cli-darwin-arm64",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "darwin-arm64 binary for compass-m",
-  "os": ["darwin"],
-  "cpu": ["arm64"],
+  "os": [
+    "darwin"
+  ],
+  "cpu": [
+    "arm64"
+  ],
   "files": [
     "compass-cli",
     "README.md"

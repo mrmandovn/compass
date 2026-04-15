@@ -1,56 +1,58 @@
-# Workflow: compass:init (v1.1.1 smart-detect)
+# Workflow: compass:init
 
-You are the onboarding orchestrator. Mission: set up the right thing for the right context. One entry point, 3 modes:
+You are the onboarding orchestrator. Mission: set up the right thing for the right context. One entry point, two states:
 
-- **Mode A** (first-time global): `~/.compass/global-config.json` does NOT exist → run the global preferences wizard, then proceed to Mode B.
-- **Mode B** (project-create): cwd has no `.compass/.state/config.json` → ask to create a new Compass project at cwd, set up Silver Tiger folder structure, register in `~/.compass/projects.json`, set as `last_active`.
-- **Mode C** (config-update): cwd already has `.compass/.state/config.json` → ask which field(s) to update, edit in place.
+- **`STATE=fresh`** — cwd has no `.compass/.state/config.json`. Run the setup wizard: if global preferences are missing, capture those first; then create a new Compass project at cwd, set up the folder structure, register in `~/.compass/projects.json`, and mark `last_active`.
+- **`STATE=existing`** — cwd already has `.compass/.state/config.json`. Ask which field(s) to update, edit in place.
 
 All user-facing text uses `lang` from `~/.compass/global-config.json` if set, else `en`. Apply the UX rules from `core/shared/ux-rules.md` throughout. `compass:init` is the ONE workflow that does NOT include `core/shared/resolve-project.md` at Step 0 — it IS the setup that produces the registry/global-config files the resolver depends on.
 
 > **Additional rules for init**:
-> - Before language is chosen (Mode A) OR loaded from global config, default to English. Do not mix languages mid-flow.
-> - Show progress implicitly via cumulative checkmarks (e.g. `✓ Global ✓ Project → Structure...`) — never expose internal step or mode names to the user.
-> - Every invocation starts fresh. If the user dismissed or aborted a previous run of this workflow (in the same conversation), DISCARD all prior answers. Re-detect mode every time.
-> - When the workflow falls through from Mode A → Mode B in the same run, the global wizard's answers serve as defaults for project setup — do not re-ask the same field unless the PO opts to override.
+> - Before language is chosen (first-time fresh setup) OR loaded from global config, default to English. Do not mix languages mid-flow.
+> - Show progress implicitly via cumulative checkmarks (e.g. `✓ Global ✓ Project → Structure...`) — never expose internal step or state names to the user.
+> - Every invocation starts fresh. If the user dismissed or aborted a previous run of this workflow (in the same conversation), DISCARD all prior answers. Re-detect state every time.
+> - When the fresh flow runs the global wizard first, those answers serve as defaults for the project wizard that follows — do not re-ask the same field unless the PO opts to override.
 
 ---
 
-## Step 0 — Detect mode (silent)
+## Step 0 — Detect state (silent, before any output)
 
-Run BEFORE any output:
+Run this bash block BEFORE printing anything. The two `echo` lines are the authoritative marker — read them after execution to decide the branch.
 
 ```bash
-# Does global config exist?
-if [ ! -f "$HOME/.compass/global-config.json" ]; then
-  MODE="A"
-elif [ -f ".compass/.state/config.json" ]; then
-  MODE="C"
+if [ -f ".compass/.state/config.json" ]; then
+  echo "STATE=existing"
 else
-  MODE="B"
+  echo "STATE=fresh"
 fi
 ```
 
-Then print exactly one banner before proceeding (raw English here — `lang` is not yet known in Mode A; in B/C the global default `lang` is loaded and the banner is rendered in that language — see translations below):
+Then print exactly one banner before proceeding. For `STATE=existing`, load `lang` first via `compass-cli project global-config get --key lang` (default `en` if missing), then print the matching banner. For `STATE=fresh` with no global config yet, default to English; if global config exists, load `lang` from it.
 
-| Mode | en banner | vi banner |
+| State | en banner | vi banner |
 |------|-----------|-----------|
-| A    | `👋 First-time setup — configuring global Compass preferences...` | (always en — language not chosen yet) |
-| B    | `📦 Creating Compass project at $(pwd)...` | `📦 Đang tạo project Compass tại $(pwd)...` |
-| C    | `🔧 Updating Compass config for $(basename $(pwd))...` | `🔧 Đang cập nhật cấu hình Compass cho $(basename $(pwd))...` |
+| fresh (no global config yet) | `👋 First-time setup — configuring global Compass preferences...` | (always en — language not chosen yet) |
+| fresh (global config exists) | `📦 Creating Compass project at $(pwd)...` | `📦 Đang tạo project Compass tại $(pwd)...` |
+| existing | `🔧 Updating Compass config for $(basename $(pwd))...` | `🔧 Đang cập nhật cấu hình Compass cho $(basename $(pwd))...` |
 
-For Mode B / Mode C: load `lang` first via `compass-cli project global-config get --key lang` (default `en` if missing), then print the matching banner.
+Branch on the echoed value:
+- `STATE=fresh` → execute Step 1 (fresh setup — runs global wizard first if missing, then project create).
+- `STATE=existing` → execute Step 2 (update existing project config).
 
-After the banner, branch on `$MODE`:
-- `A` → Step 1, then fall through to Step 2.
-- `B` → Step 2.
-- `C` → Step 3.
+Do NOT ask the user which branch to take. Do NOT present `STATE` values as options.
 
 ---
 
-## Step 1 (Mode A only) — Global wizard
+## Step 1 — Fresh setup
 
-The aim: capture the PO's defaults once so subsequent project creates pre-fill cleanly. All Mode A text is in English (the language hasn't been chosen yet).
+Runs when `STATE=fresh`. Two sub-flows in order:
+
+- **1A. Global wizard** — runs only if `~/.compass/global-config.json` is missing. Captures the PO's defaults once so subsequent project creates pre-fill cleanly. All Step 1A text is in English (the language hasn't been chosen yet).
+- **1B. Project create** — always runs in `STATE=fresh`, after 1A if it ran.
+
+### Step 1A — Global wizard
+
+The aim: capture the PO's defaults once so subsequent project creates pre-fill cleanly. All Step 1A text is in English (the language hasn't been chosen yet).
 
 ### 1a. Batch the four global questions
 
@@ -122,18 +124,18 @@ vi:
    Domain mặc định:  <domain hoặc "(hỏi mỗi project)">
 ```
 
-### 1d. Fall through to Mode B
+### 1A.d. Fall through to Step 1B
 
 cwd has no project yet — the natural next step is to create one. Print:
 
 - en: `→ Now let's set up a project at $(pwd)...`
 - vi: `→ Tiếp theo, tạo project tại $(pwd)...`
 
-Continue to Step 2.
+Continue to Step 1B.
 
 ---
 
-## Step 2 (Mode B) — Create project at cwd
+## Step 1B — Create project at cwd
 
 ### 2a. Load global defaults
 
@@ -417,7 +419,7 @@ Continue to the Final hand-off block.
 
 ---
 
-## Step 3 (Mode C) — Update config in place
+## Step 2 — Update config in place (STATE=existing)
 
 ### 3a. Load current config
 
@@ -427,7 +429,7 @@ CONFIG=$(cat "$CONFIG_PATH")
 LANG=$(echo "$CONFIG" | jq -r '.lang // "en"')
 ```
 
-All Mode C user-facing chat uses this `$LANG`.
+All Step 2 user-facing chat uses this `$LANG`.
 
 ### 3b. Pick fields to update
 
@@ -465,7 +467,7 @@ For every selected field, send ONE AskUserQuestion with smart defaults — curre
 
 - `lang` / `spec_lang` → 2 options: `Tiếng Việt` / `English`.
 - `prefix` → 2 options: current prefix, plus a Type-your-own affordance (the user almost certainly wants free text here).
-- `domain` → the 6-domain enum (same list as Mode B).
+- `domain` → the 6-domain enum (same list as Step 1B).
 - `po` → 2 options: current value, plus `@<git config user.name or $USER>`.
 
 Across multiple selected fields, batch in a SINGLE AskUserQuestion call (max 4 fields per call — if the PO somehow picked >4, split into two calls).
@@ -505,7 +507,7 @@ vi:
 
 ## Final — Hand off
 
-After Mode B success or Mode C summary (Mode A always falls through to B and exits via B's hand-off), print:
+After Step 1B success or Step 2 summary (Step 1A always falls through to 1B and exits via 1B's hand-off), print:
 
 en:
 ```
