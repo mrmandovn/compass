@@ -43,10 +43,12 @@ If any required field is missing in `$CONFIG`, list them and tell the user to ru
 Read `interaction_level` from `$CONFIG` (default: `"standard"` if missing):
 
 - `quick`: silent detection wherever possible; skip every question whose answer can be inferred from `$ARGUMENTS`, project-memory, or domain defaults. Only ask when truly ambiguous. Use AUTOFILL summary instead of per-field questions.
-- `standard` (default): ask only fields that have no AUTOFILL value. For fields with AUTOFILL, place it as `options[0]` with label `Auto-detected: <value>` and `description: Accept detected — click to confirm`.
-- `detailed`: ask every field even if AUTOFILL present. AUTOFILL is still placed as `options[0]` for convenience, but the PO is invited to review each choice.
+- `standard` (default): ask only fields that have no confident AUTOFILL value. For fields where AUTOFILL came from detection or saved memory, place the detected value as `options[0]` using its natural name as the label (e.g. `Leadership`, not `Auto-detected: Leadership`). The `description` field is where you note the source (`Detected from your request — click to confirm` or `From last brief in this project`).
+- `detailed`: ask every field even if AUTOFILL present. AUTOFILL value is placed as `options[0]` with the natural name, and description names the source (`Detected`, `Project default`, or `Recommended`).
 
 This setting governs both Step 1 and Step 2 question density below.
+
+**Labeling rule across all modes:** NEVER prefix the user-facing `label` with `Auto-detected:` or similar meta-text. The label is the value as the PO would say it. Sources and confirmation prompts belong in the `description` field only.
 
 ---
 
@@ -166,6 +168,8 @@ If PO picks "Show examples first / Xem ví dụ trước", print 3 example brief
 
 If PO types their own → set `AUTOFILL.task = <user input>`.
 
+**Continue to Step 2 immediately** — do NOT stop after this AskUserQuestion returns. The task description is one input among several the workflow needs.
+
 ---
 
 ## Step 2 — AUTOFILL summary + fill the unknowns
@@ -215,19 +219,21 @@ Example when only `depth` was fallback-defaulted:
 en:
 ```json
 {"questions": [{"question": "What level of polish for the deliverables?", "header": "Depth", "multiSelect": false, "options": [
-  {"label": "Auto-detected: Balanced", "description": "Accept detected — click to confirm"},
+  {"label": "Balanced", "description": "Recommended default — solid spec, a few gaps accepted"},
   {"label": "Fast draft", "description": "Same-day, rough outline, fill gaps later"},
   {"label": "Production-ready", "description": "Reviewed end-to-end, ready for exec approval"}
 ]}]}
 ```
 
-vi: same shape, translated labels.
+vi: same shape, translated.
 
 **Case `interaction_level = detailed`:**
 
-Ask ALL four fields even if each has a confident AUTOFILL. AUTOFILL stays as `options[0]` "Auto-detected: ..." for each. Batch in ONE call with 4 questions.
+Ask ALL four fields even if each has a confident AUTOFILL. The detected value stays as `options[0]` using its natural name (not `Auto-detected: ...`); the `description` field names the source. Batch in ONE call with 4 questions.
 
 After any asked question, overwrite the corresponding `AUTOFILL.<field>` with the PO's final choice.
+
+**IMPORTANT — do NOT stop after this batched call returns.** The AskUserQuestion in Step 2b is not the end of the workflow. As soon as the PO's answers come back, **immediately continue** to Step 2c (persist memory) and Step 3 (derive Colleagues + confirm). Do not wait for the user to type another prompt; do not treat the returned answers as a terminal state.
 
 ### 2c. Persist depth + audience to project-memory
 
@@ -299,6 +305,10 @@ vi:
   {"label": "Tôi tự điều chỉnh team", "description": "Hiển thị full colleague picker để override thủ công"}
 ]}]}
 ```
+
+**On "Yes / Có":** immediately proceed to Step 4 (create session) and Step 5 (summary + hand-off). Do NOT stop — the PO has confirmed and expects the session to be created in the same turn.
+
+**On "Adjust manually":** run Step 3c below, then proceed to Step 4 + Step 5 with the PO's selected colleague set.
 
 ### 3c. Adjust-manually fallback (only if chosen)
 
