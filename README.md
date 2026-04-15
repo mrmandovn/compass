@@ -130,7 +130,14 @@ Each Colleague runs in a fresh context with a strict `context_pointers` file lis
 
 ## Compatibility
 
-Commands live in `~/.claude/commands/compass/`, which both Claude Code and OpenCode read. Install also symlinks `compass-cli` into a PATH directory (prefers `~/.local/bin`, falls back to `/usr/local/bin` or `/opt/homebrew/bin`).
+Compass ships native support for two AI hosts. Both use the same `/compass:<name>` invocation syntax — source-of-truth commands live at `~/.compass/core/commands/compass/`, symlinked into each host's commands directory.
+
+| Host | Commands path (symlink target) | Reload after install |
+|---|---|---|
+| Claude Code | `~/.claude/commands/compass/` | New session usually picks up |
+| OpenCode | `~/.config/opencode/commands/compass/` (only if OpenCode detected at install) | **Full app quit (Cmd+Q) + reopen** — new sessions alone won't reload |
+
+Install also symlinks `compass-cli` into a PATH directory (prefers `~/.local/bin`, falls back to `/usr/local/bin` or `/opt/homebrew/bin`).
 
 For other AI hosts, paste a workflow directly:
 

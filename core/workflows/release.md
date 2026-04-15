@@ -177,3 +177,14 @@ compass-cli index add "release-notes/{version}-{date}.md" "research" 2>/dev/null
 - **`spec_lang` is bilingual**: generate `{version}-{date}-en.md` and `{version}-{date}-vi.md`.
 - **First release (no prior release-notes/ folder)**: create the folder and treat all done stories as new — note "Initial release" in the header.
 - **App store format needed**: if audience = "end users", offer to also generate a 500-character app store update description as a bonus block at the end of the file.
+
+---
+
+## Final — Hand-off
+
+Print one of these closing messages (pick based on `$LANG`):
+
+- en: `✓ Release notes ready. Review above, then publish via your release channel.`
+- vi: `✓ Release notes sẵn sàng. Review ở trên, rồi publish qua release channel của bạn.`
+
+Then stop. Do NOT auto-invoke the next workflow.

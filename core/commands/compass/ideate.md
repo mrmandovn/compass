@@ -9,33 +9,16 @@ allowed-tools:
   - AskUserQuestion
 ---
 
-<output>
-<objective>
-Structured brainstorming — turn one pain point / opportunity into a set of diverse ideas with pros and cons, avoiding "drifting brainstorm". Output is written to `.compass/Ideas/IDEA-<slug>-<date>.md` in the current project.
-</objective>
+## Workflow
 
-<execution_context>
-Resolve Compass workflow path:
-1. `./.compass/.lib/workflows/ideate.md`
-2. `~/.compass/core/workflows/ideate.md`
-Read the first path that exists.
+Read and execute the workflow at `~/.compass/core/workflows/ideate.md`.
 
-Then read the project config:
-- `./.compass/.state/config.json` — for language, team, stakeholders.
-- If config doesn't exist, instruct user to run `/compass:init` first and stop.
-</execution_context>
+## Instructions
 
-<process>
-Execute the workflow literally. Do NOT summarize, paraphrase, or offer a menu.
+- Follow the workflow Steps in order. If a Step says "Apply the shared snippet from `core/shared/<x>.md`", read that file and execute its logic inline — do not skip or paraphrase.
+- Bash blocks in the workflow are commands for you to run; AskUserQuestion blocks are user choices. Never synthesize menus from bash/CLI command listings.
+- Do not skip interactive wizard questions — always call AskUserQuestion where the workflow specifies, even if defaults look reasonable.
 
-Required behavior:
-- Read the workflow file resolved by <execution_context>, then follow its Steps in order.
-- Run every bash block as shell commands. Treat their output as state, not as UI options.
-- Only present choices to the user via AskUserQuestion calls that the workflow explicitly defines — never synthesize menus from CLI command listings or bash blocks you see in the workflow body.
-- If the workflow has branching (Mode/State), detect the branch from the bash block output and jump to the matching Step. Do not ask the user to pick a branch.
+## Notes
 
-
-Additional: honor the language from config. After generating, save the file and print the top-3 summary as instructed.
-</process>
-
-</output>
+Honor the language from config. After generating, save the file and print the top-3 summary as instructed.

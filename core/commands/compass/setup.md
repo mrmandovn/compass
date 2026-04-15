@@ -11,31 +11,16 @@ allowed-tools:
   - AskUserQuestion
 ---
 
-<output>
-<objective>
-Show integration status, or configure/verify a specific integration (Jira, Figma, Confluence, Vercel). Manages `~/.config/compass/integrations.json` (user-level status) and optionally edits host MCP config for new integrations.
-</objective>
+## Workflow
 
-<execution_context>
-Resolve Compass workflow path:
-1. `./.compass/.lib/workflows/setup.md`
-2. `~/.compass/core/workflows/setup.md`
-Read the first path that exists.
+Read and execute the workflow at `~/.compass/core/workflows/setup.md`.
 
-Read project config (`./.compass/.state/config.json`) for `lang` if available. Default to English.
-</execution_context>
+## Instructions
 
-<process>
-Execute the workflow literally. Do NOT summarize, paraphrase, or offer a menu.
+- Follow the workflow Steps in order. If a Step says "Apply the shared snippet from `core/shared/<x>.md`", read that file and execute its logic inline — do not skip or paraphrase.
+- Bash blocks in the workflow are commands for you to run; AskUserQuestion blocks are user choices. Never synthesize menus from bash/CLI command listings.
+- Do not skip interactive wizard questions — always call AskUserQuestion where the workflow specifies, even if defaults look reasonable.
 
-Required behavior:
-- Read the workflow file resolved by <execution_context>, then follow its Steps in order.
-- Run every bash block as shell commands. Treat their output as state, not as UI options.
-- Only present choices to the user via AskUserQuestion calls that the workflow explicitly defines — never synthesize menus from CLI command listings or bash blocks you see in the workflow body.
-- If the workflow has branching (Mode/State), detect the branch from the bash block output and jump to the matching Step. Do not ask the user to pick a branch.
+## Notes
 
-
-Additional: pass any arguments (e.g. "jira", "verify", "verify-jira", "reset jira") to the workflow for routing.
-</process>
-
-</output>
+Pass any arguments (e.g. "jira", "verify", "verify-jira", "reset jira") to the workflow for routing.

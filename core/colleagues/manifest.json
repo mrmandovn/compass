@@ -1,11 +1,14 @@
 {
-  "version": "1.0.1",
+  "version": "1.0.2",
   "colleagues": {
     "researcher": {
       "name": "Research Aggregator",
       "role": "researcher",
       "description": "Gather user feedback, competitive intel, and market data to inform product decisions.",
-      "budget_range": [8000, 20000],
+      "budget_range": [
+        8000,
+        20000
+      ],
       "output_pattern": "research/{PREFIX}-{slug}.md",
       "requires_integration": [],
       "can_depend_on": [],
@@ -15,7 +18,10 @@
       "name": "Market Analyst",
       "role": "researcher",
       "description": "Analyze market trends, competitor landscape, and market sizing to support strategic positioning.",
-      "budget_range": [10000, 25000],
+      "budget_range": [
+        10000,
+        25000
+      ],
       "output_pattern": "research/MARKET-{PREFIX}-{slug}.md",
       "requires_integration": [],
       "can_depend_on": [],
@@ -25,60 +31,98 @@
       "name": "Product Writer",
       "role": "writer",
       "description": "Write a full PRD from a briefing and research inputs, following the standard template.",
-      "budget_range": [10000, 25000],
+      "budget_range": [
+        10000,
+        25000
+      ],
       "output_pattern": "prd/{naming.prd}",
       "requires_integration": [],
-      "can_depend_on": ["researcher", "market-analyst"],
+      "can_depend_on": [
+        "researcher",
+        "market-analyst"
+      ],
       "workflow": "writer.md"
     },
     "story-breaker": {
       "name": "Story Breaker",
       "role": "planner",
       "description": "Break a PRD into estimable user stories with Acceptance Criteria in Given/When/Then format.",
-      "budget_range": [8000, 20000],
+      "budget_range": [
+        8000,
+        20000
+      ],
       "output_pattern": "epics/{EPIC}/user-stories/{naming.story}",
       "requires_integration": [],
-      "can_depend_on": ["writer"],
+      "can_depend_on": [
+        "writer"
+      ],
       "workflow": "story-breaker.md"
     },
     "prioritizer": {
       "name": "Backlog Prioritizer",
       "role": "planner",
       "description": "Score and rank backlog items using RICE, MoSCoW, and Kano frameworks.",
-      "budget_range": [8000, 15000],
+      "budget_range": [
+        8000,
+        15000
+      ],
       "output_pattern": "research/BACKLOG-{naming.backlog}",
       "requires_integration": [],
-      "can_depend_on": ["story-breaker", "writer"],
+      "can_depend_on": [
+        "story-breaker",
+        "writer"
+      ],
       "workflow": "prioritizer.md"
     },
     "reviewer": {
       "name": "Consistency Reviewer",
       "role": "reviewer",
       "description": "Review cross-document references, naming consistency, TBDs, and end-to-end traceability.",
-      "budget_range": [5000, 12000],
+      "budget_range": [
+        5000,
+        12000
+      ],
       "output_pattern": null,
       "requires_integration": [],
-      "can_depend_on": ["writer", "story-breaker", "prioritizer"],
+      "can_depend_on": [
+        "writer",
+        "story-breaker",
+        "prioritizer"
+      ],
       "workflow": "reviewer.md"
     },
     "ux-reviewer": {
       "name": "UX Reviewer",
       "role": "reviewer",
       "description": "Evaluate user flows, UX consistency, and accessibility against the product spec.",
-      "budget_range": [8000, 15000],
+      "budget_range": [
+        8000,
+        15000
+      ],
       "output_pattern": null,
-      "requires_integration": ["figma"],
-      "can_depend_on": ["writer"],
+      "requires_integration": [
+        "figma"
+      ],
+      "can_depend_on": [
+        "writer"
+      ],
       "workflow": "ux-reviewer.md"
     },
     "stakeholder-comm": {
       "name": "Stakeholder Communicator",
       "role": "writer",
       "description": "Produce stakeholder updates, executive summaries, and release notes from finalized product artifacts.",
-      "budget_range": [5000, 12000],
+      "budget_range": [
+        5000,
+        12000
+      ],
       "output_pattern": "release-notes/{PREFIX}-{slug}.md",
       "requires_integration": [],
-      "can_depend_on": ["writer", "story-breaker", "prioritizer"],
+      "can_depend_on": [
+        "writer",
+        "story-breaker",
+        "prioritizer"
+      ],
       "workflow": "stakeholder-comm.md"
     }
   }

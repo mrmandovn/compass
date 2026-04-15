@@ -611,3 +611,14 @@ This keeps the index fresh for the next workflow — instant, no full rebuild ne
 - **Web search returns no results**: note limitation, proceed with internal sources only
 - **Parallel agent conflict**: if agents return contradictory data, surface both versions and flag for PO review
 - **Confirm mode — 3 passes exhausted**: auto-synthesize, note in report that max review passes were reached
+
+---
+
+## Final — Hand-off
+
+Print one of these closing messages (pick based on `$LANG`):
+
+- en: `✓ Research saved. Next: `/compass:prd` to write a PRD with this research, or `/compass:ideate` to brainstorm features.`
+- vi: `✓ Research đã lưu. Tiếp: `/compass:prd` để viết PRD với research này, hoặc `/compass:ideate` để brainstorm features.`
+
+Then stop. Do NOT auto-invoke the next workflow.

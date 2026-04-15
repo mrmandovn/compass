@@ -40,3 +40,14 @@ After restoring, display (in `lang`):
 - **Multiple backups** → show list of all `.v1.md`, `.v2.md`, `.v3.md` files found; let PO choose which version to restore
 - **Multiple candidates** → if more than one recently-modified file, show top 3 and ask which to undo
 - **Git available** → optionally offer to `git checkout HEAD~1 -- <path>` as an alternative restore method
+
+---
+
+## Final — Hand-off
+
+Print one of these closing messages (pick based on `$LANG`):
+
+- en: `✓ Restore done. Re-run the original command to regenerate if needed, or leave as-is.`
+- vi: `✓ Restore xong. Re-run lệnh gốc để regenerate nếu cần, hoặc để y như vậy.`
+
+Then stop. Do NOT auto-invoke the next workflow.

@@ -162,3 +162,14 @@ compass-cli index add "<output-file-path>" "research" 2>/dev/null || true
 - **Jira connected but returns 0 results with current filter**: warn the user, offer alternative filter options via AskUserQuestion.
 - **Feedback contains PII** (names, emails): redact before saving — replace with `[User A]`, `[User B]` etc.
 - **>50 signals**: auto-cap displayed quotes at 2 per theme, note total count in the category header.
+
+---
+
+## Final — Hand-off
+
+Print one of these closing messages (pick based on `$LANG`):
+
+- en: `✓ Feedback themed. Next: `/compass:prioritize` to score top themes, or `/compass:research` to dig deeper into one.`
+- vi: `✓ Đã theme feedback. Tiếp: `/compass:prioritize` để score top themes, hoặc `/compass:research` để dig sâu vào 1 theme.`
+
+Then stop. Do NOT auto-invoke the next workflow.

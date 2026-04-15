@@ -150,3 +150,14 @@ compass-cli index add "<output-file-path>" "research" 2>/dev/null || true
 - **More than 10 epics**: split into two gantt charts (H1 and H2) to avoid unreadable output.
 - **`spec_lang` is bilingual**: generate both `ROADMAP-...-en.md` and `ROADMAP-...-vi.md`.
 - **No PRD linked to an epic**: note that epic as "scope TBD" in the quarterly table — do not invent scope.
+
+---
+
+## Final — Hand-off
+
+Print one of these closing messages (pick based on `$LANG`):
+
+- en: `✓ Roadmap drafted. Next: `/compass:sprint` to plan the next sprint, or `/compass:prioritize` to re-score backlog.`
+- vi: `✓ Roadmap đã draft. Tiếp: `/compass:sprint` để plan sprint tiếp theo, hoặc `/compass:prioritize` để re-score backlog.`
+
+Then stop. Do NOT auto-invoke the next workflow.

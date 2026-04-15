@@ -630,3 +630,14 @@ Consider syncing with these POs before sprint planning.
 - **Silver Tiger: templates_path missing**: fall back to bundled template at `~/.compass/core/templates/prd-template.md` and warn.
 - **Output directory doesn't exist**: create it with `mkdir -p`.
 - **Filename collision**: use AskUserQuestion as shown in Step 7.
+
+---
+
+## Final — Hand-off
+
+Print one of these closing messages (pick based on `$LANG`):
+
+- en: `✓ PRD saved. Next: `/compass:story` to break into user stories, or `/compass:check` to validate cross-refs.`
+- vi: `✓ PRD đã lưu. Tiếp: `/compass:story` để break thành user stories, hoặc `/compass:check` để validate cross-refs.`
+
+Then stop. Do NOT auto-invoke the next workflow.

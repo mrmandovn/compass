@@ -185,3 +185,14 @@ compass-cli index add "<output-file-path>" "research" 2>/dev/null || true
 - **Sprint number conflict** (file already exists for SPRINT-N): increment to SPRINT-N+1, warn the user.
 - **PO force-adds stories beyond capacity**: include them but add a prominent `⚠️ OVERCOMMIT: +X pts over capacity` warning in the file header.
 - **Dependencies are circular**: flag immediately, do not include either story until the cycle is resolved.
+
+---
+
+## Final — Hand-off
+
+Print one of these closing messages (pick based on `$LANG`):
+
+- en: `✓ Sprint plan saved. Next: `/compass:run` to start execution, or `/compass:status` to track progress.`
+- vi: `✓ Sprint plan đã lưu. Tiếp: `/compass:run` để bắt đầu execute, hoặc `/compass:status` để track progress.`
+
+Then stop. Do NOT auto-invoke the next workflow.

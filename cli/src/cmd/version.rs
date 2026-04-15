@@ -81,8 +81,8 @@ mod tests {
         // a partial bump (e.g. VERSION updated but Cargo.toml not)
         // even if all sources agree on the wrong value.
         assert_eq!(
-            version_txt, "1.0.1",
-            "expected VERSION to be 1.0.1; got {}",
+            version_txt, "1.0.2",
+            "expected VERSION to be 1.0.2; got {}",
             version_txt
         );
     }

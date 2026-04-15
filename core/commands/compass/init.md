@@ -9,29 +9,16 @@ allowed-tools:
   - AskUserQuestion
 ---
 
-<output>
-<objective>
-PO onboarding wizard for the current project. Detects state automatically and runs the appropriate flow: fresh setup (first-time global preferences + project create + Silver Tiger structure + integrations wizard) or in-place update of existing project config. Creates `.compass/.state/config.json` and updates `~/.config/compass/integrations.json`.
-</objective>
+## Workflow
 
-<execution_context>
-Resolve Compass workflow path:
-1. `./.compass/.lib/workflows/init.md`
-2. `~/.compass/core/workflows/init.md`
-Read the first path that exists.
-</execution_context>
+Read and execute the workflow at `~/.compass/core/workflows/init.md`.
 
-<process>
-Execute the workflow literally. Do NOT summarize, paraphrase, or offer a menu.
+## Instructions
 
-Required behavior:
-- Read the workflow file resolved by <execution_context>, then follow its Steps in order.
-- Run every bash block as shell commands. Treat their output as state, not as UI options.
-- Only present choices to the user via AskUserQuestion calls that the workflow explicitly defines — never synthesize menus from CLI command listings or bash blocks you see in the workflow body.
-- If the workflow has branching (Mode/State), detect the branch from the bash block output and jump to the matching Step. Do not ask the user to pick a branch.
+- Follow the workflow Steps in order. If a Step says "Apply the shared snippet from `core/shared/<x>.md`", read that file and execute its logic inline — do not skip or paraphrase.
+- Bash blocks in the workflow are commands for you to run; AskUserQuestion blocks are user choices. Never synthesize menus from bash/CLI command listings.
+- Do not skip interactive wizard questions — always call AskUserQuestion where the workflow specifies, even if defaults look reasonable.
 
+## Notes
 
-Additional: all questions, progress updates, folder structures, integration status, and summaries MUST be displayed directly to the user in the main conversation. If you delegate work to subagents, always return their results to the main conversation for display.
-</process>
-
-</output>
+Show every wizard question inline in the main conversation. Never skip AskUserQuestion for defaults. If you delegate to subagents, return their results to the main conversation for display.

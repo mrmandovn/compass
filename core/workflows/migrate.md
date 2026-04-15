@@ -134,3 +134,14 @@ Exit code is still 0 for partial success — the user decides whether to re-run.
 | Non-zero exit | Surface stderr, do NOT retry |
 | Invalid JSON on stdout | Show raw output, do NOT retry |
 | Partial errors | List each one, point to the backup path |
+
+---
+
+## Final — Hand-off
+
+Print one of these closing messages (pick based on `$LANG`):
+
+- en: `✓ Migration complete. Run `/compass:status` to verify the migrated state.`
+- vi: `✓ Migration xong. Chạy `/compass:status` để verify state đã migrate.`
+
+Then stop. Do NOT auto-invoke the next workflow.

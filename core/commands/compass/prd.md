@@ -9,40 +9,16 @@ allowed-tools:
   - AskUserQuestion
 ---
 
-<output>
-<objective>
-Write a complete PRD at enterprise PO/PM standard. The spec document **contains no code** — only what & why, not how. Implementation details belong in a DESIGN-SPEC written by engineering later.
+## Workflow
 
-Output: `.compass/PRDs/PRD-<slug>-v<version>.md` in the current project.
-</objective>
+Read and execute the workflow at `~/.compass/core/workflows/prd.md`.
 
-<execution_context>
-Resolve Compass workflow path:
-1. `./.compass/.lib/workflows/prd.md`
-2. `~/.compass/core/workflows/prd.md`
-Read the first path that exists.
+## Instructions
 
-Resolve template path:
-1. `./.compass/.lib/templates/prd-template.md`
-2. `~/.compass/core/templates/prd-template.md`
-Read the first path that exists — this is the structural skeleton to fill in.
+- Follow the workflow Steps in order. If a Step says "Apply the shared snippet from `core/shared/<x>.md`", read that file and execute its logic inline — do not skip or paraphrase.
+- Bash blocks in the workflow are commands for you to run; AskUserQuestion blocks are user choices. Never synthesize menus from bash/CLI command listings.
+- Do not skip interactive wizard questions — always call AskUserQuestion where the workflow specifies, even if defaults look reasonable.
 
-Read project config:
-- `./.compass/.state/config.json` — for language, team, PO, stakeholders.
-- If missing, instruct user to run `/compass:init` first and stop.
-</execution_context>
+## Notes
 
-<process>
-Execute the workflow literally. Do NOT summarize, paraphrase, or offer a menu.
-
-Required behavior:
-- Read the workflow file resolved by <execution_context>, then follow its Steps in order.
-- Run every bash block as shell commands. Treat their output as state, not as UI options.
-- Only present choices to the user via AskUserQuestion calls that the workflow explicitly defines — never synthesize menus from CLI command listings or bash blocks you see in the workflow body.
-- If the workflow has branching (Mode/State), detect the branch from the bash block output and jump to the matching Step. Do not ask the user to pick a branch.
-
-
-Additional: the workflow's "Hard rule (PRD = no code)" step is a HARD CONSTRAINT — no code in the PRD anywhere. If you find yourself about to write a code block, switch to plain language.
-</process>
-
-</output>
+The workflow's "Hard rule (PRD = no code)" is a HARD CONSTRAINT — no code in the PRD anywhere. If you find yourself about to write a code block, switch to plain language.

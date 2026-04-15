@@ -125,3 +125,14 @@ Print: "✓ Updated to v{NEW_VERSION} (<N> commands)"
 | Not a git repo | Suggest re-running `npx compass-m` |
 | Merge conflict | Warn, show manual resolution steps |
 | Local modifications | Warn before pulling, ask to confirm |
+
+---
+
+## Final — Hand-off
+
+Print one of these closing messages (pick based on `$LANG`):
+
+- en: `✓ Update complete. Close and reopen your AI host app (full quit — not just a new session) to activate new commands.`
+- vi: `✓ Update xong. Đóng và mở lại AI host app (quit hoàn toàn — không chỉ new session) để load commands mới.`
+
+Then stop. Do NOT auto-invoke the next workflow.

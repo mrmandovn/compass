@@ -434,3 +434,14 @@ Kiểm tra hoàn tất!
 - **Session has partial outputs** → validate what exists; note missing files in the report.
 - **spec_lang = bilingual** → check language consistency in both language versions of each doc.
 - **No integrations configured** → skip Step 4 entirely after noting delivery was skipped.
+
+---
+
+## Final — Hand-off
+
+Print one of these closing messages (pick based on `$LANG`):
+
+- en: `✓ Check done. Review the report, then kick off the next task with `/compass:brief` or deliver outputs to Jira/Confluence if configured.`
+- vi: `✓ Check xong. Xem report, rồi bắt đầu task mới với `/compass:brief` hoặc deliver outputs sang Jira/Confluence nếu đã setup.`
+
+Then stop. Do NOT auto-invoke the next workflow.

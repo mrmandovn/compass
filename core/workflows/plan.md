@@ -318,3 +318,14 @@ Confirm to user only after the validator passes:
 - The DAG must be a directed acyclic graph — no cycles, no self-references in depends_on, and all depends_on targets must resolve to real Colleague IDs in the plan.
 - `/compass:run` reads plan.json and executes each wave in order, running all Colleagues within a wave in parallel.
 - Editing depends_on during Step 6 review triggers a full DAG re-validation before saving plan.json.
+
+---
+
+## Final — Hand-off
+
+Print one of these closing messages (pick based on `$LANG`):
+
+- en: `✓ Plan generated. Review the DAG above, then `/compass:run` to execute waves — or `/compass:plan` again to refine.`
+- vi: `✓ Plan xong. Review DAG ở trên, rồi `/compass:run` để execute waves — hoặc `/compass:plan` lại để refine.`
+
+Then stop. Do NOT auto-invoke the next workflow.

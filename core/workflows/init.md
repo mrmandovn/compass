@@ -124,20 +124,20 @@ vi:
    Domain mặc định:  <domain hoặc "(hỏi mỗi project)">
 ```
 
-### 1A.d. Fall through to Step 1B
+### 1d. Fall through to project create
 
 cwd has no project yet — the natural next step is to create one. Print:
 
 - en: `→ Now let's set up a project at $(pwd)...`
 - vi: `→ Tiếp theo, tạo project tại $(pwd)...`
 
-Continue to Step 1B.
+Continue to Step 1e.
 
 ---
 
 ## Step 1B — Create project at cwd
 
-### 2a. Load global defaults
+### 1e. Load global defaults
 
 ```bash
 GLOBAL=$(compass-cli project global-config get)   # full JSON
@@ -149,7 +149,7 @@ DEF_DOMAIN=$(echo "$GLOBAL" | jq -r '.default_domain // empty')
 
 From here on, ALL user-facing chat is in `$LANG`.
 
-### 2b. Confirm target path
+### 1f. Confirm target path
 
 Use AskUserQuestion (pick `lang` version):
 
@@ -176,7 +176,7 @@ Branch:
 - `No / Không` → ask for the absolute path (use `Type your own answer`), resolve it, set `TARGET=<absolute>`. Validate that the directory exists and is writable; if not, abort with a clear error.
 - `Cancel / Huỷ` → stop cleanly. Print: en `Stopped — no changes made.` / vi `Đã dừng — không thay đổi gì.`
 
-### 2c. Project-specific questions (batched)
+### 1g. Project-specific questions (batched)
 
 Detect smart defaults BEFORE asking:
 
@@ -247,7 +247,7 @@ vi (same shape, translated):
 
 **IMPORTANT:** Replace every `<placeholder>` with actual detected values BEFORE calling AskUserQuestion. The "Type your own answer" affordance handles free-text overrides — never use empty `Other` options.
 
-### 2d. Create folder structure
+### 1h. Create folder structure
 
 ```bash
 mkdir -p "$TARGET/prd" \
@@ -260,7 +260,7 @@ mkdir -p "$TARGET/prd" \
          "$TARGET/.compass/.state/sessions"
 ```
 
-### 2e. Write `.compass/.state/config.json`
+### 1i. Write `.compass/.state/config.json`
 
 Merge global defaults + project-specific answers. Version = `"1.1.1"`. Schema:
 
@@ -282,15 +282,18 @@ Merge global defaults + project-specific answers. Version = `"1.1.1"`. Schema:
 }
 ```
 
-Write atomically:
+Write atomically, then echo a marker so subsequent steps know this completed:
 
 ```bash
 cat > "$TARGET/.compass/.state/config.json" <<JSON
 { ... merged JSON above ... }
 JSON
+echo "CONFIG_WRITTEN=$TARGET/.compass/.state/config.json"
 ```
 
-### 2f. Write Silver Tiger CLAUDE.md
+**CRITICAL:** This step is NOT skippable. If you reach Step 1m (register) without seeing `CONFIG_WRITTEN=...` in your bash output, go back to Step 1e and run every sub-step in order. A config file with only `{"projectName": ...}` is a sign this step was skipped.
+
+### 1j. Write Silver Tiger CLAUDE.md
 
 `$TARGET/CLAUDE.md` — header block matches the Silver Tiger v1.1 convention so domain rules are reachable from any Claude Code session:
 
@@ -343,7 +346,7 @@ If `domain` is null → omit the `<!-- Domain rules: ... -->` comment AND the `d
 
 **Do NOT list Compass commands in CLAUDE.md.** Adapter files load them automatically.
 
-### 2g. Write `domain.yaml`
+### 1k. Write `domain.yaml`
 
 ```yaml
 domain: <from config or "general">
@@ -356,7 +359,7 @@ keywords:
 related_domains: []
 ```
 
-### 2h. Write `README.md` stub (only if not present)
+### 1l. Write `README.md` stub (only if not present)
 
 ```markdown
 # <Project Name>
@@ -382,16 +385,17 @@ related_domains: []
 ```
 ```
 
-### 2i. Register in `~/.compass/projects.json`
+### 1m. Register in `~/.compass/projects.json`
 
 ```bash
 compass-cli project add "$TARGET"     # idempotent
 compass-cli project use "$TARGET"     # set last_active + touch last_used
+echo "PROJECT_REGISTERED=$TARGET"
 ```
 
 If either CLI call fails, surface the error to the user — never silently swallow. Project files are already on disk; the failure mode is "registered? no — fix and retry `compass-cli project add`".
 
-### 2j. Success summary
+### 1n. Success summary
 
 en:
 ```
@@ -421,7 +425,7 @@ Continue to the Final hand-off block.
 
 ## Step 2 — Update config in place (STATE=existing)
 
-### 3a. Load current config
+### 2a. Load current config
 
 ```bash
 CONFIG_PATH=".compass/.state/config.json"
@@ -431,7 +435,7 @@ LANG=$(echo "$CONFIG" | jq -r '.lang // "en"')
 
 All Step 2 user-facing chat uses this `$LANG`.
 
-### 3b. Pick fields to update
+### 2b. Pick fields to update
 
 Use AskUserQuestion (multi-select). Build options dynamically from the keys actually present in the config — typical set: `lang`, `spec_lang`, `prefix` (under `project.prefix`), `domain` (under `project.domain`), `po` (under `project.po`). Always add a `Cancel — no changes` escape hatch.
 
@@ -461,7 +465,7 @@ vi:
 
 If the user picks `Cancel / Huỷ`, stop immediately — print en `No changes made.` / vi `Không có thay đổi.`
 
-### 3c. Ask new value for each picked field
+### 2c. Ask new value for each picked field
 
 For every selected field, send ONE AskUserQuestion with smart defaults — current value as the first option:
 
@@ -472,7 +476,7 @@ For every selected field, send ONE AskUserQuestion with smart defaults — curre
 
 Across multiple selected fields, batch in a SINGLE AskUserQuestion call (max 4 fields per call — if the PO somehow picked >4, split into two calls).
 
-### 3d. Write back
+### 2d. Write back
 
 Load the full existing config, overlay only the picked keys (preserve every untouched field, including `version`, `created_at`, nested objects). Write back atomically:
 
@@ -487,7 +491,7 @@ If `lang` changed, also touch `~/.compass/projects.json` so the next session see
 compass-cli project use "$(pwd)"   # idempotent — refreshes last_used
 ```
 
-### 3e. Summary of changes
+### 2e. Summary of changes
 
 en:
 ```

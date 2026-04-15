@@ -9,34 +9,16 @@ allowed-tools:
   - AskUserQuestion
 ---
 
-<output>
-<objective>
-Safety net: restore the previous version of the last modified Compass document.
-Never delete the current version — rename it. Always confirm before acting.
-</objective>
+## Workflow
 
-<execution_context>
-Resolve Compass workflow path:
-1. `./.compass/.lib/workflows/undo.md`
-2. `~/.compass/core/workflows/undo.md`
-Read the first path that exists.
+Read and execute the workflow at `~/.compass/core/workflows/undo.md`.
 
-Read project config:
-- `./.compass/.state/config.json` — for `lang`.
-- If missing, default lang to "en".
-</execution_context>
+## Instructions
 
-<process>
-Execute the workflow literally. Do NOT summarize, paraphrase, or offer a menu.
+- Follow the workflow Steps in order. If a Step says "Apply the shared snippet from `core/shared/<x>.md`", read that file and execute its logic inline — do not skip or paraphrase.
+- Bash blocks in the workflow are commands for you to run; AskUserQuestion blocks are user choices. Never synthesize menus from bash/CLI command listings.
+- Do not skip interactive wizard questions — always call AskUserQuestion where the workflow specifies, even if defaults look reasonable.
 
-Required behavior:
-- Read the workflow file resolved by <execution_context>, then follow its Steps in order.
-- Run every bash block as shell commands. Treat their output as state, not as UI options.
-- Only present choices to the user via AskUserQuestion calls that the workflow explicitly defines — never synthesize menus from CLI command listings or bash blocks you see in the workflow body.
-- If the workflow has branching (Mode/State), detect the branch from the bash block output and jump to the matching Step. Do not ask the user to pick a branch.
+## Notes
 
-
-Additional: do not skip confirmation. Do not delete any file — only rename.
-</process>
-
-</output>
+Do not skip confirmation. Do not delete any file — only rename.

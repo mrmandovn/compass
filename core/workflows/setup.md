@@ -292,3 +292,14 @@ Never include raw tokens in the transcript.
 - **PO runs reset on something already not-configured**: silently succeed, no error.
 - **Multiple hosts**: setup delegates to the integration workflow which handles host detection. Compass doesn't need to handle it here.
 - **$PROJECT_ROOT/.compass/.state/sessions/ doesn't exist**: create it (`mkdir -p`).
+
+---
+
+## Final — Hand-off
+
+Print one of these closing messages (pick based on `$LANG`):
+
+- en: `✓ Setup complete. Next: `/compass:init` to set up a project (if you haven't), or `/compass:brief` to start work.`
+- vi: `✓ Setup xong. Tiếp: `/compass:init` để set up project (nếu chưa có), hoặc `/compass:brief` để bắt đầu.`
+
+Then stop. Do NOT auto-invoke the next workflow.

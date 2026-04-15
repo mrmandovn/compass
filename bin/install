@@ -111,7 +111,32 @@ try {
 
 fs.symlinkSync(path.join(COMPASS_DIR, 'core', 'commands', 'compass'), compassCmd);
 const count = fs.readdirSync(path.join(COMPASS_DIR, 'core', 'commands', 'compass')).filter(f => f.endsWith('.md')).length;
-console.log(`  ${green('✓')} ${count} commands linked`);
+console.log(`  ${green('✓')} ${count} commands linked (Claude Code)`);
+
+// ─── OpenCode dual-install (best-effort) ────────────────────────────────────
+// OpenCode reads commands from ~/.config/opencode/commands/ (global) per
+// https://opencode.ai/docs/commands/ — we symlink the same source dir so
+// both hosts see identical commands. Subdirectory namespace (/compass:<name>)
+// works in both.
+if (!hasLocal) {
+  const OPENCODE_COMMANDS = path.join(HOME, '.config', 'opencode', 'commands');
+  try {
+    if (fs.existsSync(path.join(HOME, '.config', 'opencode'))) {
+      fs.mkdirSync(OPENCODE_COMMANDS, { recursive: true });
+      const ocCompass = path.join(OPENCODE_COMMANDS, 'compass');
+      try {
+        const stat = fs.lstatSync(ocCompass);
+        if (stat.isSymbolicLink()) fs.unlinkSync(ocCompass);
+        else fs.rmSync(ocCompass, { recursive: true });
+      } catch {}
+      fs.symlinkSync(path.join(COMPASS_DIR, 'core', 'commands', 'compass'), ocCompass);
+      console.log(`  ${green('✓')} ${count} commands linked (OpenCode)`);
+      console.log(`  ${yellow('⚠')} Quit OpenCode completely (Cmd+Q) and reopen — new sessions alone won't reload commands.`);
+    }
+  } catch (e) {
+    console.log(`  ${yellow('⚠')} OpenCode symlink failed: ${e.message}`);
+  }
+}
 
 // ─── compass-cli binary install ─────────────────────────────────────────────
 if (!hasNoCli) {
