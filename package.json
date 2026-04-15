@@ -1,6 +1,6 @@
 {
   "name": "compass-m",
-  "version": "1.0.5",
+  "version": "1.0.6",
   "description": "AI-powered toolkit for Product Owners & Product Managers.",
   "bin": {
     "compass-m": "bin/install"
@@ -24,10 +24,10 @@
     "url": "https://github.com/mrmandovn/compass.git"
   },
   "optionalDependencies": {
-    "@compass-m/cli-darwin-arm64": "1.0.5",
-    "@compass-m/cli-darwin-x64": "1.0.5",
-    "@compass-m/cli-linux-x64": "1.0.5",
-    "@compass-m/cli-linux-arm64": "1.0.5"
+    "@compass-m/cli-darwin-arm64": "1.0.6",
+    "@compass-m/cli-darwin-x64": "1.0.6",
+    "@compass-m/cli-linux-x64": "1.0.6",
+    "@compass-m/cli-linux-arm64": "1.0.6"
   },
   "files": [
     "bin/",
