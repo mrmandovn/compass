@@ -73,46 +73,50 @@ After writing Section A:
 
 ## Pattern 2 — Delegated execution (Task / sub-agent)
 
-Used when the workflow spawns sub-agents (e.g. `/compass:run` wave-by-wave, `/compass:story` 4b parallel, `/compass:research` parallel codebase agents).
+Used when the workflow spawns sub-agents (e.g. `/compass:run` stage-by-stage, `/compass:story` 4b parallel, `/compass:research` parallel codebase agents).
 
 ### Step A — Emit the delegation plan
 
+Use a **markdown bullet list** so each colleague renders on its own line in Claude Code and OpenCode. Do NOT rely on leading-space indentation — renderers collapse it.
+
 ```
-🚀 Delegating to <N> colleagues (wave <W> of <total>):
+🚀 Delegating to <N> colleagues (Stage <W> of <total>, expected <range>):
 
-   🔄 Product Writer        — drafting PRD sections B-F
-   🔄 Research Aggregator   — scanning competitor docs
-   ⏸  Story Breaker         — waiting on PRD
-
-   Expected: <range>
+- 🔄 **Product Writer** — drafting PRD sections B-F
+- 🔄 **Research Aggregator** — scanning competitor docs
+- ⏸ **Story Breaker** — waiting on PRD
 ```
 
-- Name the colleague explicitly (from `core/colleagues/manifest.json`).
-- Describe what they're doing in 3-6 words.
-- Running agents: `🔄`. Waiting on dependency: `⏸`.
+- Bold the colleague name so it stands out.
+- Describe what they're doing in 3-6 words after the em dash.
+- Running: `🔄`. Waiting on dependency: `⏸`.
+- Duration range (`~45-90s`, `3-5 min`) goes in the header line, not a separate block.
 
 ### Step B — Emit colleague-by-colleague completion
 
-```
-✓ Product Writer        — PRD drafted (32s)
-✓ Research Aggregator   — 5 sources aggregated (28s)
-🔄 Story Breaker        — breaking into 6 stories
-```
-
-### Step C — Wave transition (for `/compass:run`)
+Same bullet list, tick each line as colleagues finish. Do NOT reprint the whole list — update inline.
 
 ```
-─── Wave 1 complete (58s, 2 artifacts) ───
+- ✓ **Product Writer** — PRD drafted (32s)
+- ✓ **Research Aggregator** — 5 sources aggregated (28s)
+- 🔄 **Story Breaker** — breaking into 6 stories
+```
 
-🚀 Starting wave 2 of 3:
-   🔄 Story Breaker
-   🔄 Consistency Reviewer
+### Step C — Stage transition (for `/compass:run`)
+
+```
+─── Stage 1 complete (58s, 2 artifacts) ───
+
+🚀 Starting Stage 2 of 3:
+
+- 🔄 **Story Breaker**
+- 🔄 **Consistency Reviewer**
 ```
 
 ### Step D — Final summary
 
 ```
-✅ All waves complete
+✅ All stages complete
    Artifacts: <N>   Total: <elapsed>   Session: <path>
 ```
 

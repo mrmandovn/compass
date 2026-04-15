@@ -161,19 +161,17 @@ Generate options in `lang`. If `lang=vi`, generate Vietnamese labels and descrip
 
 **Emit delegation plan before spawning** — apply Pattern 2 from `core/shared/progress.md`. Give each agent a real, descriptive name (not "Agent 1/2/3") so the user sees what's actually running.
 
-Example plan for competitive analysis:
+Example plan for competitive analysis (use markdown bullets so each agent renders on its own line):
 
 ```
-🚀 Delegating to 3 Research Aggregator colleagues (parallel):
+🚀 Delegating to 3 Research Aggregator colleagues (parallel, ~45-90s):
 
-   🔄 Research Aggregator: Product Comparison   — features, UX, positioning
-   🔄 Research Aggregator: Pricing & Model      — tiers, revenue, target customers
-   🔄 Research Aggregator: Feature Matrix       — structured table across competitors
-
-   Expected: 45-90s (parallel)
+- 🔄 **Product Comparison** — features, UX, positioning
+- 🔄 **Pricing & Model** — tiers, revenue, target customers
+- 🔄 **Feature Matrix** — structured table across competitors
 ```
 
-As each agent completes, tick the line with elapsed seconds. Final summary after merge.
+As each agent completes, update the same bullet with `✓` and elapsed seconds. Final summary after merge.
 
 Spawn 2–3 agents concurrently per research type. Do NOT run sequentially — all agents run in parallel, results merged before synthesis.
 
@@ -197,7 +195,7 @@ Spawn 2–3 agents concurrently per research type. Do NOT run sequentially — a
 - Research Aggregator: Community & Ecosystem — GitHub stars, docs quality, adoption trends
 - Research Aggregator: Cost & Licensing — pricing, open-source vs commercial, hidden costs
 
-Merge all agent outputs into a unified findings set before proceeding. Emit final wave completion summary (`✅ All 3 aggregators complete (Xs)`) before Step 5.
+Merge all agent outputs into a unified findings set before proceeding. Emit final stage completion summary (`✅ All 3 aggregators complete (Xs)`) before Step 5.
 
 ## Step 5: External web search
 

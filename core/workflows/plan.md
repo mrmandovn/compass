@@ -4,7 +4,7 @@ You are the architect. Mission: decompose a brief into an executable DAG with Co
 
 **Principles:** Plan must be self-contained. Every Colleague must have clear acceptance criteria. DAG must be cycle-free. Show the plan visually before asking for approval.
 
-**Purpose**: Create an executable DAG plan from a brief session. Assigns Colleagues to tasks with dependencies, budgets, and briefing context. The resulting plan.json drives `/compass:run` wave-by-wave.
+**Purpose**: Create an executable DAG plan from a brief session. Assigns Colleagues to tasks with dependencies, budgets, and briefing context. The resulting plan.json drives `/compass:run` stage-by-stage.
 
 **Input**: Latest brief session from `$PROJECT_ROOT/.compass/.state/sessions/`
 **Output**: `$PROJECT_ROOT/.compass/.state/sessions/<slug>/plan.json`
@@ -62,31 +62,31 @@ If config missing → tell user to run `/compass:init` first, stop.
 
 ## Step 3: Build dependency graph (DAG)
 
-Based on `can_depend_on` in the manifest and the Colleagues selected in the brief session, calculate the full dependency graph (DAG) and assign each Colleague to a wave.
+Based on `can_depend_on` in the manifest and the Colleagues selected in the brief session, calculate the full dependency graph (DAG) and assign each Colleague to a stage.
 
 **Default dependency rules:**
 
-| Colleague | Depends On | Wave |
+| Colleague | Depends On | Stage |
 |---|---|---|
-| Researcher | _(none)_ | Wave 1 |
-| Market Analyst | _(none)_ | Wave 1 |
-| Writer | Researcher _(if selected)_ | Wave 1 or 2 |
-| Story Breaker | Writer | Wave 2 or 3 |
-| Prioritizer | Story Breaker or Writer | Wave 2 or 3 |
-| Reviewer | Writer + Story Breaker + Prioritizer _(whichever selected)_ | Last wave |
-| UX Reviewer | Writer | Wave 2 or later |
-| Stakeholder Comm | Writer + Story Breaker _(if selected)_ | Last wave |
+| Researcher | _(none)_ | Stage 1 |
+| Market Analyst | _(none)_ | Stage 1 |
+| Writer | Researcher _(if selected)_ | Stage 1 or 2 |
+| Story Breaker | Writer | Stage 2 or 3 |
+| Prioritizer | Story Breaker or Writer | Stage 2 or 3 |
+| Reviewer | Writer + Story Breaker + Prioritizer _(whichever selected)_ | Last stage |
+| UX Reviewer | Writer | Stage 2 or later |
+| Stakeholder Comm | Writer + Story Breaker _(if selected)_ | Last stage |
 
-**Wave assignment algorithm:**
-1. Colleagues with no `depends_on` entries → Wave 1
-2. A Colleague's wave = max(wave of all its depends_on targets) + 1
-3. Colleagues in the same wave may run in parallel
-4. The full set of waves forms the executable DAG
+**Stage assignment algorithm:**
+1. Colleagues with no `depends_on` entries → Stage 1
+2. A Colleague's stage = max(stage of all its depends_on targets) + 1
+3. Colleagues in the same stage may run in parallel
+4. The full set of stages forms the executable DAG
 
-Auto-calculate waves from the resolved depends_on relationships — do not hardcode wave numbers.
+Auto-calculate stages from the resolved depends_on relationships — do not hardcode stage numbers.
 
 **Vietnamese prompt example:**
-> "Đang phân tích DAG và tính toán các wave... Colleague nào chạy song song, Colleague nào phải chờ phụ thuộc (depends_on) sẽ được sắp xếp tự động."
+> "Đang phân tích DAG và tính toán các stage... Colleague nào chạy song song, Colleague nào phải chờ phụ thuộc (depends_on) sẽ được sắp xếp tự động."
 
 ---
 
@@ -141,13 +141,13 @@ Construct the plan using this exact v1.0 structure. The canonical schema lives i
 - `plan_version`: exact literal string `"1.0"`. Any other value → validator fails with `UNSUPPORTED_PLAN_VERSION`.
 - `session_id`: the slug of the brief session directory.
 - `memory_ref`: always emit the canonical value `".compass/.state/project-memory.json"`. Do not invent an alternate path — `/compass:run` expects this exact location.
-- `waves`: ordered array; each wave has a 1-based `wave_id` that strictly increases.
+- `waves`: ordered array; each stage has a 1-based `wave_id` that strictly increases.
 
 **Field resolution rules:**
-- `task_id`: sequential `C-01`, `C-02`, … ordered by wave then manifest order within wave
+- `task_id`: sequential `C-01`, `C-02`, … ordered by stage then manifest order within stage
 - `budget` per Colleague: use mid-point of `budget_range`; increase toward max for `high` complexity, decrease toward min for `low`
 - `budget_tokens` total (plan-level): sum of all Colleague budgets
-- `depends_on`: list of `task_id` values (e.g. `["C-01", "C-02"]`) — reflects the DAG edges; Wave 1 Colleagues always have `depends_on: []`. Every referenced `task_id` MUST belong to an earlier wave.
+- `depends_on`: list of `task_id` values (e.g. `["C-01", "C-02"]`) — reflects the DAG edges; Stage 1 Colleagues always have `depends_on: []`. Every referenced `task_id` MUST belong to an earlier stage.
 - `output_pattern`: resolve the manifest's `output_pattern` using `slug` and current date
 - `context_pointers`: REQUIRED per task, 1..30 entries (see Step 4a)
 - `briefing_notes`: a short free-form narrative for this Colleague — distinct from the structured `briefing` object below. This is what `/compass:run` passes directly to the Colleague alongside the resolved context files.
@@ -160,7 +160,7 @@ Every task MUST declare `context_pointers: string[]` — the **exact** set of fi
 
 **Sources to draw from (in priority order):**
 1. The brief session's `context_docs` — filter to only the docs this Colleague actually needs for its role.
-2. Files produced by upstream Colleagues in earlier waves (resolved from their `output_pattern`). It is legal to reference a file that does not exist yet at plan-time — existence is checked at run-time when the wave starts.
+2. Files produced by upstream Colleagues in earlier stages (resolved from their `output_pattern`). It is legal to reference a file that does not exist yet at plan-time — existence is checked at run-time when the stage starts.
 3. Workflow-relevant shared files under `core/shared/` (e.g. `core/shared/ux-rules.md`).
 4. Project convention files the Colleague's role depends on (e.g. `PRDs/**/*.md` for a Writer referencing existing PRDs, `Stories/**/*.md` for a Story Breaker).
 
@@ -193,7 +193,7 @@ When in doubt, err toward *fewer, more specific* pointers — `/compass:run` str
 Before presenting the plan to the PO, validate the dependency graph:
 
 1. **No circular dependencies** — run topological sort; if cycle detected → identify the cycle, tell user which Colleagues are involved, suggest resolution
-2. **No orphaned Colleagues** — a Colleague with `depends_on: []` must be in Wave 1; if it has no deps but was placed in a later wave → flag as error
+2. **No orphaned Colleagues** — a Colleague with `depends_on: []` must be in Stage 1; if it has no deps but was placed in a later stage → flag as error
 3. **All depends_on targets exist** — every ID referenced in any `depends_on` array must correspond to a real Colleague ID in the plan; missing target → warn and remove the broken edge
 4. **Budget sanity check** — if total `budget_tokens` exceeds 50,000 → suggest splitting into two separate plan sessions
 5. **v1.0 schema precheck (in-model)** — before the final `compass-cli validate plan` in Step 7, confirm the draft already has:
@@ -209,26 +209,26 @@ Before presenting the plan to the PO, validate the dependency graph:
 
 ## Step 6: Show plan to PO
 
-Present the validated DAG plan to the PO in a clear, readable format — organized by wave.
+Present the validated DAG plan to the PO in a clear, readable format — organized by stage.
 
 **Display format:**
 
 ```
 Plan: collab: <title>
-Total budget: ~<N> tokens | Colleagues: <count> | Waves: <count>
+Total budget: ~<N> tokens | Colleagues: <count> | Stages: <count>
 
-Wave 1 (parallel):
+Stage 1 (parallel):
   [C-01] Researcher → output: research-<slug>.md
   [C-02] Market Analyst → output: market-<slug>.md
 
-Wave 2 (depends_on Wave 1):
+Stage 2 (depends_on Stage 1):
   [C-03] Writer → depends_on: C-01, C-02 → output: prd-<slug>.md
 
-Wave 3 (depends_on Wave 2):
+Stage 3 (depends_on Stage 2):
   [C-04] Story Breaker → depends_on: C-03 → output: stories-<slug>.md
   [C-05] UX Reviewer → depends_on: C-03 → output: ux-review-<slug>.md
 
-Wave 4 (depends_on Wave 3):
+Stage 4 (depends_on Stage 3):
   [C-06] Reviewer → depends_on: C-03, C-04, C-05 → output: review-<slug>.md
 ```
 
@@ -257,7 +257,7 @@ Use AskUserQuestion to ask for approval or changes:
 > "DAG plan đã sẵn sàng! Bạn muốn duyệt plan này không, hay cần điều chỉnh thêm Colleague hoặc depends_on?"
 
 If PO requests changes:
-- **Add Colleague**: prompt for type → insert into manifest lookup → recalculate depends_on and waves → re-validate DAG → show updated plan
+- **Add Colleague**: prompt for type → insert into manifest lookup → recalculate depends_on and stages → re-validate DAG → show updated plan
 - **Remove Colleague**: remove from list → update all depends_on references → re-validate DAG → show updated plan
 - **Change dependency**: prompt for which Colleague and new depends_on target → update → re-validate DAG → show updated plan
 - **Adjust complexity/scope**: prompt for Colleague ID and new complexity level → recalculate budget_tokens → show updated plan
@@ -287,10 +287,10 @@ compass-cli validate plan "$PROJECT_ROOT/.compass/.state/sessions/<slug>/plan.js
   4. Loop back to Step 4/4a to regenerate, then re-validate — do NOT hand the plan off to `/compass:run` until `compass-cli validate plan` returns `0`.
 
 Confirm to user only after the validator passes:
-> "Plan saved to `sessions/<slug>/plan.json` and validated against schema v1.0. Next step: run `/compass:run` to execute wave by wave!"
+> "Plan saved to `sessions/<slug>/plan.json` and validated against schema v1.0. Next step: run `/compass:run` to execute stage by stage!"
 
 **Vietnamese prompt example:**
-> "Đã lưu plan.json và validate thành công theo schema v1.0. Bước tiếp theo: chạy `/compass:run` để thực thi từng wave theo thứ tự DAG!"
+> "Đã lưu plan.json và validate thành công theo schema v1.0. Bước tiếp theo: chạy `/compass:run` để thực thi từng stage theo thứ tự DAG!"
 
 **Vietnamese — when validation fails:**
 > "Plan chưa hợp lệ theo schema v1.0 (lỗi: `<error_code>` ở trường `<field>`). Mình sẽ chỉnh lại theo gợi ý rồi validate lại trước khi bàn giao cho `/compass:run`."
@@ -301,7 +301,7 @@ Confirm to user only after the validator passes:
 
 | Situation | Handling |
 |---|---|
-| Only 1 Colleague selected | Single wave, `depends_on: []`, no DAG traversal needed — plan.json still uses the same structure |
+| Only 1 Colleague selected | Single stage, `depends_on: []`, no DAG traversal needed — plan.json still uses the same structure |
 | Missing `depends_on` target ID | Warn: "Colleague C-XX references C-YY in depends_on, but C-YY does not exist. Removing that edge." Continue with partial DAG. |
 | Circular dependency detected | "Circular dependency found: C-02 → C-03 → C-02. Please remove one of these depends_on links." Use AskUserQuestion to let PO resolve. |
 | Total budget > 50,000 tokens | "This plan has a large token budget. Consider splitting into two separate briefs to keep each run focused and cost-effective." |
@@ -314,9 +314,9 @@ Confirm to user only after the validator passes:
 ## Reference: depends_on & DAG summary
 
 - Every Colleague node in plan.json carries a `depends_on` array listing the IDs of nodes that must complete before it starts.
-- Wave assignment is derived purely from the DAG topology — Colleagues with no depends_on are Wave 1; each subsequent wave contains nodes whose entire depends_on set is satisfied by earlier waves.
+- Stage assignment is derived purely from the DAG topology — Colleagues with no depends_on are Stage 1; each subsequent stage contains nodes whose entire depends_on set is satisfied by earlier stages.
 - The DAG must be a directed acyclic graph — no cycles, no self-references in depends_on, and all depends_on targets must resolve to real Colleague IDs in the plan.
-- `/compass:run` reads plan.json and executes each wave in order, running all Colleagues within a wave in parallel.
+- `/compass:run` reads plan.json and executes each stage in order, running all Colleagues within a stage in parallel.
 - Editing depends_on during Step 6 review triggers a full DAG re-validation before saving plan.json.
 
 ---
@@ -325,7 +325,7 @@ Confirm to user only after the validator passes:
 
 Print one of these closing messages (pick based on `$LANG`):
 
-- en: `✓ Plan generated. Review the DAG above, then `/compass:run` to execute waves — or `/compass:plan` again to refine.`
-- vi: `✓ Plan xong. Review DAG ở trên, rồi `/compass:run` để execute waves — hoặc `/compass:plan` lại để refine.`
+- en: `✓ Plan generated. Review the DAG above, then `/compass:run` to execute stages — or `/compass:plan` again to refine.`
+- vi: `✓ Plan xong. Review DAG ở trên, rồi `/compass:run` để execute stages — hoặc `/compass:plan` lại để refine.`
 
 Then stop. Do NOT auto-invoke the next workflow.

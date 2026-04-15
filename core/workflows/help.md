@@ -41,7 +41,7 @@ Getting started:
 Full workflow:
   compass:brief    →  Understand what you need, pick Colleagues
   compass:plan     →  Create execution plan (you review & approve)
-  compass:run      →  Execute wave-by-wave with parallel Colleagues
+  compass:run      →  Execute stage-by-stage with parallel Colleagues
   compass:check    →  Validate outputs, deliver to Jira/Confluence
 
 Individual commands (power users):

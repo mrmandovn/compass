@@ -1,6 +1,6 @@
 ---
 name: compass:run
-description: Compass — execute collab plan wave-by-wave with parallel Colleagues
+description: Compass — execute collab plan stage-by-stage with parallel Colleagues
 allowed-tools:
   - Read
   - Write

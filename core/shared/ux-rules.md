@@ -34,7 +34,7 @@ After resolving the active project per `core/shared/resolve-project.md`, extract
 
 1. **Read the workflow file FIRST.** Before doing anything, read the workflow file from the execution_context. Do NOT interpret the command name and act on your own — the workflow file contains the actual instructions.
 
-2. **Do NOT delegate by default.** Run everything in the main conversation so output is visible to the user inline. Only spawn subagents/subtasks when the workflow step explicitly instructs delegation (e.g. `/compass:run` wave execution, `/compass:story` Step 4b parallel breakdown, `/compass:research` Step 4 parallel agents). When delegating, also emit progress in the main chat — see rule 8.
+2. **Do NOT delegate by default.** Run everything in the main conversation so output is visible to the user inline. Only spawn subagents/subtasks when the workflow step explicitly instructs delegation (e.g. `/compass:run` stage execution, `/compass:story` Step 4b parallel breakdown, `/compass:research` Step 4 parallel agents). When delegating, also emit progress in the main chat — see rule 8.
 
 3. **Batch questions within one section.** Claude Code's `AskUserQuestion` natively accepts 1–4 questions per call. When a workflow section has multiple independent questions, send them together in a SINGLE call using the `questions` array. Do NOT make sequential single-question calls inside the same section. Across sections, still walk section by section.
 
