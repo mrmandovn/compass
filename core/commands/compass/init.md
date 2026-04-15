@@ -1,6 +1,6 @@
 ---
 name: compass:init
-description: PO onboarding wizard — language, team, stakeholders, repo-aware detection (Silver Tiger), and integrations setup (Jira, Figma, Confluence, Vercel). Run once per project; re-run to update fields in place.
+description: PO onboarding wizard — detect state, set up Silver Tiger folder structure with sibling shared/ clone, ask minimal project questions, and optionally connect integrations (Jira, Figma, Confluence, Vercel). Run once per project or re-run to update fields.
 allowed-tools:
   - Read
   - Write

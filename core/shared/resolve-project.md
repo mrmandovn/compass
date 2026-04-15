@@ -48,6 +48,36 @@ If `MIGRATED=true`, add a second line, adapting to `lang`:
 
 Continue the workflow with `$PROJECT_ROOT` as the absolute base for ALL reads and writes. Do NOT use relative paths like `.compass/...` from here on — prepend `$PROJECT_ROOT/` to every relative path (e.g. `$PROJECT_ROOT/.compass/.state/config.json`, `$PROJECT_ROOT/docs/prd/...`).
 
+### Step 0b-bis: Resolve Silver Tiger sibling `shared/` (every workflow)
+
+Silver Tiger projects share conventions (capability registry, domain rules, skills) via a sibling `shared/` directory at the same level as the project. Resolve it after `$PROJECT_ROOT` is set:
+
+```bash
+PARENT=$(dirname "$PROJECT_ROOT")
+if [ -d "$PARENT/shared" ]; then
+  SHARED_ROOT="$PARENT/shared"
+  echo "SHARED_ROOT=$SHARED_ROOT"
+else
+  SHARED_ROOT=""
+  echo "SHARED_ROOT=(none)"
+fi
+```
+
+**Rule — downstream workflows MUST consult `$SHARED_ROOT` when non-empty:**
+
+- **Cross-reference validation:** `$SHARED_ROOT/capability-registry.yaml` is the source of truth for `[LINK-<product>]` references in PRDs and epics. A cross-ref must resolve to a `product:` entry in this file. Missing entry → validator fails (R-XREF rule).
+- **Domain rules:** If `$CONFIG.domain` is set and `$SHARED_ROOT/domain-rules/<domain>.md` exists, read that file and follow its per-domain conventions (PO lead, skills to invoke, validation rules) during artifact generation.
+- **Shared skills:** `$SHARED_ROOT/skills/<name>.md` define reusable conventions (tone, naming, section templates) — applied when the workflow references `skill: <name>`.
+
+**Access handling:** `$SHARED_ROOT` is OUTSIDE `$PROJECT_ROOT`. If the AI host (Claude Code, OpenCode) denies file access to it:
+- Surface the permission prompt to the user — do NOT hide it.
+- Do NOT silently skip — print `⚠ Access to $SHARED_ROOT denied — domain rules and cross-ref validation cannot be applied.` so the PO knows artifacts may be incomplete.
+
+**If `$SHARED_ROOT=(none)`:**
+- Skip shared/ lookups; the workflow proceeds with local-only context.
+- Print one-line notice (only when workflow actually needs shared/, e.g., prd.md, story.md, epic.md, check.md): `ℹ No sibling shared/ found — producing artifacts without capability-registry or domain-rules context.`
+- `/compass:init` handles the initial clone in Step 1h-bis (fresh flow). If a user skipped it, they can re-run init or manually clone `https://gitlab.silvertiger.tech/product-owner/shared` into `$PARENT/`.
+
 **Case: status=ambiguous**
 
 The previously-active project has gone dead (folder deleted or moved) but multiple projects are still alive in the registry. Ask the PO to pick one — use `AskUserQuestion` and adapt the wording to `lang`.

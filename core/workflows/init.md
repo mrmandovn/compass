@@ -54,74 +54,68 @@ Runs when `STATE=fresh`. Two sub-flows in order:
 
 The aim: capture the PO's defaults once so subsequent project creates pre-fill cleanly. All Step 1A text is in English (the language hasn't been chosen yet).
 
-### 1a. Batch the four global questions
+### 1a. Batch the two global questions
 
-Use a single `AskUserQuestion` call (`ux-rules` permits 1–4 questions per call). Use this EXACT JSON shape:
+Compass is a PO/PM toolkit — no code is produced here, so we don't ask about tech stacks. Domain is a per-project concept (Silver Tiger enum: `ard`/`platform`/`access`/`communication`/`internal`/`ai`) and is asked in Step 1g when the project is being created, not globally.
+
+Use a single `AskUserQuestion` call with exactly 2 questions:
 
 ```json
 {"questions": [
-  {"question": "Which language should Compass speak with you?", "header": "Language", "multiSelect": false, "options": [
-    {"label": "Tiếng Việt", "description": "Chat + tài liệu đều tiếng Việt"},
-    {"label": "English", "description": "Chat + docs all in English"}
-  ]},
-  {"question": "What's your default tech stack? (pick all that apply)", "header": "Tech stack", "multiSelect": true, "options": [
-    {"label": "typescript", "description": "TypeScript / JavaScript projects"},
-    {"label": "python", "description": "Python services / scripts"},
-    {"label": "rust", "description": "Rust binaries / libraries"},
-    {"label": "go", "description": "Go services"},
-    {"label": "java", "description": "Java / Kotlin / JVM"},
-    {"label": "None — tôi sẽ chọn per-project", "description": "Skip default; choose stack each time"}
+  {"question": "Which language combination?", "header": "Language", "multiSelect": false, "options": [
+    {"label": "Both Vietnamese", "description": "Chat + documents in Vietnamese"},
+    {"label": "Both English", "description": "Chat + documents in English"},
+    {"label": "Chat VN + Docs EN", "description": "Conversations in Vietnamese, artifacts in English"},
+    {"label": "Chat EN + Docs VN", "description": "Conversations in English, artifacts in Vietnamese"}
   ]},
   {"question": "Default review style for documents?", "header": "Review style", "multiSelect": false, "options": [
-    {"label": "whole_document", "description": "Review the full doc end-to-end in one pass"},
-    {"label": "section_by_section", "description": "Walk section by section, confirm each before moving on"}
-  ]},
-  {"question": "Default product domain?", "header": "Domain", "multiSelect": false, "options": [
-    {"label": "ard", "description": "Anti Reverse / Defense"},
-    {"label": "platform", "description": "Platform / infra"},
-    {"label": "communication", "description": "Communication products"},
-    {"label": "internal", "description": "Internal tooling"},
-    {"label": "access", "description": "Access / identity"},
-    {"label": "ai", "description": "AI products / agents"},
-    {"label": "None — ask per-project", "description": "No default; ask every project"}
+    {"label": "Whole document", "description": "Review the full doc end-to-end in one pass"},
+    {"label": "Section by section", "description": "Walk section by section, confirm each before moving on"}
   ]}
 ]}
 ```
 
 ### 1b. Map answers and persist via the CLI
 
-- `Tiếng Việt` → `lang=vi`. `English` → `lang=en`.
-- Multi-select tech stack → JSON array (e.g. `["typescript","python"]`). If `None — tôi sẽ chọn per-project` selected, save `[]`.
-- Review style → save the literal label (`whole_document` / `section_by_section`).
-- Domain → save the literal label, or `null` if `None — ask per-project`.
+Map display labels → schema values before writing (schema values are lowercase identifiers, see `core/shared/SCHEMAS-v1.md`):
+
+| Label (display) | Mapped fields |
+|-----------------|---------------|
+| "Both Vietnamese" | `lang=vi`, `spec_lang=vi` |
+| "Both English" | `lang=en`, `spec_lang=en` |
+| "Chat VN + Docs EN" | `lang=vi`, `spec_lang=en` |
+| "Chat EN + Docs VN" | `lang=en`, `spec_lang=vi` |
+| "Whole document" | `review_style=whole_document` |
+| "Section by section" | `review_style=section_by_section` |
+
+Persist 3 keys (no longer writes `default_tech_stack` or `default_domain`):
 
 ```bash
-compass-cli project global-config set --key lang --value "<lang>"
-compass-cli project global-config set --key default_tech_stack --value '<json-array>'
-compass-cli project global-config set --key default_review_style --value "<style>"
-compass-cli project global-config set --key default_domain --value "<domain-or-null>"
+compass-cli project global-config set --key lang --value "<vi|en>"
+compass-cli project global-config set --key spec_lang --value "<vi|en>"
+compass-cli project global-config set --key review_style --value "<whole_document|section_by_section>"
 ```
 
 `global-config set` creates `~/.compass/global-config.json` on first write and stamps `created_at` / `updated_at`.
+
+Existing configs from older Compass versions that carry `default_tech_stack` or `default_domain` keys are left untouched — the schema is permissive and those fields are silently ignored by downstream workflows.
 
 ### 1c. Echo summary (in the just-saved `lang`)
 
 en:
 ```
 ✓ Global preferences saved to ~/.compass/global-config.json
-   Language:        <lang>
-   Tech stack:      <list or "(none)">
-   Review style:    <style>
-   Default domain:  <domain or "(ask per-project)">
+   Chat language:   <lang>
+   Docs language:   <spec_lang>
+   Review style:    <review_style>
 ```
 
 vi:
 ```
 ✓ Đã lưu cấu hình toàn cục vào ~/.compass/global-config.json
-   Ngôn ngữ:         <lang>
-   Tech stack:       <list hoặc "(không có)">
-   Kiểu review:      <style>
-   Domain mặc định:  <domain hoặc "(hỏi mỗi project)">
+   Ngôn ngữ chat:   <lang>
+   Ngôn ngữ docs:   <spec_lang>
+   Kiểu review:     <review_style>
 ```
 
 ### 1d. Fall through to project create
@@ -149,32 +143,92 @@ DEF_DOMAIN=$(echo "$GLOBAL" | jq -r '.default_domain // empty')
 
 From here on, ALL user-facing chat is in `$LANG`.
 
-### 1f. Confirm target path
+### 1f. Pick target path
 
-Use AskUserQuestion (pick `lang` version):
+Build the option list dynamically based on current state (registry, parent folder):
 
-en:
+```bash
+CWD=$(pwd)
+BASENAME=$(basename "$CWD")
+PARENT=$(dirname "$CWD")
+PARENT_NAME=$(basename "$PARENT")
+
+# List registered projects OTHER than cwd (for "Another registered" option)
+OTHERS_JSON=$(compass-cli project list 2>/dev/null || echo "[]")
+OTHERS_COUNT=$(echo "$OTHERS_JSON" | jq --arg cwd "$CWD" '[.[] | select(.path != $cwd)] | length' 2>/dev/null || echo 0)
+echo "PICK_CONTEXT: CWD=$CWD BASENAME=$BASENAME PARENT_NAME=$PARENT_NAME OTHERS_COUNT=$OTHERS_COUNT"
+```
+
+Construct the AskUserQuestion options in order:
+1. Always: `"Here: <BASENAME>"` — use cwd as target
+2. Conditional (only if `OTHERS_COUNT >= 1`): `"Another registered project"` — secondary picker
+3. Always: `"Sibling folder in <PARENT_NAME>"` — create a new folder next to cwd
+4. Always: `"Other absolute path"` — free text
+5. Always: `"Cancel"` — stop
+
+**AskUserQuestion in `$LANG`:**
+
+en (when `OTHERS_COUNT >= 1`):
 ```json
-{"questions": [{"question": "Create Compass project at $(pwd)?", "header": "Target", "multiSelect": false, "options": [
-  {"label": "Yes — create here", "description": "Use $(pwd) as the project root"},
-  {"label": "No — specify a different path", "description": "I'll point to another absolute path"},
-  {"label": "Cancel", "description": "Stop without creating anything"}
+{"questions": [{"question": "Where to create the Compass project?", "header": "Target", "multiSelect": false, "options": [
+  {"label": "Here: <BASENAME>", "description": "Use current directory — <CWD>"},
+  {"label": "Another registered project", "description": "Pick from <OTHERS_COUNT> registered projects"},
+  {"label": "Sibling folder in <PARENT_NAME>", "description": "Create a new folder next to <BASENAME>"},
+  {"label": "Other absolute path", "description": "Type a full path manually"}
 ]}]}
 ```
 
-vi:
+en (when `OTHERS_COUNT = 0` — omit option 2):
 ```json
-{"questions": [{"question": "Tạo project Compass tại $(pwd)?", "header": "Đích", "multiSelect": false, "options": [
-  {"label": "Có — tạo ở đây", "description": "Dùng $(pwd) làm project root"},
-  {"label": "Không — chọn đường dẫn khác", "description": "Tôi sẽ trỏ tới một absolute path khác"},
-  {"label": "Huỷ", "description": "Dừng, không tạo gì"}
+{"questions": [{"question": "Where to create the Compass project?", "header": "Target", "multiSelect": false, "options": [
+  {"label": "Here: <BASENAME>", "description": "Use current directory — <CWD>"},
+  {"label": "Sibling folder in <PARENT_NAME>", "description": "Create a new folder next to <BASENAME>"},
+  {"label": "Other absolute path", "description": "Type a full path manually"}
 ]}]}
 ```
 
-Branch:
-- `Yes / Có` → `TARGET="$(pwd)"`.
-- `No / Không` → ask for the absolute path (use `Type your own answer`), resolve it, set `TARGET=<absolute>`. Validate that the directory exists and is writable; if not, abort with a clear error.
-- `Cancel / Huỷ` → stop cleanly. Print: en `Stopped — no changes made.` / vi `Đã dừng — không thay đổi gì.`
+vi (pattern same as en, translated labels):
+```json
+{"questions": [{"question": "Tạo project Compass ở đâu?", "header": "Đích", "multiSelect": false, "options": [
+  {"label": "Tại đây: <BASENAME>", "description": "Dùng thư mục hiện tại — <CWD>"},
+  {"label": "Project đã đăng ký khác", "description": "Chọn từ <OTHERS_COUNT> projects đã register"},
+  {"label": "Sibling folder trong <PARENT_NAME>", "description": "Tạo folder mới ngang cấp với <BASENAME>"},
+  {"label": "Đường dẫn tuyệt đối khác", "description": "Tự nhập full path"}
+]}]}
+```
+
+**Substitute placeholders before calling:** `<CWD>`, `<BASENAME>`, `<PARENT_NAME>`, `<OTHERS_COUNT>` must be filled with actual values from the bash block above, not left as-is.
+
+**Branch logic:**
+
+- **"Here: <BASENAME>"** → `TARGET="$CWD"`. Continue to Step 1g.
+
+- **"Another registered project"** → secondary AskUserQuestion listing entries from `$OTHERS_JSON`:
+  ```bash
+  # Build option list: {label: name, description: "<path> — last used <last_used>"}
+  OPTIONS=$(echo "$OTHERS_JSON" | jq -c --arg cwd "$CWD" '[.[] | select(.path != $cwd) | {label: (.name // "(unknown)"), description: (.path + " — last used " + (.last_used // "never"))}]')
+  ```
+  Ask user to pick one → `TARGET=<picked.path>`. **Skip project-create steps (1g-1n) because project already exists** — print `⚠ Project already registered at <TARGET>. Skipping create; proceeding to integrations step.` then jump directly to Step 1o (integrations).
+
+- **"Sibling folder in <PARENT_NAME>"** → AskUserQuestion with Type-your-own-answer (asking for new folder name):
+  ```json
+  {"questions": [{"question": "New folder name?", "header": "Folder name", "multiSelect": false, "options": [
+    {"label": "<BASENAME>-copy", "description": "Placeholder — type your own"},
+    {"label": "Type your own answer", "description": "e.g. my-new-project"}
+  ]}]}
+  ```
+  Read user's input as `NEW_NAME`. Set `TARGET="$PARENT/$NEW_NAME"`.
+  - If `$TARGET` already exists → abort with `⚠ $TARGET already exists. Pick another name or run /compass:init from inside that folder.`
+  - Else `mkdir -p "$TARGET"` then continue to Step 1g.
+
+- **"Other absolute path"** → ask free text:
+  ```json
+  {"questions": [{"question": "Absolute path?", "header": "Path", "multiSelect": false, "options": [
+    {"label": "Type your own answer", "description": "e.g. /Users/me/projects/new-product"}
+  ]}]}
+  ```
+  Validate: path is absolute (starts with `/`), parent writable. If `$TARGET/.compass/.state/config.json` already exists → abort with `⚠ Project already exists at $TARGET. Re-run /compass:init from that folder to update its config (Mode existing).`
+  Else `mkdir -p "$TARGET"` (if missing) then continue to Step 1g.
 
 ### 1g. Project-specific questions (batched)
 
@@ -209,12 +263,12 @@ en:
     {"label": "<DETECTED_PREFIX[0:3]>", "description": "Shorter variant"}
   ]},
   {"question": "Product domain?", "header": "Domain", "multiSelect": false, "options": [
-    {"label": "ard", "description": "Anti Reverse / Defense"},
-    {"label": "platform", "description": "Platform / infra"},
-    {"label": "communication", "description": "Communication products"},
-    {"label": "internal", "description": "Internal tooling"},
-    {"label": "access", "description": "Access / identity"},
-    {"label": "ai", "description": "AI products / agents"}
+    {"label": "ard", "description": "Anti-Raid Defense — security / encrypted products"},
+    {"label": "platform", "description": "Platform services — identity, workspace, credentials"},
+    {"label": "access", "description": "Access control + threat detection"},
+    {"label": "communication", "description": "Messaging and communication"},
+    {"label": "internal", "description": "Internal tooling and shared infra"},
+    {"label": "ai", "description": "AI-powered features and automation"}
   ]}
 ]}
 ```
@@ -235,12 +289,12 @@ vi (same shape, translated):
     {"label": "<DETECTED_PREFIX[0:3]>", "description": "Biến thể ngắn hơn"}
   ]},
   {"question": "Domain sản phẩm?", "header": "Domain", "multiSelect": false, "options": [
-    {"label": "ard", "description": "Anti Reverse / Defense"},
-    {"label": "platform", "description": "Platform / infra"},
-    {"label": "communication", "description": "Sản phẩm communication"},
-    {"label": "internal", "description": "Tooling nội bộ"},
-    {"label": "access", "description": "Access / identity"},
-    {"label": "ai", "description": "AI products / agents"}
+    {"label": "ard", "description": "Anti-Raid Defense — sản phẩm security / mã hoá"},
+    {"label": "platform", "description": "Platform services — identity, workspace, credentials"},
+    {"label": "access", "description": "Access control + threat detection"},
+    {"label": "communication", "description": "Messaging và truyền thông"},
+    {"label": "internal", "description": "Công cụ nội bộ và hạ tầng chung"},
+    {"label": "ai", "description": "AI-powered features và automation"}
   ]}
 ]}
 ```
@@ -249,16 +303,77 @@ vi (same shape, translated):
 
 ### 1h. Create folder structure
 
+Print the banner first, then create folders one by one so the user sees progress inline:
+
 ```bash
-mkdir -p "$TARGET/prd" \
-         "$TARGET/epics" \
-         "$TARGET/wiki" \
-         "$TARGET/prototype" \
-         "$TARGET/technical" \
-         "$TARGET/release-notes" \
-         "$TARGET/research" \
-         "$TARGET/.compass/.state/sessions"
+echo "📦 Creating Silver Tiger structure at $TARGET..."
+for dir in prd epics wiki prototype technical release-notes research .compass/.state/sessions; do
+  mkdir -p "$TARGET/$dir"
+  echo "   ✓ $dir/"
+done
+echo "CREATED_STRUCTURE=$TARGET"
 ```
+
+Each `✓ <dir>/` line must appear in the user-visible output as the folder is created — do NOT silently batch or summarise. The final `CREATED_STRUCTURE=$TARGET` marker confirms completion for downstream steps.
+
+### 1h-bis. Ensure Silver Tiger sibling `shared/` exists
+
+Silver Tiger projects consult a sibling `shared/` directory (same parent as `$TARGET`) for the capability registry, domain rules, and shared skills. This step verifies it exists — if missing, offer to clone it.
+
+```bash
+PARENT=$(dirname "$TARGET")
+SHARED_DIR="$PARENT/shared"
+if [ -d "$SHARED_DIR/.git" ]; then
+  echo "SHARED_EXISTS=$SHARED_DIR"
+elif [ -d "$SHARED_DIR" ]; then
+  echo "SHARED_EXISTS_NO_GIT=$SHARED_DIR"
+else
+  echo "SHARED_MISSING=$SHARED_DIR"
+fi
+```
+
+**Branch on the echoed marker:**
+
+- `SHARED_EXISTS=...` → print `✓ Silver Tiger shared/ ready at $SHARED_DIR` and continue to Step 1i.
+- `SHARED_EXISTS_NO_GIT=...` → print `⚠ $SHARED_DIR exists but not a git repo. Manual review recommended — downstream workflows may miss updates.` Continue to Step 1i.
+- `SHARED_MISSING=...` → AskUserQuestion (in `$LANG`):
+
+en:
+```json
+{"questions": [{"question": "Silver Tiger shared/ not found at $SHARED_DIR. Clone it now?", "header": "Shared", "multiSelect": false, "options": [
+  {"label": "Yes — clone from GitLab", "description": "git clone https://gitlab.silvertiger.tech/product-owner/shared"},
+  {"label": "Skip — configure manually later", "description": "Proceed without shared/ — domain rules and capability-registry will be unavailable until you clone it"}
+]}]}
+```
+
+vi:
+```json
+{"questions": [{"question": "Chưa có Silver Tiger shared/ tại $SHARED_DIR. Clone ngay?", "header": "Shared", "multiSelect": false, "options": [
+  {"label": "Có — clone từ GitLab", "description": "git clone https://gitlab.silvertiger.tech/product-owner/shared"},
+  {"label": "Bỏ qua — config thủ công sau", "description": "Tiếp tục không có shared/ — domain rules và capability-registry sẽ unavailable tới khi clone"}
+]}]}
+```
+
+**If user picks "Yes / Có":**
+
+```bash
+git clone https://gitlab.silvertiger.tech/product-owner/shared "$SHARED_DIR" 2>&1 | tail -5
+if [ -d "$SHARED_DIR/.git" ]; then
+  echo "SHARED_CLONED=$SHARED_DIR"
+  echo "   ✓ Cloned shared/ — capability-registry.yaml + domain-rules/ + skills/ now available"
+else
+  echo "SHARED_CLONE_FAILED=$SHARED_DIR"
+  echo "   ⚠ Clone failed (network, auth, or permission). Continuing without shared/. Re-run /compass:init or clone manually later."
+fi
+```
+
+Clone failure is non-blocking — do NOT abort the init workflow. Print the warning, continue to Step 1i. The PO can manually clone later via:
+
+```bash
+git clone https://gitlab.silvertiger.tech/product-owner/shared "$PARENT/shared"
+```
+
+**If user picks "Skip":** print `ℹ Skipping shared/ clone. Downstream workflows will note its absence.` and continue.
 
 ### 1i. Write `.compass/.state/config.json`
 
@@ -417,6 +532,99 @@ vi:
    Prefix:  <PREFIX>
    Domain:  <domain hoặc "(không có)">
    Active:  có (đặt làm last_active)
+```
+
+Continue to Step 1o.
+
+### 1o. Integrations wizard (optional)
+
+Ask the PO whether to connect integrations now. Adapt wording to `$LANG`:
+
+en:
+```json
+{"questions": [{"question": "Connect integrations now?", "header": "Integrations", "multiSelect": false, "options": [
+  {"label": "Skip for now", "description": "Configure later via /compass:setup <name>"},
+  {"label": "Pick some", "description": "Choose which integrations to configure now"},
+  {"label": "Configure all", "description": "Walk through Jira, Figma, Confluence, Vercel in order"}
+]}]}
+```
+
+vi:
+```json
+{"questions": [{"question": "Kết nối integrations ngay?", "header": "Integrations", "multiSelect": false, "options": [
+  {"label": "Bỏ qua", "description": "Config sau qua /compass:setup <name>"},
+  {"label": "Chọn một vài", "description": "Chọn integrations muốn config ngay"},
+  {"label": "Config tất cả", "description": "Đi qua Jira, Figma, Confluence, Vercel theo thứ tự"}
+]}]}
+```
+
+**Branch:**
+
+- **"Skip for now" / "Bỏ qua"** → proceed to Final hand-off.
+
+- **"Pick some" / "Chọn một vài"** → secondary AskUserQuestion (multiSelect):
+
+  en:
+  ```json
+  {"questions": [{"question": "Which integrations?", "header": "Select", "multiSelect": true, "options": [
+    {"label": "Jira", "description": "Issue tracking + sprint sync"},
+    {"label": "Figma", "description": "Design references + prototypes"},
+    {"label": "Confluence", "description": "Documentation publishing"},
+    {"label": "Vercel", "description": "Deploy preview links"}
+  ]}]}
+  ```
+
+  vi:
+  ```json
+  {"questions": [{"question": "Integrations nào?", "header": "Chọn", "multiSelect": true, "options": [
+    {"label": "Jira", "description": "Issue tracking + sprint sync"},
+    {"label": "Figma", "description": "Design references + prototypes"},
+    {"label": "Confluence", "description": "Xuất bản tài liệu"},
+    {"label": "Vercel", "description": "Deploy preview links"}
+  ]}]}
+  ```
+
+  Store user-picked labels as `$PICKED` array (e.g. `["Jira", "Figma"]`).
+
+- **"Configure all" / "Config tất cả"** → `$PICKED=["Jira", "Figma", "Confluence", "Vercel"]`.
+
+**Dispatch loop (for each integration in `$PICKED`):**
+
+```bash
+for INTEGRATION in $PICKED; do
+  LOWER=$(echo "$INTEGRATION" | tr '[:upper:]' '[:lower:]')
+  echo "⚙ Configuring $INTEGRATION..."
+  INTEGRATION_FILE="$HOME/.compass/core/integrations/$LOWER.md"
+  if [ ! -f "$INTEGRATION_FILE" ]; then
+    echo "   ⚠ No integration definition at $INTEGRATION_FILE — skipping"
+    continue
+  fi
+  # Read and follow $INTEGRATION_FILE in "setup" mode.
+  # Pass $LANG and $HOST (Claude Code / OpenCode — detect from env or ask).
+  # If setup fails (missing credentials, network, user cancel), print
+  # "   ⚠ $INTEGRATION setup failed — continuing" and proceed to next integration.
+done
+echo "INTEGRATIONS_DONE=$(echo $PICKED | tr ' ' ',')"
+```
+
+**Important:** One integration failing MUST NOT abort the wizard. Print a concise `⚠` warning and continue with the next. After the loop, print a summary:
+
+en:
+```
+✓ Integrations step complete.
+   Configured: <comma-list>
+   Skipped:    <comma-list of any that failed>
+
+   Re-run /compass:setup <name> any time to add or reconfigure.
+```
+
+vi:
+```
+✓ Bước integrations xong.
+   Đã config:  <list>
+   Bỏ qua:     <list nếu có thất bại>
+
+   Chạy /compass:setup <name> bất cứ lúc nào để thêm hoặc đổi config.
 ```
 
 Continue to the Final hand-off block.
