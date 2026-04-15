@@ -146,6 +146,134 @@ On user pick:
 
 ---
 
+## Step 0d: Pipeline + Project choice gate (artifact-producing workflows only)
+
+**Applies to:** workflows that produce user-visible artifacts in the project — `prd`, `story`, `epic`, `research`, `prototype`, `roadmap`, `sprint`, `ideate`, `release`, `feedback`, `prioritize`. Session-scoped workflows (`plan`, `run`, `check`) and utility workflows (`help`, `status`, `update`, `setup`, `undo`, `init`, `project`, `migrate`, `cleanup`, `brief`) **SKIP** this step.
+
+**Purpose:** Before any artifact work begins, give the PO control over two dimensions in a single gate:
+1. Which project should receive the artifact (current, another registered, or custom path)
+2. How to treat any active pipeline sessions in the current project (continue / standalone / switch)
+
+### Step 0d.1 — Scan active pipelines in current project
+
+```bash
+ACTIVE_PIPELINES=()
+while IFS= read -r PF; do
+  [ -z "$PF" ] && continue
+  ACTIVE_PIPELINES+=("$PF")
+done < <(find "$PROJECT_ROOT/.compass/.state/sessions/" -name "pipeline.json" -exec grep -l '"status": "active"' {} \; 2>/dev/null | sort)
+
+PIPELINE_COUNT=${#ACTIVE_PIPELINES[@]}
+echo "PIPELINE_COUNT=$PIPELINE_COUNT"
+```
+
+For each active pipeline, read `pipeline.json` + sibling `context.json` to extract:
+- `slug` (from dir name), `title` (from context.json), `created_at`, `artifacts.length`
+- `age_days` = (now - created_at) in days
+- `stale` = `age_days > 14 AND artifacts.length == 0`
+- `relevance` = Jaccard keyword overlap between `$ARGUMENTS` and `title` after removing stopwords (`a`, `an`, `the`, `for`, `and`, `or`, `of`, `in`, `on`, `to`, `app`, `new`, `old` — extend per `lang`). A set of tokens intersect ÷ union.
+
+Mark `MOST_RELEVANT_PIPELINE` = pipeline with the highest `relevance` score (tie → most recent `created_at`). If the top relevance is `< 0.2`, treat as "no relevant pipeline".
+
+### Step 0d.2 — Branch on count + relevance
+
+| Case | Condition | Behaviour |
+|---|---|---|
+| **1** | `PIPELINE_COUNT == 1` AND top relevance `≥ 0.2` | Ask: continue pipeline / standalone / other project |
+| **2** | `PIPELINE_COUNT == 1` AND top relevance `< 0.2` | Ask: standalone here / other project / close old first — pipeline shown with staleness indicator |
+| **3** | `PIPELINE_COUNT == 0` | Ask: current project / other project — no pipeline mention |
+| **4** | `PIPELINE_COUNT >= 2` | Ask: pick-a-pipeline / standalone / other project / cleanup hint — list all active pipelines sorted by relevance, stale entries marked `⚠` |
+
+### Step 0d.3 — Build the AskUserQuestion (dynamic, per case + `lang`)
+
+**Case 1** (en; vi variant trivially translated):
+
+```
+💬 Active pipeline "<MOST_RELEVANT.title>" looks related to this task
+   (age: <N> days, <M> artifacts).
+
+Where should this artifact go?
+ ⭐ Continue pipeline                → bundle into the session AND save to the normal artifact folder
+    Standalone in this project       → save only to the artifact folder, ignore the pipeline
+    Another project                  → show registered-project picker
+```
+
+**Case 2** (en):
+
+```
+⚠ Active pipeline "<MOST_RELEVANT.title>" looks unrelated to this task
+  (age: <N> days, <M> artifacts<STALE_NOTE>).
+
+Create this artifact where?
+ ⭐ Standalone in this project        → save only to the artifact folder, leave pipeline untouched
+    Another project                   → show registered-project picker
+    Close old pipeline first          → suggest /compass:check <slug> or /compass:cleanup --stale
+```
+
+`STALE_NOTE` = ` — ⚠ may be forgotten` when `stale=true`, else empty.
+
+**Case 3** (en):
+
+```
+💬 Where should this artifact live?
+ ⭐ Current project (<PROJECT_NAME>)
+    Another project                  → show registered-project picker
+```
+
+**Case 4** (en):
+
+```
+💬 You have <PIPELINE_COUNT> active pipelines:
+
+ <list sorted by relevance desc; each line: "   slug (N days, M artifacts)<STALE_NOTE> — <relevance>">
+
+What should this new artifact do?
+ ⭐ Bundle into <MOST_RELEVANT.slug>  → (top relevance)
+    Bundle into another pipeline      → secondary picker with all active pipelines
+    Standalone in this project        → no pipeline link
+    Another project                   → registered-project picker
+    Close forgotten pipelines first   → /compass:cleanup --stale
+```
+
+Vietnamese equivalents are required for each case — mirror the structure and translate labels (`Tiếp tục pipeline`, `Standalone tại project này`, `Project khác`, `Pick pipeline khác`, `Close pipeline bỏ quên trước`, …).
+
+### Step 0d.4 — Secondary pickers (as needed)
+
+**Registered-project picker** — when PO picks "Another project":
+
+```bash
+OTHERS_JSON=$(compass-cli project list 2>/dev/null || echo "[]")
+OTHERS_OPTIONS=$(echo "$OTHERS_JSON" | jq -c --arg cur "$PROJECT_ROOT" '[.[] | select(.path != $cur) | {label: (.name // "(unknown)"), description: (.path + " — last used " + (.last_used // "never"))}]')
+```
+
+Ask via AskUserQuestion with `OTHERS_OPTIONS` plus `{"label": "Type absolute path", "description": "Point to a project not yet in the registry"}`. On pick:
+- Registered candidate → run `compass-cli project use <path>`, then re-run Step 0 from the top (so `$PROJECT_ROOT`, `$CONFIG`, `$SHARED_ROOT`, and Step 0d fire fresh for the new project).
+- Type-path → ask free text, validate absolute path, run `compass-cli project add <path>` + `compass-cli project use <path>`, then re-run Step 0.
+
+**Pipeline picker (Case 4 "Bundle into another pipeline")** — secondary AskUserQuestion with all active pipelines as options, each showing `<slug> (<age>d, <artifacts>, relevance=<score>)`.
+
+### Step 0d.5 — Export variables for downstream workflow
+
+After the gate resolves, downstream steps in the caller workflow consume these variables — always set them explicitly, even when the gate ran minimally:
+
+| Variable | Type | Meaning |
+|---|---|---|
+| `$PIPELINE_MODE` | `true` / `false` | Should the artifact be linked to a pipeline session? |
+| `$PIPELINE_SLUG` | string or empty | When `PIPELINE_MODE=true`, the session slug to attach to |
+| `$PROJECT_ROOT` | absolute path | May have been updated if the PO picked another project — re-read `$CONFIG`, `$SHARED_ROOT` |
+
+When downstream appends to a pipeline's `artifacts` array, use `$PROJECT_ROOT/.compass/.state/sessions/$PIPELINE_SLUG/pipeline.json`.
+
+### Step 0d.6 — Rules for the gate
+
+- Never auto-continue a pipeline silently — always surface the decision to the PO via AskUserQuestion.
+- Case defaults (options[0]) must match the most likely correct choice: Case 1 → continue; Case 2 → standalone; Case 3 → current project; Case 4 → bundle into most-relevant pipeline.
+- Stale pipelines (`age_days > 14 AND artifacts == 0`) always print the `⚠` marker in the description so the PO notices.
+- When the PO picks "Close forgotten pipelines first" / "Close old pipeline first", do NOT execute anything destructively — print the suggested command (`/compass:cleanup --stale` or `/compass:check <slug>`) and stop the current workflow so they can run it manually.
+- This step is silent when `PIPELINE_COUNT == 0` AND the PO has only one registered project AND `$ARGUMENTS` clearly targets the current project (no cross-project hint) — in that case print a one-line confirmation and skip the question.
+
+---
+
 ## Step 0c: Update memory (post-workflow success hook)
 
 At the END of the workflow, on success, touch `last_used` so the registry's ordering stays accurate:

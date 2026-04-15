@@ -81,38 +81,21 @@ If interaction_level is "standard":
 
 ---
 
-## Step 0a: Detect active pipeline session
+## Step 0a: Pipeline + Project choice gate
 
-Before scanning for project context, check whether a pipeline session is active:
+PRD is an artifact-producing workflow — apply Step 0d from `core/shared/resolve-project.md` here. The shared gate handles:
+- Scanning all active pipelines in the current project and scoring relevance to `$ARGUMENTS`
+- Asking a single case-appropriate question (continue pipeline / standalone / other project / cleanup hint)
+- Exporting `$PIPELINE_MODE`, `$PIPELINE_SLUG`, and (if the PO switched) a refreshed `$PROJECT_ROOT`
 
-```bash
-PIPELINE=$(find "$PROJECT_ROOT/.compass/.state/sessions/" -name "pipeline.json" -exec grep -l '"status": "active"' {} \; 2>/dev/null | sort | tail -1)
-```
+**After Step 0d returns:**
 
-**If an active pipeline is found:**
-
-1. Read `pipeline.json` — extract the session `id` (slug) and `title` from the sibling `context.json`.
-2. Show (in `lang`):
-   - en: `"Active pipeline detected: <title>. The PRD can be saved into this session."`
-   - vi: `"Phát hiện pipeline đang hoạt động: <title>. PRD có thể được lưu vào phiên này."`
-3. Use AskUserQuestion to confirm:
-   ```json
-   {"questions": [{"question": "Save PRD in the active pipeline session?", "header": "Pipeline session", "multiSelect": false, "options": [{"label": "Yes — part of pipeline", "description": "Save PRD in the session AND in the normal prd/ folder"}, {"label": "No — standalone", "description": "Save only in the normal prd/ folder, ignore the pipeline"}]}]}
-   ```
-   Vietnamese version (use when `lang=vi`):
-   ```json
-   {"questions": [{"question": "Lưu PRD vào pipeline session đang hoạt động?", "header": "Pipeline session", "multiSelect": false, "options": [{"label": "Có — thuộc pipeline", "description": "Lưu PRD vào session VÀ vào thư mục prd/ bình thường"}, {"label": "Không — standalone", "description": "Chỉ lưu vào thư mục prd/ bình thường, bỏ qua pipeline"}]}]}
-   ```
-4. If **Yes**:
-   - Set `pipeline_mode = true` and `pipeline_slug = <id>`.
-   - After Step 7 writes the PRD file, also copy it to `$PROJECT_ROOT/.compass/.state/sessions/<slug>/prd-<topic>.md`.
-   - Append the PRD file path to the `artifacts` array in `pipeline.json`:
-     ```json
-     { "type": "prd", "path": "<output-file-path>", "session_path": "$PROJECT_ROOT/.compass/.state/sessions/<slug>/prd-<topic>.md", "created_at": "<ISO>" }
-     ```
-5. If **No** → set `pipeline_mode = false`. Proceed as standalone (current behavior).
-
-**If no active pipeline found:** set `pipeline_mode = false`. Continue with current standalone behavior — no change.
+- If `$PIPELINE_MODE=true`, remember `$PIPELINE_SLUG`. When Step 7 writes the PRD file, also copy it to `$PROJECT_ROOT/.compass/.state/sessions/$PIPELINE_SLUG/prd-<topic>.md` and append to `pipeline.json`:
+  ```json
+  { "type": "prd", "path": "<output-file-path>", "session_path": "$PROJECT_ROOT/.compass/.state/sessions/$PIPELINE_SLUG/prd-<topic>.md", "created_at": "<ISO>" }
+  ```
+- If `$PIPELINE_MODE=false`, proceed as standalone — Step 7 writes only to the `prd/` folder.
+- If the PO switched project mid-gate, `$PROJECT_ROOT` is now different — re-read `$CONFIG` and `$SHARED_ROOT` from the new project before continuing to Step 0b.
 
 ---
 

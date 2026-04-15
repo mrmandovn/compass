@@ -97,6 +97,8 @@ Each Colleague runs in a fresh context with a strict `context_pointers` file lis
 | `project list\|use <path>` | Inspect or switch the active project |
 | `setup` | Configure Jira / Figma / Confluence / Vercel |
 | `status` | Session + project health |
+| `cleanup` | Close stale pipelines, archive old sessions |
+| `check --list-active` | List active pipelines + age + artifact count |
 | `migrate` | Migrate v0.x state to v1.0 (idempotent) |
 | `update` / `help` / `undo` | Self-update, help, restore previous artifact |
 

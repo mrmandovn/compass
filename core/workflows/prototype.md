@@ -29,6 +29,21 @@ From `$CONFIG`, extract: `lang`, `spec_lang`, `mode`, `prefix`, `output_paths`. 
 
 Language enforcement: ALL user-facing text MUST use `lang`.
 
+
+## Step 0a — Pipeline + Project choice gate
+
+This workflow produces an artifact in the project, so apply Step 0d from `core/shared/resolve-project.md` after Step 0. The shared gate:
+
+- Scans all active pipelines in the current project and scores their relevance to `$ARGUMENTS`.
+- Asks one case-appropriate question (continue pipeline / standalone here / switch to another project / cleanup hint).
+- Exports `$PIPELINE_MODE` (true/false), `$PIPELINE_SLUG` (when true), and a possibly-updated `$PROJECT_ROOT` (if the PO picked another project).
+
+After Step 0a returns:
+- If `$PIPELINE_MODE=true` → when writing artifacts later, also copy into `$PROJECT_ROOT/.compass/.state/sessions/$PIPELINE_SLUG/` and append to that `pipeline.json` `artifacts` array.
+- If `$PROJECT_ROOT` changed → re-read `$CONFIG` and `$SHARED_ROOT` from the new project before proceeding.
+
+---
+
 ## Step 1: Check UI/UX Pro Max skill
 
 ```bash

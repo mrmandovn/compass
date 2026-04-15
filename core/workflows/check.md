@@ -32,6 +32,124 @@ All output from this point is in `lang`.
 
 ---
 
+## Step 0a — Parse subcommand
+
+`$ARGUMENTS` may route the workflow into one of three modes. Parse once, branch before Step 1:
+
+```bash
+ARG="${ARGUMENTS:-}"
+case "$ARG" in
+  "")
+    MODE="validate-latest"
+    ;;
+  "--list-active")
+    MODE="list-active"
+    ;;
+  "--"*)
+    MODE="usage"
+    ;;
+  *)
+    MODE="close-slug"
+    TARGET_SLUG="$ARG"
+    ;;
+esac
+echo "MODE=$MODE"
+```
+
+**Branch:**
+
+- `MODE=validate-latest` → continue to Step 1 (default behavior — validate + close the latest completed session).
+- `MODE=list-active` → jump to **Step 1b** below, then stop.
+- `MODE=close-slug` → jump to **Step 1c** below, then stop.
+- `MODE=usage` → print usage message and stop:
+
+```
+Usage:
+  /compass:check                  Validate the latest completed run + close its pipeline
+  /compass:check <slug>           Close a specific session's pipeline (no validation)
+  /compass:check --list-active    List all active pipelines in this project
+```
+
+---
+
+## Step 1b — List active pipelines (MODE=list-active)
+
+Scan every `pipeline.json` with `status=active` in the current project, then print a compact table:
+
+```bash
+NOW=$(date -u +%s)
+printf "%-30s %8s %10s %-10s\n" "SLUG" "AGE" "ARTIFACTS" "NOTE"
+find "$PROJECT_ROOT/.compass/.state/sessions/" -name "pipeline.json" -exec grep -l '"status": "active"' {} \; 2>/dev/null | while read -r PF; do
+  SLUG=$(basename "$(dirname "$PF")")
+  CREATED=$(jq -r '.created_at' "$PF" 2>/dev/null)
+  ART_COUNT=$(jq -r '.artifacts | length' "$PF" 2>/dev/null || echo 0)
+  CREATED_SEC=$(date -j -f "%Y-%m-%dT%H:%M:%SZ" "$CREATED" +%s 2>/dev/null || echo "$NOW")
+  AGE_DAYS=$(( (NOW - CREATED_SEC) / 86400 ))
+  NOTE=""
+  [ "$AGE_DAYS" -gt 14 ] && [ "$ART_COUNT" = "0" ] && NOTE="⚠ stale"
+  printf "%-30s %8s %10s %-10s\n" "$SLUG" "${AGE_DAYS}d" "$ART_COUNT" "$NOTE"
+done
+```
+
+After printing, append the action hints (adapt to `$LANG`):
+
+- en: `Close specific: /compass:check <slug>  |  Batch close stale: /compass:cleanup --stale`
+- vi: `Close cụ thể: /compass:check <slug>  |  Batch close stale: /compass:cleanup --stale`
+
+Then stop — do NOT proceed to Step 2.
+
+---
+
+## Step 1c — Close a specific session (MODE=close-slug)
+
+The PO passed a slug directly. Close the referenced session's pipeline without running full validation.
+
+```bash
+TARGET_DIR="$PROJECT_ROOT/.compass/.state/sessions/$TARGET_SLUG"
+TARGET_PIPELINE="$TARGET_DIR/pipeline.json"
+if [ ! -f "$TARGET_PIPELINE" ]; then
+  echo "ERROR: No pipeline.json at $TARGET_PIPELINE"
+  exit 1
+fi
+CURRENT_STATUS=$(jq -r '.status' "$TARGET_PIPELINE")
+```
+
+Branch on `$CURRENT_STATUS`:
+
+- `active` → proceed to close.
+- `completed` → print `ℹ Pipeline $TARGET_SLUG is already closed (completed_at=...).` and stop.
+- anything else → print `⚠ Unexpected status "$CURRENT_STATUS" for $TARGET_SLUG — leaving untouched.` and stop.
+
+If active, confirm with the PO once (AskUserQuestion):
+
+en:
+```json
+{"questions": [{"question": "Close pipeline \"<title>\" at <slug>? No validation will run.", "header": "Close pipeline", "multiSelect": false, "options": [
+  {"label": "Yes — close", "description": "Mark the pipeline as completed. Artifacts stay in place."},
+  {"label": "Cancel", "description": "Leave the pipeline active"}
+]}]}
+```
+
+vi:
+```json
+{"questions": [{"question": "Close pipeline \"<title>\" tại <slug>? Sẽ không chạy validation.", "header": "Close pipeline", "multiSelect": false, "options": [
+  {"label": "Có — close", "description": "Đánh dấu pipeline là completed. Artifacts giữ nguyên."},
+  {"label": "Huỷ", "description": "Giữ pipeline active"}
+]}]}
+```
+
+On "Yes":
+
+```bash
+TMP=$(mktemp)
+jq --arg t "$(date -u +%Y-%m-%dT%H:%M:%SZ)" '.status = "completed" | .completed_at = $t' "$TARGET_PIPELINE" > "$TMP" && mv "$TMP" "$TARGET_PIPELINE"
+echo "✓ Closed pipeline $TARGET_SLUG"
+```
+
+Then stop.
+
+---
+
 ## Step 1: Load session
 
 Scan `$PROJECT_ROOT/.compass/.state/sessions/` for the latest folder containing a `result.json` with `"status": "completed"`.

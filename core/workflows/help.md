@@ -59,6 +59,20 @@ Individual commands (power users):
   compass:status       Project dashboard overview
   compass:undo         Restore previous document version
 
+Project + housekeeping:
+  compass:project      List registered projects or switch active
+                         /compass:project              — list projects
+                         /compass:project use <path>   — switch active
+  compass:check        Validate session (see above) or inspect active pipelines
+                         /compass:check                — validate + close current session
+                         /compass:check <slug>         — close specific session
+                         /compass:check --list-active  — list active pipelines + age
+  compass:cleanup      Housekeeping: close stale pipelines, archive old sessions
+                         /compass:cleanup              — interactive
+                         /compass:cleanup --stale      — auto-close > 14d + 0 artifacts
+                         /compass:cleanup --archive    — move completed > 30d
+                         /compass:cleanup --dry-run    — preview only
+
 Setup & maintenance:
   compass:init         Set up project — language, mode, integrations
   compass:setup        Configure / verify tools (Jira, Figma, Confluence, Vercel)
