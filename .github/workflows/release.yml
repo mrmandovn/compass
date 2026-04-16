@@ -6,8 +6,49 @@ on:
       - 'v*'
 
 jobs:
+  verify-versions:
+    name: verify versions in sync
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check all 9 version refs match VERSION + tag
+        run: |
+          set -euo pipefail
+          V=$(cat VERSION | tr -d '[:space:]')
+          TAG="${GITHUB_REF#refs/tags/v}"
+          if [ "$V" != "$TAG" ]; then
+            echo "✗ VERSION=$V does not match tag=$TAG"; exit 1
+          fi
+
+          fail=0
+          check() {
+            local label="$1" actual="$2"
+            if [ "$actual" != "$V" ]; then
+              echo "✗ $label = $actual (expected $V)"; fail=$((fail+1))
+            fi
+          }
+
+          check "package.json .version"            "$(jq -r '.version' package.json)"
+          for d in cli-darwin-arm64 cli-darwin-x64 cli-linux-arm64 cli-linux-x64; do
+            check "optionalDep @compass-m/$d"       "$(jq -r ".optionalDependencies[\"@compass-m/$d\"]" package.json)"
+          done
+          check "core/manifest.json .version"      "$(jq -r '.version' core/manifest.json)"
+          check "cli/Cargo.toml version"           "$(grep -E '^version = ' cli/Cargo.toml | head -1 | sed 's/version = "\(.*\)"/\1/')"
+          for p in darwin-arm64 darwin-x64 linux-arm64 linux-x64; do
+            check "npm/cli-$p/package.json"        "$(jq -r '.version' "npm/cli-$p/package.json")"
+          done
+
+          if [ "$fail" -eq 0 ]; then
+            echo "✓ All 9 version refs match $V"
+          else
+            echo ""
+            echo "$fail reference(s) out of sync. Run ./scripts/bump-version.sh $V locally, commit, retag."
+            exit 1
+          fi
+
   build:
     name: build (${{ matrix.platform }})
+    needs: verify-versions
     runs-on: ${{ matrix.runs-on }}
     strategy:
       fail-fast: false
