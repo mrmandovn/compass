@@ -39,29 +39,53 @@ After 0a returns, `$PROJECT_ROOT` may have changed — re-read `$CONFIG` and `$S
 
 ## Step 1 — Choose scope
 
-Ask the PO what scope this report covers:
+Ask the PO what scope this report covers. Three options:
 
 en:
 ```json
 {"questions": [{"question": "Report scope?", "header": "Scope", "multiSelect": false, "options": [
-  {"label": "Domain report", "description": "Aggregate every product in domain=<config.domain> from capability-registry"},
-  {"label": "Product report", "description": "Only the current project: <PROJECT_NAME>"}
+  {"label": "Current project (<PROJECT_NAME>)", "description": "Report only on the current project"},
+  {"label": "Another project", "description": "Pick another registered Compass project"},
+  {"label": "Domain report", "description": "Aggregate every product in domain=<config.domain> from capability-registry"}
 ]}]}
 ```
 
 vi:
 ```json
 {"questions": [{"question": "Scope của report?", "header": "Scope", "multiSelect": false, "options": [
-  {"label": "Domain report", "description": "Tổng hợp mọi product thuộc domain=<config.domain> từ capability-registry"},
-  {"label": "Product report", "description": "Chỉ project hiện tại: <PROJECT_NAME>"}
+  {"label": "Project hiện tại (<PROJECT_NAME>)", "description": "Report chỉ project hiện tại"},
+  {"label": "Project khác", "description": "Pick project Compass đã đăng ký khác"},
+  {"label": "Domain report", "description": "Tổng hợp mọi product thuộc domain=<config.domain> từ capability-registry"}
 ]}]}
 ```
 
-**If "Domain report"** and `$SHARED_ROOT` is empty or `capability-registry.yaml` missing → warn:
-- en: `⚠ Capability registry not available. Falling back to Product report scope.`
-- vi: `⚠ Capability registry không khả dụng. Fallback sang Product report scope.`
+**If "Domain report"** and `$SHARED_ROOT` is empty or `capability-registry.yaml` missing → warn and auto-fallback to "Current project":
+- en: `⚠ Capability registry not available. Falling back to Current project scope.`
+- vi: `⚠ Capability registry không khả dụng. Fallback sang Current project scope.`
 
-Continue accordingly. Store the choice as `$SCOPE` (`domain` or `product`).
+Store the choice as `$SCOPE` (`current` / `another` / `domain`).
+
+### Step 1b — If scope = "Another project"
+
+Run this sub-step only when `$SCOPE=another`. Pick the target project from the registry:
+
+```bash
+OTHERS_JSON=$(compass-cli project list 2>/dev/null || echo "[]")
+OTHERS_OPTIONS=$(echo "$OTHERS_JSON" | jq -c --arg cur "$PROJECT_ROOT" '[.[] | select(.path != $cur) | {label: (.name // "(unknown)"), description: (.path + " — last used " + (.last_used // "never"))}]')
+OTHERS_COUNT=$(echo "$OTHERS_JSON" | jq --arg cur "$PROJECT_ROOT" '[.[] | select(.path != $cur)] | length')
+```
+
+If `OTHERS_COUNT == 0` → warn `⚠ No other registered projects. Falling back to Current project scope.` Set `$SCOPE=current` and continue.
+
+Otherwise, AskUserQuestion with `OTHERS_OPTIONS` as the options (single-select, not multiSelect — some LLMs cannot render multiSelect).
+
+On pick:
+- Call `compass-cli project use <picked-path>` to switch active project.
+- Re-read `$PROJECT_ROOT`, `$CONFIG`, `$PROJECT_NAME`, `$SHARED_ROOT` from the new project.
+- Set `$SCOPE=current` (the picked project is now "current" for the rest of the workflow).
+- Print `✓ Switched to <PROJECT_NAME>. Generating report…`
+
+**For projects not yet in the Compass registry:** the PO must clone and register the project first (e.g., `git clone https://gitlab.silvertiger.tech/product-owner/<name>.git <parent>/<name>` then `compass-cli project add <path>`). Compass does NOT perform the git clone itself — clone + auth is the PO's responsibility.
 
 ---
 
@@ -129,15 +153,80 @@ Read the template once and use it as the skeleton in Step 6.
 
 ### Step 4a — Identify products in scope
 
-**If `$SCOPE=product`:**
+**If `$SCOPE=current`:**
 - Only `$PROJECT_ROOT`. `PRODUCT_LIST = [$PROJECT_NAME]`.
 - `SCOPE_PREFIX = $PREFIX` (uppercase).
+- Skip to Step 4b.
 
 **If `$SCOPE=domain`:**
-- Read `$SHARED_ROOT/capability-registry.yaml`. Extract all products where `domain == $CONFIG.domain`.
-- For each product, locate the repo: `compass-cli project list | jq --arg name <product> '.[] | select(.name == $name) | .path'`.
-- Products not registered in Compass → warn and include a placeholder note in the report: `⚠ <product> not registered — data unavailable.`
-- `SCOPE_PREFIX = uppercase($CONFIG.domain)` (e.g. `ARD`).
+
+1. Read `$SHARED_ROOT/capability-registry.yaml`. Extract all products where `domain == $CONFIG.domain` as `$DOMAIN_PRODUCTS`.
+
+2. For each product in `$DOMAIN_PRODUCTS`, check registration:
+   ```bash
+   REGISTERED=$(compass-cli project list | jq -r --arg n "$PRODUCT" '.[] | select(.name == $n) | .path')
+   ```
+   Classify each product as `registered` (path found) or `missing` (not in registry).
+
+3. **Print upfront summary** — show the PO what's there and what's missing BEFORE asking any questions:
+
+   en:
+   ```
+   📋 Domain=<domain> has <N> products in capability-registry:
+
+   Registered (<M>):
+     ✓ <product-1> → <path>
+     ✓ <product-2> → <path>
+     ...
+
+   Not cloned (<K>):
+     ❌ <product-3>
+     ❌ <product-4>
+     ...
+   ```
+
+   vi: same layout, translated labels.
+
+4. **Per-product decision for each missing product** (sequential single-select — do NOT use multiSelect; some LLMs cannot render it):
+
+   For each missing product, ask ONE question:
+
+   en:
+   ```json
+   {"questions": [{"question": "<product> is not cloned locally. Include in report?", "header": "<product>", "multiSelect": false, "options": [
+     {"label": "Exclude from report", "description": "Include as placeholder \"⚠ data unavailable\" in the report"},
+     {"label": "Clone now", "description": "Run: git clone https://gitlab.silvertiger.tech/product-owner/<product>.git <parent>/<product> — your existing Git/GitLab auth is used; Compass does not touch credentials"},
+     {"label": "Cancel report", "description": "Stop — handle missing products manually first, re-run /compass:report"}
+   ]}]}
+   ```
+
+   vi: same shape, translated.
+
+   **Branch on pick:**
+
+   - **"Exclude"** → add product to `$EXCLUDED_LIST`. Its section in the report will show `⚠ <product>: not cloned — data unavailable`. Continue to next missing product.
+
+   - **"Clone now"** → run `git clone` as shown below:
+     ```bash
+     PARENT=$(dirname "$PROJECT_ROOT")
+     git clone "https://gitlab.silvertiger.tech/product-owner/${PRODUCT}.git" "$PARENT/${PRODUCT}" 2>&1
+     ```
+     **Compass does NOT manage Git credentials.** The PO has set up GitLab auth (SSH key or credential helper) already; if not, `git clone` will fail and the PO must resolve it outside Compass. On failure, print the error, add product to `$EXCLUDED_LIST` (fallback to exclude), and continue.
+
+     On success, register the new project:
+     ```bash
+     compass-cli project add "$PARENT/${PRODUCT}"
+     ```
+     Add product to the registered list for Step 4b.
+
+   - **"Cancel"** → stop the workflow. Print: `ℹ Cancelled — resolve the missing products and re-run /compass:report.` Do NOT write a partial report.
+
+5. After all missing products decided → build final `PRODUCT_LIST`:
+   - All originally-registered products
+   - Plus any that the PO chose to clone (now registered)
+   - Excluded products are kept in `$EXCLUDED_LIST` for placeholder rendering in Step 6.
+
+6. `SCOPE_PREFIX = uppercase($CONFIG.domain)` (e.g. `ARD`).
 
 ### Step 4b — Per-product data collection
 
@@ -256,13 +345,25 @@ Insert Step 5a bullets, Step 5b health table (with Notes column), Step 5c risks 
 
 ### Product Reports
 
-For each product in `PRODUCT_LIST`, write a subsection using the template's per-product skeleton, filled with:
+For each product in `PRODUCT_LIST` (registered, data available), write a full subsection using the template's per-product skeleton, filled with:
 - Shipped table (from Step 4b release data)
 - Key Metrics (hardcode `Releases shipped` from Step 4b; ask PO for `Q Target` + other custom metrics)
 - Epics Progress table (from Step 4b)
 - Blockers & Risks (ask PO)
 - Cross-Domain Dependencies Used (infer from PRDs; ask to confirm)
 - Q+1 Focus (list — ask PO)
+
+For each product in `$EXCLUDED_LIST` (not cloned, per PO choice in Step 4a), write a **placeholder subsection**:
+
+```markdown
+### <index>. <Product Name>
+
+_PO: unknown — data unavailable_
+
+> ⚠ <product> not cloned locally. No release notes, epics, or dependencies could be aggregated. Excluded from this report at the PO's request. Clone via `git clone https://gitlab.silvertiger.tech/product-owner/<product>.git` then `compass-cli project add <path>` to include next time.
+```
+
+This keeps the domain report structurally complete (every product in the registry is acknowledged) while being honest about missing data.
 
 ### Cross-Domain Impact (domain scope only)
 
@@ -322,7 +423,8 @@ Print:
 | Situation | Handling |
 |---|---|
 | `$SCOPE=domain` + capability-registry missing | Fallback to Product scope, warn clearly |
-| A product in the domain has no registered path | Include a placeholder note `⚠ <product>: not registered — data unavailable.` in its section |
+| A product in the domain has no registered path | Handled in Step 4a — upfront summary + per-product single-select (Clone now / Exclude / Cancel). Excluded products render as placeholder subsection in Step 6. |
+| `git clone` fails in Step 4a | Print the error, treat as Exclude (fallback), continue with remaining products. Compass does NOT handle auth — PO's GitLab credentials are their own concern. |
 | Product has zero releases in the quarter | Write "No production release in Q<N>" + explain reason (discovery / maintenance / pre-scoping) via PO input |
 | Output file already exists | AskUserQuestion: overwrite / append `-v2` suffix / cancel |
 | Template resolver returns `none` | Warn, use fallback section list inline |
