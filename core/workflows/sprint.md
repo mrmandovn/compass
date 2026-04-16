@@ -312,17 +312,55 @@ Show the last 3 sprints (sorted by `startDate` desc) as options:
 
 Store `$SPRINT_ID`, `$SPRINT_NAME`, `$SPRINT_START`, `$SPRINT_END`, `$SPRINT_GOAL` (from Jira goal field).
 
+## Step R3b — Resolve story-points custom field
+
+Story points are stored as a Jira custom field (e.g. `customfield_10016` on Cloud; field name varies per instance — common names: `Story point estimate`, `Story Points`). Before Step R4 requests issues, resolve the field ID once per project and cache it in config.
+
+1. Read `$SP_FIELD` from `$CONFIG.jira.story_points_field`. If already set → skip to Step R4.
+
+2. If unset, discover via MCP:
+
+   ```
+   FIELDS = mcp__jira__jira_search_fields(keyword="story point")
+   ```
+
+   The search is fuzzy, so both `Story point estimate` and `Story Points` match. Pick the first entry whose `name` (case-insensitive) contains `story point`. Store `SP_FIELD = <picked>.id` (e.g. `customfield_10016`).
+
+3. Persist for reuse:
+
+   ```bash
+   compass-cli state update --set "jira.story_points_field=$SP_FIELD"
+   ```
+
+4. If the search returns zero matches → set `$SP_FIELD=""` and warn `⚠ No "Story Points" field found on this Jira instance — the review's points columns will be empty.` Continue; do not block the workflow.
+
 ## Step R4 — Fetch sprint data
 
+Build the `fields` parameter so the response includes story points plus everything the review uses. When `$SP_FIELD` is non-empty, append it to the comma list:
+
 ```
-ISSUES = mcp__jira__jira_get_sprint_issues(sprint_id=$SPRINT_ID)
+FIELDS_PARAM="summary,status,assignee,issuetype,priority,labels"
+[ -n "$SP_FIELD" ] && FIELDS_PARAM="$FIELDS_PARAM,$SP_FIELD"
+
+ISSUES = mcp__jira__jira_get_sprint_issues(
+  sprint_id=$SPRINT_ID,
+  fields=$FIELDS_PARAM,
+  limit=50
+)
 ```
+
+Each issue's story points value is at `issue.fields[$SP_FIELD]` (may be `null` if the issue was never estimated — treat as 0 when summing, but render as `—` in tables to distinguish from actual 0-point issues).
+
+If `jira_get_sprint_issues` returns more than 50 issues (page-limit), loop with `start_at` increments of 50 until the response indicates no more pages.
 
 Aggregate:
 - Total issues, count by status (Done / In Progress / To Do)
-- Total story points, points completed
-- Per issue: key, summary, status, assignee, story points, issuetype
+- Total story points = sum of `issue.fields[$SP_FIELD]` across all issues (skip nulls)
+- Points completed = sum of `issue.fields[$SP_FIELD]` where `status.category` = Done (or `status.name` matches Done-equivalents: `Done`, `Closed`, `Resolved`, `Complete`)
+- Per issue: key, summary, status, assignee, story points (`issue.fields[$SP_FIELD]`), issuetype
 - Extract `$SPRINT_N` from sprint name (e.g. "Sprint 1" → `N=1`)
+
+If `$SP_FIELD` is empty (field not found in Step R3b) → leave all points values as `—` in the review, and skip the "Total/Completed points" summary line with an inline note `_story-points field unavailable_`.
 
 Also fetch participants: collect unique assignees from issues + watchers via `mcp__jira__jira_get_issue_watchers` if needed. Present as `Stakeholder + Team` for the review header.
 
