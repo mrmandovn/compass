@@ -402,3 +402,25 @@ updated_at: ISO-8601
 | All fields optional | Missing fields fall back to hardcoded defaults in `/compass:init`. |
 | Project `config.json` overrides | Per-project fields (`lang`, `domain`, ...) take precedence over global when both set. |
 | File access | Same lock discipline as registry. |
+
+---
+
+## 6. Project config — optional integration fields
+
+**Location:** `$PROJECT_ROOT/.compass/.state/config.json`
+
+Beyond the core fields (`lang`, `spec_lang`, `project.*`, `mode`, etc.), the config MAY contain optional nested objects used by integrations. These are written by `/compass:setup` or `/compass:sprint review` when the PO first supplies them.
+
+### Jira integration fields
+
+```yaml
+jira:
+  project_key: string    # e.g. "ASN", "SV", "AKMS" — required for /compass:sprint review
+  board_id: int | null   # optional — auto-picked from project if only one board
+```
+
+Consumed by: `/compass:sprint review` (Step R3), `/compass:setup jira`, `core/integrations/jira.md`. If missing when needed, the workflow prompts once and persists via `compass-cli state update`.
+
+### Figma, Confluence, Vercel
+
+Similar shape: `{figma: {file_key: ...}}`, `{confluence: {space_key: ...}}`, `{vercel: {project_id: ...}}`. Populated on first use by the respective `/compass:setup <name>` flow. All fields optional — workflows that need them prompt + persist when missing.

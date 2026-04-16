@@ -48,6 +48,8 @@ After resolving the active project per `core/shared/resolve-project.md`, extract
 
 8. **Emit progress for long phases.** When entering an execution phase likely to take >30 seconds or with >2 discrete steps, apply the progress pattern from `core/shared/progress.md` — print a plan block, tick on completion, summary at the end. Never leave the user waiting in silence.
 
+9. **Artifact language must be consistent — no mixed Eng/Vie.** When generating artifacts (PRD, story, epic, release note, report), the ENTIRE document must be in `spec_lang`. Templates (from `$SHARED_ROOT/templates/` or bundled) are structural skeletons — their headings, labels, and keywords are illustrative. When `spec_lang ≠ en`, translate ALL structural elements: section headings, table headers, AC keywords, placeholders. No single document should mix English headings with Vietnamese prose or vice versa. Technical terms (API names, product names, acronyms) may stay in their original language.
+
 ## Additional rules for specific workflows
 
 Some workflows have workflow-specific UX rules that extend (not override) these base rules. Those are defined inline in the workflow file, directly below the shared module reference.

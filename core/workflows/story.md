@@ -143,16 +143,11 @@ The module handles scanning, matching, and asking the user:
 
 ## Step 1 — Read context
 
-**Silver Tiger mode:**
-1. Read `{templates_path}/user-story-template.md` — the canonical story template.
-2. List epics by globbing `epics/{prefix}-EPIC-*/epic.md`. Show the list to the user.
-3. List existing PRDs in `prd/`.
-4. If Jira is enabled: remember project key. Do NOT auto-create Jira tickets.
-
-**Standalone mode:**
-1. Read `~/.compass/core/templates/story-template.md` (bundled).
-2. List existing stories in `.compass/Stories/`.
-3. List PRDs in `.compass/PRDs/`.
+1. **Resolve template** — apply `core/shared/template-resolver.md` with `TEMPLATE_NAME="user-story-template"`. Store `$TEMPLATE_PATH` and `$TEMPLATE_SOURCE`.
+2. Read `$TEMPLATE_PATH` — this is the story skeleton to fill.
+3. List epics by globbing `$PROJECT_ROOT/epics/{prefix}-EPIC-*/epic.md`. Show the list to the user.
+4. List existing PRDs in `$PROJECT_ROOT/prd/`.
+5. If Jira is enabled: remember project key. Do NOT auto-create Jira tickets.
 
 ## Step 2 — Identify the source
 
@@ -353,18 +348,15 @@ When a PRD has multiple requirements (e.g. [REQ-01] through [REQ-08]):
 
 ## Step 5 — Compose the story
 
-**Silver Tiger mode:**
-- Use the template from `{templates_path}/user-story-template.md`.
-- Fill frontmatter: `epic` (relative path to epic.md), `jira-project` (from epic), `issue-type: Story`, `platform` (from epic), `epic-link` (from epic), `priority` (from epic or ask), `labels` (from context), `jira-id: ""`, `status: pending-push`.
-- Auto-increment story ID: scan existing files in `epics/{EPIC}/user-stories/`, take the max number found (e.g. STORY-003 → next is 004), pad to 3 digits.
-- Output filename: apply `config.naming.story` pattern (fallback: `epics/{EPIC}/user-stories/{PREFIX}-STORY-{NNN}-{slug}.md`).
+Use `$TEMPLATE_PATH` (resolved in Step 1 via `core/shared/template-resolver.md`).
 
-**Standalone mode:**
-- Use `~/.compass/core/templates/story-template.md`.
-- Auto-increment story ID: scan `.compass/Stories/`, same logic.
-- Output filename: apply `config.naming.story_standalone` pattern (fallback: `.compass/Stories/STORY-{NNN}-{slug}.md`).
+- Fill frontmatter from the template skeleton: `epic` (relative path), `jira-project`, `issue-type: Story`, `platform`, `epic-link`, `priority`, `estimate`, `labels`, `jira-id: ""`, `status: pending-push`.
+- Auto-increment story ID: scan existing files in `$PROJECT_ROOT/epics/{EPIC}/user-stories/`, take the max number found (e.g. STORY-003 → next is 004), pad to 3 digits.
+- Output filename: apply `config.naming.story` pattern (fallback: `epics/{EPIC}/user-stories/{PREFIX}-{PLATFORM}-STORY-{NNN}-{slug}.md`).
 
-**AC format** (both modes):
+**AC format — follow the template's convention.** If shared/ template uses checkbox format (Silver Tiger standard: `- [ ] **AC1: Actor can [action]**` with behavior details), use that. If bundled template uses Given/When/Then Gherkin, use that. Template is authoritative for AC structure.
+
+**AC format** (reference — adapt to template):
 
 ```
 - [ ] **AC<N>: <Short scenario name>**

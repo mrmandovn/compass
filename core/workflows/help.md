@@ -55,7 +55,12 @@ Individual commands (power users):
   compass:feedback     Quick feedback collection + theming
   compass:roadmap      Product roadmap with gantt chart
   compass:sprint       Sprint planning — pick stories by capacity
+                         /compass:sprint              — plan next sprint (default)
+                         /compass:sprint plan         — same as above
+                         /compass:sprint review       — sprint review: aggregate Jira + generate review file
   compass:release      Generate release notes
+  compass:report       Quarterly report — domain or product scope
+                         /compass:report              — interactive (pick scope + quarter)
   compass:status       Project dashboard overview
   compass:undo         Restore previous document version
 

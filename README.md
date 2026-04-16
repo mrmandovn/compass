@@ -85,8 +85,10 @@ Each Colleague runs in a fresh context with a strict `context_pointers` file lis
 | `prioritize` | Score backlog (RICE / MoSCoW / Kano) |
 | `prototype` | UI prototype via Figma integration |
 | `roadmap` | Product roadmap with Gantt |
-| `sprint` | Sprint planning by capacity |
+| `sprint plan` / `sprint` | Sprint planning by capacity (default) |
+| `sprint review` | Sprint review — aggregate Jira data, generate review file |
 | `release` | Generate release notes |
+| `report` | Quarterly report — domain scope (all products) or product scope |
 | `feedback` | Structured user-feedback rollup |
 
 ### Project + setup

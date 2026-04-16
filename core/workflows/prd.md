@@ -173,19 +173,13 @@ If you find yourself about to paste code, stop and rewrite in plain language. Ex
 
 ## Step 2 — Read context
 
-**Silver Tiger mode:**
 1. Load team, PO, stakeholders from `$CONFIG` (already parsed in Step 0).
-2. Read `{templates_path}/prd-template.md` — this is the canonical template.
-3. Read `{capability_registry}` (e.g. `../shared/capability-registry.yaml`) — used in Step 5 for dependency discovery.
-4. Read `$PROJECT_ROOT/wiki/overview.md` if it exists — for product context.
-5. List existing PRDs in `$PROJECT_ROOT/prd/` to check name collisions.
-6. List relevant IDEA files in `$PROJECT_ROOT/research/` (if the user is referring to one).
-
-**Standalone mode:**
-1. Load team, PO, stakeholders from `$CONFIG` (already parsed in Step 0).
-2. Read bundled template at `~/.compass/core/templates/prd-template.md`.
-3. List existing PRDs in `.compass/PRDs/` to check version/name collisions.
-4. List relevant IDEA files in `.compass/Ideas/` (if the user is referring to one).
+2. **Resolve template** — apply `core/shared/template-resolver.md` with `TEMPLATE_NAME="prd-template"`. This checks `$SHARED_ROOT/templates/prd-template.md` first (Silver Tiger authoritative), falls back to `~/.compass/core/templates/prd-template.md` (bundled). Store the resolved path as `$TEMPLATE_PATH` and source as `$TEMPLATE_SOURCE`.
+3. Read `$TEMPLATE_PATH` — this is the PRD skeleton to fill.
+4. If `$SHARED_ROOT` exists: read `$SHARED_ROOT/capability-registry.yaml` — used in Step 5 for dependency discovery.
+5. Read `$PROJECT_ROOT/wiki/overview.md` if it exists — for product context.
+6. List existing PRDs in `$PROJECT_ROOT/prd/` to check name collisions.
+7. List relevant IDEA files in `$PROJECT_ROOT/research/` (if the user is referring to one).
 
 ## Step 3 — Identify source + PRD type (1 batched call)
 
@@ -505,9 +499,7 @@ If NO dependencies found, write: "No cross-product dependencies detected. If thi
 
 Domain context is already in the project's `CLAUDE.md` header (written by `/compass:init`), which Claude Code auto-loads on every turn. No separate compose step or CLI call is needed — the writer colleague already has the domain rules in context.
 
-**Silver Tiger mode**: use the template read from `{templates_path}/prd-template.md`. Fill every section with data from Step 4 and Step 5.
-
-**Standalone mode**: use the bundled template at `~/.compass/core/templates/prd-template.md`. Fill every section with data from Step 4. Skip the Dependencies table (no registry in standalone).
+Use `$TEMPLATE_PATH` (resolved in Step 2 via `core/shared/template-resolver.md`). Fill every section with data from Step 4 and Step 5. If `$SHARED_ROOT` is empty (no capability registry), skip the Dependencies table.
 
 **Section inclusion by PRD_TYPE**:
 - `new-feature` → include all sections (A, B, C, D, E, F, Dependencies if Silver Tiger, Open Questions).
@@ -609,8 +601,8 @@ Consider syncing with these POs before sprint planning.
 - **User pushes you to put code in the PRD**: politely refuse and explain "the PRD describes what/why; code belongs in the DESIGN-SPEC. I'll write it in plain language instead of a code snippet."
 - **User says "skip section X"**: ask why. If valid, allow it but record clearly in the file: "Section X: SKIPPED — reason: ..."
 - **PRD is too short (<300 words)**: warn "this PRD is on the thin side — want me to dig deeper into any section?"
-- **Silver Tiger: capability registry not found**: warn and skip dependency discovery. Note in the PRD: "Dependencies: registry not found — manual review needed."
-- **Silver Tiger: templates_path missing**: fall back to bundled template at `~/.compass/core/templates/prd-template.md` and warn.
+- **Capability registry not found** (`$SHARED_ROOT` empty or file missing): warn and skip dependency discovery. Note in the PRD: "Dependencies: registry not found — manual review needed."
+- **Template not found** (`$TEMPLATE_SOURCE=none`): warn and generate PRD free-form. Note at top: "⚠ No template found — structure may differ from standard."
 - **Output directory doesn't exist**: create it with `mkdir -p`.
 - **Filename collision**: use AskUserQuestion as shown in Step 7.
 

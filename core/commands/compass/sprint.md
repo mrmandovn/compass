@@ -1,6 +1,6 @@
 ---
 name: compass:sprint
-description: Sprint planning — select stories by priority and capacity
+description: Sprint planning or sprint review — /compass:sprint [plan|review]. Default/plan picks stories by priority and capacity. Review aggregates Jira board data (goals, issues, demo results) and generates a sprint-review file.
 allowed-tools:
   - Read
   - Write

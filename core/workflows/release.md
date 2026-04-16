@@ -65,6 +65,10 @@ Scan for: completed stories (`status: done`), completed epics, any existing `rel
 
 ## Step 1 — Scan completed work
 
+
+**Resolve template:** apply `core/shared/template-resolver.md` with `TEMPLATE_NAME="release-note-template"`. Store `$TEMPLATE_PATH`. Use it when composing the output artifact. If no template found, proceed free-form.
+
+
 1. Glob `epics/*/user-stories/*.md` (Silver Tiger) or `.compass/Stories/*.md` (standalone).
 2. Filter stories with `status: done`.
 3. Check `release-notes/` folder for the most recent release file — read its `version` frontmatter to determine what was already documented.

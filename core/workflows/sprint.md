@@ -15,7 +15,39 @@ You are the sprint planner. Mission: select stories for the next sprint based on
 
 ---
 
-Apply the UX rules from `core/shared/ux-rules.md`.
+Apply the UX rules from `core/shared/ux-rules.md` (including Rule 9 — artifact language consistency).
+
+---
+
+## Step 00 — Parse subcommand
+
+`$ARGUMENTS` routes the workflow into one of two modes. Parse this BEFORE resolving the project so we fail fast on unknown args:
+
+```bash
+ARG="${ARGUMENTS:-}"
+case "$ARG" in
+  "" | "plan")   MODE="plan"   ;;
+  "review")      MODE="review" ;;
+  "--help"|"-h") MODE="usage"  ;;
+  *)             MODE="usage"  ;;
+esac
+echo "MODE=$MODE"
+```
+
+**Usage message** (`MODE=usage`):
+
+```
+Usage:
+  /compass:sprint               Sprint planning (pick stories by capacity)
+  /compass:sprint plan          Same as above — explicit form
+  /compass:sprint review        Sprint review — aggregate Jira data + generate review file
+```
+
+Print and stop when `MODE=usage`.
+
+**Branch on `$MODE` for the rest of the workflow:**
+- `MODE=plan` → continue with Step 0 through Step 5 below (existing sprint planning flow — unchanged).
+- `MODE=review` → after Step 0 (resolve project) completes, JUMP to **Step R1** at the bottom of this file (new sprint review flow). Do NOT execute Steps 0b through Step 5 in review mode.
 
 ---
 
@@ -64,6 +96,8 @@ The module handles scanning for existing stories and backlog scores. Use backlog
 ---
 
 ## Step 1 — Scan stories and backlog
+
+Sprint planning produces a free-form sprint plan file — no template is needed here. (Template `sprint-review-template` is used only in Step R1 for review mode.)
 
 1. Glob `epics/*/user-stories/*.md` (Silver Tiger) or `.compass/Stories/*.md` (standalone).
 2. For each story file, read frontmatter: `status`, `estimate`, `priority`, `epic`, dependencies.
@@ -203,7 +237,7 @@ compass-cli index add "<output-file-path>" "research" 2>/dev/null || true
 
 ---
 
-## Final — Hand-off
+## Final — Hand-off (plan mode)
 
 Print one of these closing messages (pick based on `$LANG`):
 
@@ -211,3 +245,191 @@ Print one of these closing messages (pick based on `$LANG`):
 - vi: `✓ Sprint plan đã lưu. Tiếp: `/compass:run` để bắt đầu execute, hoặc `/compass:status` để track progress.`
 
 Then stop. Do NOT auto-invoke the next workflow.
+
+---
+---
+
+# Sprint Review Flow (MODE=review)
+
+This section runs ONLY when Step 00 set `MODE=review`. Reach it by jumping from Step 0 (resolve project) directly here — do NOT run the planning Steps 0b through Step 5.
+
+Mission: aggregate data from the Jira board for the picked sprint, combine with PO input (demo results, action items, next sprint goals), and write a review file to `sprint-reviews/`.
+
+## Step R1 — Resolve template
+
+Apply `core/shared/template-resolver.md` with `TEMPLATE_NAME="sprint-review-template"`. Store `$TEMPLATE_PATH` and `$TEMPLATE_SOURCE`.
+
+- `shared` → use authoritative Silver Tiger template.
+- `bundled` → use bundled; apply Rule 9 if `spec_lang ≠ en`.
+- `none` → warn and use the inline fallback skeleton from Step R6.
+
+## Step R2 — Check Jira MCP availability
+
+Probe for `mcp__jira__jira_get_user_profile` tool. If NOT available in the current host's tool list:
+
+en:
+```json
+{"questions": [{"question": "Jira MCP is not configured. How to proceed?", "header": "Jira", "multiSelect": false, "options": [
+  {"label": "Manual entry", "description": "Fill the sprint review template interactively without Jira auto-fill"},
+  {"label": "Cancel", "description": "Stop and run /compass:setup jira to configure Jira MCP first"}
+]}]}
+```
+
+vi: same shape, translated.
+
+- "Cancel" → stop, print `ℹ Run /compass:setup jira, then re-run /compass:sprint review.`
+- "Manual entry" → set `$JIRA_MODE=manual`, skip Steps R3–R4, jump to Step R5 with empty aggregated data.
+
+If MCP IS available → set `$JIRA_MODE=auto` and continue.
+
+## Step R3 — Identify sprint (Jira auto mode)
+
+1. Load Jira project key from `$CONFIG.jira.project_key` (e.g. `ASN`, `SV`, `AKMS`). If missing → ask PO to provide it once; save to config via `compass-cli state update`.
+
+2. Fetch boards for the project:
+
+```
+mcp__jira__jira_get_agile_boards(project_key=<KEY>)
+```
+
+If only 1 board → auto-pick. If multiple → AskUserQuestion to let PO pick.
+
+3. Fetch recent sprints:
+
+```
+mcp__jira__jira_get_sprints_from_board(board_id=<BOARD>, state="active,closed")
+```
+
+Show the last 3 sprints (sorted by `startDate` desc) as options:
+
+```json
+{"questions": [{"question": "Which sprint to review?", "header": "Sprint", "multiSelect": false, "options": [
+  {"label": "<sprint.name> (#<sprint.id>, <startDate>→<endDate>, <state>)", "description": "Most recent"},
+  {"label": "<sprint.name> (#<sprint.id>, ...)", "description": "Previous"},
+  {"label": "Older", "description": "Type sprint ID or name manually"}
+]}]}
+```
+
+Store `$SPRINT_ID`, `$SPRINT_NAME`, `$SPRINT_START`, `$SPRINT_END`, `$SPRINT_GOAL` (from Jira goal field).
+
+## Step R4 — Fetch sprint data
+
+```
+ISSUES = mcp__jira__jira_get_sprint_issues(sprint_id=$SPRINT_ID)
+```
+
+Aggregate:
+- Total issues, count by status (Done / In Progress / To Do)
+- Total story points, points completed
+- Per issue: key, summary, status, assignee, story points, issuetype
+- Extract `$SPRINT_N` from sprint name (e.g. "Sprint 1" → `N=1`)
+
+Also fetch participants: collect unique assignees from issues + watchers via `mcp__jira__jira_get_issue_watchers` if needed. Present as `Stakeholder + Team` for the review header.
+
+## Step R5 — Interactive Q&A for gaps
+
+Even in auto mode, these fields cannot come from Jira:
+
+### R5a — Review metadata
+
+AskUserQuestion batch:
+- Review date (default: today)
+- Reviewer rating 1-5
+
+### R5b — Demo results per done issue
+
+For each issue with status=Done (from Step R4), ask Pass / Fail / Pending + optional comment:
+
+```json
+{"questions": [{"question": "Demo result for <issue.key>: <issue.summary>?", "header": "<issue.key>", "multiSelect": false, "options": [
+  {"label": "✅ Pass", "description": "Verified working during demo"},
+  {"label": "❌ Fail", "description": "Demo revealed issue — type details in Other"},
+  {"label": "⏳ Pending", "description": "Deferred to next sprint review"}
+]}]}
+```
+
+Collect `$DEMO_RESULTS` array: `[{key, summary, result, comment}]`.
+
+### R5c — Next sprint goals + action items
+
+AskUserQuestion loop:
+- "Add a next-sprint goal?" → until Done → `$NEXT_GOALS` array
+- "Add an action item (owner + due date)?" → until Done → `$ACTIONS` array
+
+### R5d — Explanation (optional)
+
+Free text via AskUserQuestion Type-your-own-answer — anything notable: DoD adjustments, borrowed story points, team changes, etc.
+
+## Step R6 — Compose the review file
+
+Read `$TEMPLATE_PATH` (from Step R1). Fill placeholders:
+
+### Frontmatter
+
+```yaml
+---
+title: "<CONFIG.jira.project_key> Review - Sprint <N>"
+type: sprint-review
+project: "<CONFIG.jira.project_key>"
+sprint: <N>
+sprint-timeline: "<SPRINT_START> — <SPRINT_END>"
+date: <review_date>
+status: draft
+---
+```
+
+### Body
+
+- **Header table**: Date, Participants, Sprint #, Sprint timeline, Reviewer rate.
+- **I. Sprint Goals — This Sprint**: checkbox list from `$SPRINT_GOAL` (split by newline).
+- **Overview**: `Goals completed: X/Y = Z%` + `US/Task done: X/Y = Z%` (from Step R4 counts) + rating scale from template + **RATE**: auto-derive based on completion percentage (≥95% Excellent, 85-94 Good, 75-84 Acceptable, 40-74 Need Improvements, <40 Unacceptable).
+- **Explain**: `$R5d` text if any.
+- **II. Sprint Report**: issue count table (Done / In Progress / To Do from Step R4).
+- **III. Demo**: numbered table filled from `$DEMO_RESULTS`.
+- **IV. Next Sprint**: Backlog from "To Do" + "In Progress" issues (carry over), Goals from `$NEXT_GOALS`, Planned Items from same source.
+- **V. Action**: from `$ACTIONS`.
+- **Reviewer rate**: `$R5a` rating.
+
+If `$JIRA_MODE=manual` → all Jira-derived sections stay TBD; ask PO to fill inline via additional AskUserQuestion prompts (one per section).
+
+## Step R7 — Write output
+
+```bash
+mkdir -p "$PROJECT_ROOT/sprint-reviews"
+OUTPUT="$PROJECT_ROOT/sprint-reviews/${PREFIX}-sprint-${N}-review.md"
+
+if [ -f "$OUTPUT" ]; then
+  # AskUserQuestion: overwrite / append -v2 / cancel
+fi
+
+cat > "$OUTPUT" <<'REVIEW'
+<composed-content-from-R6>
+REVIEW
+
+echo "REVIEW_WRITTEN=$OUTPUT"
+```
+
+**Filename example:** `ASN-sprint-1-review.md` — must match `shared/ci/validate_naming.sh` pattern `[PREFIX]-sprint-[N]-review.md`.
+
+## Step R8 — Hand-off (review mode)
+
+Print:
+
+- en: `✓ Sprint review draft saved to sprint-reviews/<PREFIX>-sprint-<N>-review.md. Review demo results, then share with stakeholders.`
+- vi: `✓ Sprint review draft đã lưu vào sprint-reviews/<PREFIX>-sprint-<N>-review.md. Review demo results, rồi share với stakeholders.`
+
+Then stop. Do NOT auto-invoke the next workflow.
+
+---
+
+## Edge cases (review mode)
+
+| Situation | Handling |
+|---|---|
+| Jira MCP not configured | Step R2 offers manual entry or cancel with setup hint |
+| `config.jira.project_key` missing | Ask once, save to config |
+| No boards for project | Print `⚠ No Jira boards found for project <KEY>` and offer manual entry |
+| Sprint already has a review file | AskUserQuestion — overwrite / append `-v2` / cancel |
+| Sprint has 0 done issues | Write review with empty Demo section + note `⚠ Zero issues completed this sprint` |
+| PO cancels mid-Q&A | Save partial draft with `status: incomplete` |
+| `spec_lang=vi` + English template | Apply Rule 9 — translate all labels, headings, prose |

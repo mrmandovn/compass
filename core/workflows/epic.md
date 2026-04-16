@@ -74,6 +74,10 @@ The module handles scanning, matching, and asking the user:
 
 ## Step 1 — Scan for related PRD
 
+
+**Resolve template:** apply `core/shared/template-resolver.md` with `TEMPLATE_NAME="epic-template"`. Store `$TEMPLATE_PATH`. Use it when composing the output artifact. If no template found, proceed free-form.
+
+
 1. Glob `$PROJECT_ROOT/prd/*.md` (Silver Tiger) or `$PROJECT_ROOT/.compass/PRDs/*.md` (standalone).
 2. Glob existing epics: `$PROJECT_ROOT/epics/{prefix}-EPIC-*/epic.md` — determine the next epic number (max + 1, padded to 2 digits).
 3. If a PRD matches $ARGUMENTS keywords → propose it as the source.
