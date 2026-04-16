@@ -6,7 +6,7 @@
 [![platforms](https://img.shields.io/badge/platform-macOS%20%7C%20Linux-lightgrey.svg)]()
 [![node](https://img.shields.io/badge/node-%E2%89%A516-brightgreen.svg)](https://nodejs.org)
 
-> AI command library for Product Owners & Product Managers.
+> AI command library for Product Management.
 > Brief what you need — Compass drafts PRDs, epics, and stories with parallel AI Colleagues.
 
 ---

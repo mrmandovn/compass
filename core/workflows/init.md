@@ -56,7 +56,7 @@ The aim: capture the PO's defaults once so subsequent project creates pre-fill c
 
 ### 1a. Batch the two global questions
 
-Compass is a PO/PM toolkit — no code is produced here, so we don't ask about tech stacks. Domain is a per-project concept (Silver Tiger enum: `ard`/`platform`/`access`/`communication`/`internal`/`ai`) and is asked in Step 1g when the project is being created, not globally.
+Compass is a Product Management toolkit — no code is produced here, so we don't ask about tech stacks. Domain is a per-project concept (Silver Tiger enum: `ard`/`platform`/`access`/`communication`/`internal`/`ai`) and is asked in Step 1g when the project is being created, not globally.
 
 Use a single `AskUserQuestion` call with exactly 2 questions:
 

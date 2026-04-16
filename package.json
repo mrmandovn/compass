@@ -1,7 +1,7 @@
 {
   "name": "compass-m",
-  "version": "1.0.12",
-  "description": "AI-powered toolkit for Product Owners & Product Managers.",
+  "version": "1.0.14",
+  "description": "AI-powered Product Management toolkit.",
   "bin": {
     "compass-m": "bin/install"
   },

@@ -1,6 +1,6 @@
 ---
 name: compass:prototype
-description: Create a professional UI prototype from a PRD or description. Uses UI/UX Pro Max skill for polished output.
+description: Create a production-grade UI prototype from a PRD, screen, or description. Skill-driven flow — UI/UX Pro Max Design System Generator locks color/typography/spacing tokens, PO picks the stack (HTML+Tailwind / React+shadcn / Next.js / Mobile) with full trade-off notes, references ingested from Figma/screenshots/URL, pre-delivery checklist validates contrast + a11y + responsive before save, review gate iterates tokens or screens.
 allowed-tools:
   - Bash
   - Read

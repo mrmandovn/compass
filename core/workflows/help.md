@@ -25,7 +25,7 @@ Use the value of `$VERSION` wherever `<VERSION>` appears below. Do not hardcode 
 Print the following block, substituting `<VERSION>` with the value read from `~/.compass/VERSION`:
 
 ```
-COMPASS — PO/PM Toolkit  v<VERSION>
+COMPASS — Product Management Toolkit  v<VERSION>
 
 Getting started:
   1. compass:init          Set up project (one-time)

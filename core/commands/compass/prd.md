@@ -1,6 +1,6 @@
 ---
 name: compass:prd
-description: Write a complete PRD (Product Requirements Document) — contains NO code, follows the PO/PM standard format. Use when you need a detailed spec for the dev team to estimate, or to align stakeholders before a sprint.
+description: Write a complete PRD (Product Requirements Document) — contains NO code, follows the Product Management standard format. Use when you need a detailed spec for the dev team to estimate, or to align stakeholders before a sprint.
 allowed-tools:
   - Read
   - Write

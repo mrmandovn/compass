@@ -1,7 +1,7 @@
 {
   "name": "compass",
-  "version": "1.0.12",
-  "description": "PO/PM productivity toolkit \u2014 repo-aware, multi-host, with integrations wizard",
+  "version": "1.0.14",
+  "description": "Product Management productivity toolkit \u2014 repo-aware, multi-host, with integrations wizard",
   "language_default": "en",
   "commands": [
     {

@@ -37,10 +37,10 @@ function readVersion(dir) {
 
 // Banner
 console.log(`
-${cyan('   ╔═══════════════════════╗')}
-${cyan('   ║')}  ${bold('COMPASS')}  ${yellow(`v${readVersion()}`)}       ${cyan('║')}
-${cyan('   ║')}  ${dim('PO/PM AI Toolkit')}    ${cyan('║')}
-${cyan('   ╚═══════════════════════╝')}
+${cyan('   ╔═══════════════════════════════╗')}
+${cyan('   ║')}  ${bold('COMPASS')}  ${yellow(`v${readVersion()}`)}               ${cyan('║')}
+${cyan('   ║')}  ${dim('Product Management AI Toolkit')}  ${cyan('║')}
+${cyan('   ╚═══════════════════════════════╝')}
 `);
 
 // Parse args
