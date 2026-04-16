@@ -1,0 +1,156 @@
+# Shared: Git Context (Branch + Dirty State)
+
+**Purpose**: Detect the repo's base branch, manage the feature branch for a dev session, and handle dirty working-tree state so dev tasks don't accidentally contaminate unrelated work.
+
+**Used by**: `/compass:spec` (Step 1), `/compass:build` (Step 2), `/compass:fix` (Step 1).
+
+---
+
+## Part A — Detect branching context
+
+```bash
+# Resolve the base branch (origin's default, fallback to "main")
+BASE_BRANCH=$(git symbolic-ref refs/remotes/origin/HEAD 2>/dev/null | sed 's@^refs/remotes/origin/@@')
+[ -z "$BASE_BRANCH" ] && BASE_BRANCH=$(git branch --list main master develop 2>/dev/null | grep -E "^[* ] (main|master|develop)$" | head -1 | tr -d '* ')
+[ -z "$BASE_BRANCH" ] && BASE_BRANCH="main"
+
+CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD 2>/dev/null)
+DIRTY="no"
+[ -n "$(git status --porcelain)" ] && DIRTY="yes"
+
+echo "BASE_BRANCH=$BASE_BRANCH"
+echo "CURRENT_BRANCH=$CURRENT_BRANCH"
+echo "DIRTY=$DIRTY"
+```
+
+If this isn't a git repo at all (`git rev-parse` fails) → print `ℹ Not a git repo — skipping branch management.` and return early. The rest of the workflow still works; dev just doesn't get auto-branch + commit convenience.
+
+---
+
+## Part B — Branch state handling
+
+Given `$SESSION_SLUG`, derive the feat branch name:
+
+```bash
+FEAT_BRANCH="feat/$SESSION_SLUG"
+# For hotfix sessions, use "fix/" prefix
+[ "$IS_HOTFIX" = "true" ] && FEAT_BRANCH="fix/$SESSION_SLUG"
+```
+
+Branch on current state:
+
+| `$CURRENT_BRANCH` | `$DIRTY` | Action |
+|---|---|---|
+| `$BASE_BRANCH` | no | Create + checkout `$FEAT_BRANCH` via `compass-cli git branch "$FEAT_BRANCH"` or `git checkout -b "$FEAT_BRANCH"`. Print `✓ Created $FEAT_BRANCH from $BASE_BRANCH.` |
+| `$BASE_BRANCH` | yes | AskUserQuestion (see below — option A) |
+| `$FEAT_BRANCH` (matches session) | no | Resume — continue on existing branch. Print `ℹ Continuing on $FEAT_BRANCH.` |
+| `$FEAT_BRANCH` (matches session) | yes | Resume with WIP. Print `ℹ Continuing on $FEAT_BRANCH (with uncommitted changes).` |
+| any other branch | any | AskUserQuestion (see below — option B) |
+
+### AskUserQuestion — Option A (on base branch + dirty)
+
+```json
+{"questions": [{"question": "You have uncommitted changes on $BASE_BRANCH. How to proceed?", "header": "Dirty state", "multiSelect": false, "options": [
+  {"label": "Stash, create branch, work fresh", "description": "git stash push -m \"compass-<slug>\" → create $FEAT_BRANCH → work there. You can pop the stash later."},
+  {"label": "Commit first, then branch", "description": "Stop here — you commit current WIP manually, then re-run this workflow."},
+  {"label": "Cancel", "description": "Abort — resolve dirty state yourself."}
+]}]}
+```
+
+vi: translate labels (`Stash, tạo branch`, `Commit trước rồi tạo branch`, `Cancel`).
+
+- "Stash" → `git stash push -m "compass-$SESSION_SLUG"` then create/checkout `$FEAT_BRANCH`.
+- "Commit first" → print `ℹ Commit your changes, then re-run /compass:<workflow-name>.` Stop.
+- "Cancel" → stop.
+
+### AskUserQuestion — Option B (on unrelated branch)
+
+```json
+{"questions": [{"question": "You're on $CURRENT_BRANCH, not the base ($BASE_BRANCH) or this session's branch ($FEAT_BRANCH). How to proceed?", "header": "Branch mismatch", "multiSelect": false, "options": [
+  {"label": "Switch to base + create $FEAT_BRANCH", "description": "git checkout $BASE_BRANCH → git checkout -b $FEAT_BRANCH. Any dirty changes will be stashed first."},
+  {"label": "Continue on $CURRENT_BRANCH", "description": "Work here. Commits go to this branch. You accept the risk."},
+  {"label": "Cancel", "description": "Abort — sort out branching yourself."}
+]}]}
+```
+
+- "Switch + create" → stash if dirty (name `compass-<slug>-premigrate`) → `git checkout $BASE_BRANCH` → `git checkout -b $FEAT_BRANCH`.
+- "Continue" → just proceed. Dev takes responsibility.
+- "Cancel" → stop.
+
+---
+
+## Part C — Record branch state in session
+
+After Part B resolves, persist to `state.json`:
+
+```bash
+compass-cli state update "$SESSION_DIR" '{
+  "git": {
+    "base_branch": "'$BASE_BRANCH'",
+    "feat_branch": "'$FEAT_BRANCH'",
+    "base_sha": "'$(git rev-parse "$BASE_BRANCH")'",
+    "session_start_sha": "'$(git rev-parse HEAD)'"
+  }
+}'
+```
+
+This lets `/compass:build` verify dev didn't wander off-branch between sessions, and lets `/compass:fix` know the base state for diff calculations.
+
+---
+
+## Part D — Stash recovery
+
+When resuming a session (existing feat branch), check for stashed work created by earlier runs:
+
+```bash
+STASH_NAME="compass-$SESSION_SLUG"
+STASH_REF=$(git stash list | grep -m1 "$STASH_NAME" | cut -d: -f1)
+
+if [ -n "$STASH_REF" ]; then
+  # Notify dev — don't pop silently
+  echo "ℹ Found stash \"$STASH_NAME\" ($STASH_REF) from an earlier session."
+  # AskUserQuestion: pop / keep stashed / discard
+fi
+```
+
+AskUserQuestion:
+
+```json
+{"questions": [{"question": "Stash $STASH_NAME exists from a previous run. What to do?", "header": "Stash", "multiSelect": false, "options": [
+  {"label": "Pop now", "description": "git stash pop $STASH_REF — restore the WIP. Conflict resolution up to you if any."},
+  {"label": "Keep for later", "description": "Leave it stashed; you can pop manually with git stash pop $STASH_REF"},
+  {"label": "Discard", "description": "git stash drop $STASH_REF — permanently delete the stashed WIP"}
+]}]}
+```
+
+---
+
+## Part E — Session-end summary
+
+At the end of `/compass:build` or `/compass:fix`, print a git-state recap:
+
+```bash
+COMMIT_COUNT=$(git log --oneline "$BASE_BRANCH..$FEAT_BRANCH" | wc -l | tr -d ' ')
+FILES_CHANGED=$(git diff --name-only "$BASE_BRANCH..$FEAT_BRANCH" | wc -l | tr -d ' ')
+
+echo "Branch: $FEAT_BRANCH"
+echo "Commits: $COMMIT_COUNT ahead of $BASE_BRANCH"
+echo "Files changed: $FILES_CHANGED"
+echo ""
+echo "Ship when ready:"
+echo "  git push -u origin $FEAT_BRANCH"
+echo "  gh pr create"
+```
+
+---
+
+## Rules
+
+| Rule | Detail |
+|---|---|
+| **Never force-switch branch** | Always ask via AskUserQuestion when state is ambiguous. |
+| **Never discard WIP without confirmation** | Stash by default; discard only via explicit "Discard" option. |
+| **Base branch name is fluid** | Silver Tiger might use `main` OR `develop` — detect via origin's HEAD. |
+| **Not-a-git-repo is fine** | Don't fail loudly; just skip branch management and continue. |
+| **Feat branch = session slug** | `feat/<slug>` or `fix/<slug>` — consistent, derivable. |
+| **Don't auto-push** | Session workflows never run `git push`. Dev ships manually. |

@@ -1,0 +1,26 @@
+---
+name: compass:prepare
+description: (experimental, dev track) Decompose a reviewed DESIGN-SPEC + TEST-SPEC into wave-based DAG. Output plan.json + BUILD-PLAN.md for /compass:build to execute.
+allowed-tools:
+  - Read
+  - Write
+  - Bash
+  - AskUserQuestion
+---
+
+## Workflow
+
+Read and execute the workflow at `~/.compass/core/workflows/prepare.md`.
+
+## Instructions
+
+- Follow the workflow Steps in order.
+- Apply shared snippets inline (`resolve-project.md`, `spec-adaptive.md`).
+- Wave grouping rules are enforced — respect the 1-4 tasks/wave cap and file-conflict rule.
+- Run `compass-cli dag check` + `compass-cli validate plan` best-effort; fall back to inline validation if CLI schema rejects dev extras.
+
+## Notes
+
+Experimental dev-track command. Requires a reviewed dev session from `/compass:spec`. Not promoted in README, help menu, or manifest.
+
+Next command in the dev flow: `/compass:build`.
