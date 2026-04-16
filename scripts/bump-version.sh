@@ -1,17 +1,19 @@
 #!/usr/bin/env bash
 #
-# bump-version.sh — sync all 9 version references across the repo.
+# bump-version.sh — sync all 11 version references across the repo.
 #
 # Usage:
 #   ./scripts/bump-version.sh 1.0.18       # bump to 1.0.18
 #   ./scripts/bump-version.sh --dry-run 1.0.18   # preview, don't write
 #   ./scripts/bump-version.sh --check      # verify current sync state
 #
-# Files updated (9 references):
+# Files updated (11 references):
 #   - VERSION                                  (source of truth)
 #   - package.json                             (.version + 4× .optionalDependencies)
 #   - core/manifest.json                       (.version)
+#   - core/colleagues/manifest.json            (.version)
 #   - cli/Cargo.toml                           (version = "...")
+#   - cli/src/cmd/version.rs                   (pin literal in all_sources_match test)
 #   - npm/cli-darwin-arm64/package.json        (.version)
 #   - npm/cli-darwin-x64/package.json          (.version)
 #   - npm/cli-linux-arm64/package.json         (.version)
@@ -57,18 +59,22 @@ OLD=$(cat VERSION | tr -d '[:space:]')
 
 # ───── Helper: read each ref ─────
 read_refs() {
-  local v_file v_pkg v_pkg_dep v_manifest v_cargo v_plat
+  local v_file v_pkg v_pkg_dep v_manifest v_coll_manifest v_cargo v_pin v_plat
   v_file=$(cat VERSION | tr -d '[:space:]')
   v_pkg=$(jq -r '.version' package.json)
   v_pkg_dep=$(jq -r '.optionalDependencies["@compass-m/cli-darwin-arm64"] // ""' package.json)
   v_manifest=$(jq -r '.version' core/manifest.json)
+  v_coll_manifest=$(jq -r '.version' core/colleagues/manifest.json)
   v_cargo=$(grep -E '^version = ' cli/Cargo.toml | head -1 | sed 's/version = "\(.*\)"/\1/')
+  v_pin=$(grep -oE 'version_txt, "[0-9]+\.[0-9]+\.[0-9]+"' cli/src/cmd/version.rs | head -1 | sed 's/.*"\(.*\)"/\1/')
 
   echo "  VERSION                                  $v_file"
   echo "  package.json .version                    $v_pkg"
   echo "  package.json .optionalDependencies.*     $v_pkg_dep"
   echo "  core/manifest.json .version              $v_manifest"
+  echo "  core/colleagues/manifest.json .version   $v_coll_manifest"
   echo "  cli/Cargo.toml version                   $v_cargo"
+  echo "  cli/src/cmd/version.rs pin               $v_pin"
 
   for p in darwin-arm64 darwin-x64 linux-arm64 linux-x64; do
     v_plat=$(jq -r '.version' "npm/cli-$p/package.json")
@@ -100,7 +106,9 @@ if $CHECK_ONLY; then
   check "optionalDep linux-arm64"   "$(jq -r '.optionalDependencies["@compass-m/cli-linux-arm64"]' package.json)"
   check "optionalDep linux-x64"     "$(jq -r '.optionalDependencies["@compass-m/cli-linux-x64"]' package.json)"
   check "core/manifest.json"        "$(jq -r '.version' core/manifest.json)"
+  check "core/colleagues/manifest.json" "$(jq -r '.version' core/colleagues/manifest.json)"
   check "cli/Cargo.toml"            "$(grep -E '^version = ' cli/Cargo.toml | head -1 | sed 's/version = "\(.*\)"/\1/')"
+  check "cli/src/cmd/version.rs pin" "$(grep -oE 'version_txt, "[0-9]+\.[0-9]+\.[0-9]+"' cli/src/cmd/version.rs | head -1 | sed 's/.*"\(.*\)"/\1/')"
 
   for p in darwin-arm64 darwin-x64 linux-arm64 linux-x64; do
     check "npm/cli-$p"               "$(jq -r '.version' "npm/cli-$p/package.json")"
@@ -108,7 +116,7 @@ if $CHECK_ONLY; then
 
   if [[ "$FAILED" -eq 0 ]]; then
     echo ""
-    echo "✓ All 9 version references are in sync at $EXPECTED"
+    echo "✓ All 11 version references are in sync at $EXPECTED"
     exit 0
   else
     echo ""
@@ -165,10 +173,12 @@ else
   echo "  ✓ VERSION"
 fi
 
-apply package.json          "\"version\": \"$OLD\""  "\"version\": \"$NEW\""
-apply package.json          "\"$OLD\""               "\"$NEW\""     # catches the 4 optionalDeps
-apply core/manifest.json    "\"version\": \"$OLD\""  "\"version\": \"$NEW\""
-apply cli/Cargo.toml        "version = \"$OLD\""     "version = \"$NEW\""
+apply package.json                    "\"version\": \"$OLD\""  "\"version\": \"$NEW\""
+apply package.json                    "\"$OLD\""               "\"$NEW\""     # catches the 4 optionalDeps
+apply core/manifest.json              "\"version\": \"$OLD\""  "\"version\": \"$NEW\""
+apply core/colleagues/manifest.json   "\"version\": \"$OLD\""  "\"version\": \"$NEW\""
+apply cli/Cargo.toml                  "version = \"$OLD\""     "version = \"$NEW\""
+apply cli/src/cmd/version.rs          "version_txt, \"$OLD\""  "version_txt, \"$NEW\""
 
 for p in darwin-arm64 darwin-x64 linux-arm64 linux-x64; do
   apply "npm/cli-$p/package.json" "\"version\": \"$OLD\"" "\"version\": \"$NEW\""
@@ -181,7 +191,7 @@ if $DRY_RUN; then
 else
   # Verify after write
   if "$0" --check >/dev/null 2>&1; then
-    echo "✓ All 9 version references updated to $NEW"
+    echo "✓ All 11 version references updated to $NEW"
     echo ""
     echo "Next:"
     echo "  git diff            # review"
