@@ -1,8 +1,10 @@
 //! Regression guard — Compass is a Rust + JS-launcher project. No `.sh`
-//! files should ever land in the repo. This test walks the repo from
-//! `cli/`'s parent (the repo root) and fails if any `.sh` file is present
-//! outside `target/` and `.git/`. Catches accidental re-introduction of
-//! bash artifacts in any future change.
+//! files should ever land in the repo, except the `scripts/` directory
+//! which hosts maintenance scripts (e.g. `bump-version.sh`). This test
+//! walks the repo from `cli/`'s parent (the repo root) and fails if any
+//! `.sh` file is present outside `target/`, `.git/`, `node_modules/`, or
+//! `scripts/`. Catches accidental re-introduction of bash artifacts in
+//! any future change.
 //!
 //! Covers REQ-01, REQ-02, REQ-05, REQ-07.
 
@@ -18,7 +20,7 @@ fn repo_root() -> PathBuf {
 
 fn collect_shell_files(dir: &Path, found: &mut Vec<PathBuf>) {
     let name = dir.file_name().and_then(|n| n.to_str()).unwrap_or("");
-    if name == "target" || name == ".git" || name == "node_modules" {
+    if name == "target" || name == ".git" || name == "node_modules" || name == "scripts" {
         return;
     }
     let entries = match fs::read_dir(dir) {

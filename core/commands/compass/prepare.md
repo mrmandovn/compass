@@ -15,6 +15,7 @@ Read and execute the workflow at `~/.compass/core/workflows/prepare.md`.
 ## Instructions
 
 - Follow the workflow Steps in order.
+- Bash blocks are commands for you to run; AskUserQuestion blocks are user choices. Never synthesize menus from bash/CLI command listings.
 - Apply shared snippets inline (`resolve-project.md`, `spec-adaptive.md`).
 - Wave grouping rules are enforced — respect the 1-4 tasks/wave cap and file-conflict rule.
 - Run `compass-cli dag check` + `compass-cli validate plan` best-effort; fall back to inline validation if CLI schema rejects dev extras.

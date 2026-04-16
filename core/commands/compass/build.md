@@ -19,6 +19,7 @@ Read and execute the workflow at `~/.compass/core/workflows/build.md`.
 ## Instructions
 
 - Follow the workflow Steps in order.
+- Bash blocks are commands for you to run; AskUserQuestion blocks are user choices. Never synthesize menus from bash/CLI command listings.
 - The sub-agent spawn pattern is in `core/shared/wave-execution.md` — follow it exactly. Fresh context per wave is the core invariant.
 - Main agent re-verifies tests locally after each sub-agent returns (anti-confabulation safeguard).
 - Retry up to 2 times auto, then ask the dev.
