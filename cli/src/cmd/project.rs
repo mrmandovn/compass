@@ -39,12 +39,21 @@ pub fn run(args: &[String]) -> Result<String, String> {
             remove(path)
         }
         "global-config" => global_config(&args[1..]),
+        "gate" => {
+            let args_text = parse_flag(&args[1..], "--args").ok_or_else(|| {
+                "MISSING_FLAG: --args is required (Usage: compass-cli project gate --args <text> --artifact-type <type>)".to_string()
+            })?;
+            let artifact_type = parse_flag(&args[1..], "--artifact-type").ok_or_else(|| {
+                "MISSING_FLAG: --artifact-type is required (Usage: compass-cli project gate --args <text> --artifact-type <type>)".to_string()
+            })?;
+            gate(&args_text, &artifact_type)
+        }
         other => Err(format!("Unknown project command: {}. Run 'compass-cli project --help' for usage.", other)),
     }
 }
 
 fn usage() -> String {
-    "Usage: compass-cli project <resolve|list|use|add|remove|global-config> [...]".into()
+    "Usage: compass-cli project <resolve|list|use|add|remove|global-config|gate> [...]".into()
 }
 
 fn parse_flag(args: &[String], flag: &str) -> Option<String> {
@@ -505,9 +514,11 @@ fn resolve() -> Result<String, String> {
                 .unwrap_or("(unknown)")
                 .to_string();
 
+            let shared_root = compute_shared_root(Path::new(&active));
             Ok(json!({
                 "status": "ok",
                 "project_root": active,
+                "shared_root": shared_root,
                 "name": name,
                 "config": config_val,
                 "migrated_from_v11": migrated,
@@ -523,10 +534,13 @@ fn resolve() -> Result<String, String> {
             let candidates: Vec<Value> = projects_array(&reg)
                 .into_iter()
                 .map(|p| {
+                    let path_str = p.get("path").and_then(|v| v.as_str()).unwrap_or("");
+                    let shared = compute_shared_root(Path::new(path_str));
                     json!({
                         "path": p.get("path").cloned().unwrap_or(Value::Null),
                         "name": p.get("name").cloned().unwrap_or(Value::Null),
                         "last_used": p.get("last_used").cloned().unwrap_or(Value::Null),
+                        "shared_root": shared,
                     })
                 })
                 .collect();
@@ -540,6 +554,20 @@ fn resolve() -> Result<String, String> {
     }
 }
 
+/// Compute `shared_root` = absolute path to `$PARENT/shared/` where
+/// `$PARENT = dirname(project_root)`, ONLY if that directory exists.
+/// Returns None if the sibling `shared/` directory does not exist.
+fn compute_shared_root(project_root: &Path) -> Option<String> {
+    let parent = project_root.parent()?;
+    let candidate = parent.join("shared");
+    if candidate.is_dir() {
+        let canon = fs::canonicalize(&candidate).unwrap_or(candidate);
+        Some(canon.to_string_lossy().to_string())
+    } else {
+        None
+    }
+}
+
 fn read_project_name(project_root: &Path) -> Option<String> {
     let p = project_config_path(project_root);
     let raw = fs::read_to_string(&p).ok()?;
@@ -548,6 +576,302 @@ fn read_project_name(project_root: &Path) -> Option<String> {
         .and_then(|o| o.get("name"))
         .and_then(|n| n.as_str())
         .map(|s| s.to_string())
+}
+
+// ---------------------------------------------------------------------------
+// `gate` — pipeline + project choice gate (Step 0d port)
+// ---------------------------------------------------------------------------
+
+/// Stopwords filtered out before computing Jaccard overlap. Locked per
+/// DESIGN-SPEC; do not extend without a version bump.
+const GATE_STOPWORDS: &[&str] = &[
+    "a", "an", "the", "for", "and", "or", "of", "in", "on", "to",
+    "app", "new", "old",
+];
+
+/// Tokenize a string for Jaccard scoring:
+/// - split on whitespace and any non-alphanumeric character (punctuation)
+/// - lowercase each token
+/// - drop empty tokens and stopwords
+fn tokenize_for_jaccard(s: &str) -> std::collections::HashSet<String> {
+    s.split(|c: char| !c.is_alphanumeric())
+        .map(|t| t.to_lowercase())
+        .filter(|t| !t.is_empty() && !GATE_STOPWORDS.contains(&t.as_str()))
+        .collect()
+}
+
+/// Jaccard similarity: |A ∩ B| / |A ∪ B|. Returns 0.0 when both sets are
+/// empty after stopword filtering (no signal).
+fn jaccard(a: &str, b: &str) -> f32 {
+    let set_a = tokenize_for_jaccard(a);
+    let set_b = tokenize_for_jaccard(b);
+    if set_a.is_empty() && set_b.is_empty() {
+        return 0.0;
+    }
+    let inter = set_a.intersection(&set_b).count() as f32;
+    let union = set_a.union(&set_b).count() as f32;
+    if union == 0.0 {
+        0.0
+    } else {
+        inter / union
+    }
+}
+
+/// Parse an ISO-8601 UTC timestamp (format emitted by `now_iso` /
+/// `format_iso_utc`: `YYYY-MM-DDTHH:MM:SSZ`) back to epoch seconds. Returns
+/// None on any parse failure — caller should treat as "unknown age".
+fn parse_iso_utc_to_epoch(s: &str) -> Option<u64> {
+    // Minimal, dependency-free parser tolerant of fractional seconds and
+    // trailing 'Z'. Expect: YYYY-MM-DDTHH:MM:SS[.fff]Z or without Z.
+    let bytes = s.as_bytes();
+    if bytes.len() < 19 {
+        return None;
+    }
+    let year: i64 = s.get(0..4)?.parse().ok()?;
+    if bytes[4] != b'-' {
+        return None;
+    }
+    let month: u32 = s.get(5..7)?.parse().ok()?;
+    if bytes[7] != b'-' {
+        return None;
+    }
+    let day: u32 = s.get(8..10)?.parse().ok()?;
+    if bytes[10] != b'T' && bytes[10] != b' ' {
+        return None;
+    }
+    let hour: u64 = s.get(11..13)?.parse().ok()?;
+    if bytes[13] != b':' {
+        return None;
+    }
+    let minute: u64 = s.get(14..16)?.parse().ok()?;
+    if bytes[16] != b':' {
+        return None;
+    }
+    let second: u64 = s.get(17..19)?.parse().ok()?;
+
+    // Compute days since 1970-01-01 using the civil_to_days inverse of
+    // civil_from_days (Howard Hinnant algorithm).
+    let y = year - if month <= 2 { 1 } else { 0 };
+    let era = if y >= 0 { y } else { y - 399 } / 400;
+    let yoe = (y - era * 400) as u64;
+    let m = month as u64;
+    let d = day as u64;
+    let doy = (153 * (if m > 2 { m - 3 } else { m + 9 }) + 2) / 5 + d - 1;
+    let doe = yoe * 365 + yoe / 4 - yoe / 100 + doy;
+    let days = era * 146_097 + doe as i64 - 719_468;
+    if days < 0 {
+        return None;
+    }
+    Some(days as u64 * 86_400 + hour * 3600 + minute * 60 + second)
+}
+
+fn gate(args_text: &str, _artifact_type: &str) -> Result<String, String> {
+    // Step 1: resolve first; propagate error on non-ok status.
+    let resolve_out = resolve()?;
+    let resolve_val: Value = serde_json::from_str(&resolve_out)
+        .map_err(|e| format!("internal: resolve() returned invalid JSON: {}", e))?;
+
+    let status = resolve_val.get("status").and_then(|v| v.as_str()).unwrap_or("");
+    if status != "ok" {
+        return Err(format!(
+            "RESOLVE_FAILED: status={}; resolve={}",
+            status, resolve_val
+        ));
+    }
+
+    let project_root = resolve_val
+        .get("project_root")
+        .and_then(|v| v.as_str())
+        .unwrap_or("")
+        .to_string();
+    let project_name = resolve_val
+        .get("name")
+        .and_then(|v| v.as_str())
+        .unwrap_or("(unknown)")
+        .to_string();
+
+    // Step 2: scan sessions/*/pipeline.json for "status": "active".
+    let sessions_dir = Path::new(&project_root)
+        .join(".compass")
+        .join(".state")
+        .join("sessions");
+
+    let now_secs = SystemTime::now()
+        .duration_since(SystemTime::UNIX_EPOCH)
+        .map(|d| d.as_secs())
+        .unwrap_or(0);
+
+    let mut active: Vec<(String, String, String, u32, u32, bool, f32)> = Vec::new();
+    // Tuple: (slug, title, created_at, artifacts_count, age_days, stale, relevance)
+
+    if let Ok(read_dir) = fs::read_dir(&sessions_dir) {
+        for entry in read_dir.flatten() {
+            let path = entry.path();
+            if !path.is_dir() {
+                continue;
+            }
+            let pipeline_path = path.join("pipeline.json");
+            let pipeline_raw = match fs::read_to_string(&pipeline_path) {
+                Ok(s) => s,
+                Err(_) => continue,
+            };
+            let pipeline_val: Value = match serde_json::from_str(&pipeline_raw) {
+                Ok(v) => v,
+                Err(_) => continue,
+            };
+            let is_active = pipeline_val
+                .get("status")
+                .and_then(|v| v.as_str())
+                .map(|s| s == "active")
+                .unwrap_or(false);
+            if !is_active {
+                continue;
+            }
+
+            let slug = path
+                .file_name()
+                .map(|n| n.to_string_lossy().to_string())
+                .unwrap_or_default();
+
+            let context_val: Value = fs::read_to_string(path.join("context.json"))
+                .ok()
+                .and_then(|s| serde_json::from_str(&s).ok())
+                .unwrap_or_else(|| json!({}));
+            let title = context_val
+                .get("title")
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_string();
+
+            let created_at = pipeline_val
+                .get("created_at")
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_string();
+
+            let age_days: u32 = parse_iso_utc_to_epoch(&created_at)
+                .map(|created| {
+                    if now_secs > created {
+                        ((now_secs - created) / 86_400) as u32
+                    } else {
+                        0
+                    }
+                })
+                .unwrap_or(0);
+
+            let artifacts_count: u32 = pipeline_val
+                .get("artifacts")
+                .and_then(|v| v.as_array())
+                .map(|a| a.len() as u32)
+                .unwrap_or(0);
+
+            let stale = age_days > 14 && artifacts_count == 0;
+            let relevance = jaccard(args_text, &title);
+
+            active.push((slug, title, created_at, artifacts_count, age_days, stale, relevance));
+        }
+    }
+
+    // Sort by relevance desc; tie-break by created_at desc (more recent first).
+    active.sort_by(|a, b| {
+        b.6.partial_cmp(&a.6)
+            .unwrap_or(std::cmp::Ordering::Equal)
+            .then_with(|| b.2.cmp(&a.2))
+    });
+
+    let pipeline_count = active.len();
+    let top_relevance = active.first().map(|t| t.6).unwrap_or(0.0);
+    let top_slug = active.first().map(|t| t.0.clone()).unwrap_or_default();
+
+    // Build active_pipelines JSON array.
+    let active_pipelines: Vec<Value> = active
+        .iter()
+        .map(|(slug, title, created_at, artifacts_count, age_days, stale, relevance)| {
+            json!({
+                "slug": slug,
+                "title": title,
+                "created_at": created_at,
+                "artifacts_count": artifacts_count,
+                "age_days": age_days,
+                "stale": stale,
+                "relevance": relevance,
+            })
+        })
+        .collect();
+
+    // Step 4: select case + suggested_action.
+    let (case, suggested_action) = if pipeline_count == 0 {
+        (3u8, "current_project".to_string())
+    } else if pipeline_count == 1 {
+        if top_relevance >= 0.2 {
+            (1u8, format!("continue:{}", top_slug))
+        } else {
+            (2u8, "standalone".to_string())
+        }
+    } else {
+        // pipeline_count >= 2
+        (4u8, format!("continue:{}", top_slug))
+    };
+
+    // Step 5: build options_spec per case.
+    let top_stale = active.first().map(|t| t.5).unwrap_or(false);
+    let options_spec: Vec<Value> = match case {
+        1 => vec![
+            json!({
+                "id": format!("continue:{}", top_slug),
+                "pipeline_slug": top_slug,
+                "stale_warning": top_stale,
+            }),
+            json!({ "id": "standalone", "pipeline_slug": Value::Null, "stale_warning": false }),
+            json!({ "id": "other_project", "pipeline_slug": Value::Null, "stale_warning": false }),
+        ],
+        2 => vec![
+            json!({ "id": "standalone", "pipeline_slug": Value::Null, "stale_warning": false }),
+            json!({ "id": "other_project", "pipeline_slug": Value::Null, "stale_warning": false }),
+            json!({
+                "id": "close_first",
+                "pipeline_slug": top_slug,
+                "stale_warning": top_stale,
+            }),
+        ],
+        3 => vec![
+            json!({ "id": "current_project", "pipeline_slug": Value::Null, "stale_warning": false }),
+            json!({ "id": "other_project", "pipeline_slug": Value::Null, "stale_warning": false }),
+        ],
+        4 => {
+            let mut opts: Vec<Value> = Vec::with_capacity(5 + pipeline_count);
+            opts.push(json!({
+                "id": format!("continue:{}", top_slug),
+                "pipeline_slug": top_slug,
+                "stale_warning": top_stale,
+            }));
+            opts.push(json!({ "id": "pick_pipeline", "pipeline_slug": Value::Null, "stale_warning": false }));
+            opts.push(json!({ "id": "standalone", "pipeline_slug": Value::Null, "stale_warning": false }));
+            opts.push(json!({ "id": "other_project", "pipeline_slug": Value::Null, "stale_warning": false }));
+            opts.push(json!({ "id": "close_first", "pipeline_slug": Value::Null, "stale_warning": false }));
+            // One pick_pipeline:<slug> entry per additional pipeline (skip the
+            // top one — it's already covered by "continue:<top_slug>").
+            for (slug, _, _, _, _, stale, _) in active.iter().skip(1) {
+                opts.push(json!({
+                    "id": format!("pick_pipeline:{}", slug),
+                    "pipeline_slug": slug,
+                    "stale_warning": stale,
+                }));
+            }
+            opts
+        }
+        _ => Vec::new(),
+    };
+
+    Ok(json!({
+        "case": case,
+        "project_name": project_name,
+        "project_root": project_root,
+        "active_pipelines": active_pipelines,
+        "suggested_action": suggested_action,
+        "options_spec": options_spec,
+    })
+    .to_string())
 }
 
 // ---------------------------------------------------------------------------
