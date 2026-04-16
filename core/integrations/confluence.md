@@ -163,11 +163,11 @@ If Skip → expect the package to already be installed from the Jira workflow; p
 
 ### 5.5 — Edit the host MCP config (5/5)
 
-Locate `~/.claude/mcp.json` or `~/.config/opencode/opencode.jsonc`.
+The MCP config schema DIFFERS between Claude Code and OpenCode. Pick the correct branch based on `$HOST` from Step 1. Within each branch there are two cases: new entry (Case A) or merge into existing `jira` entry (Case B — recommended when `mcp-atlassian` already serves Jira).
+
+#### Claude Code branch — `~/.claude/mcp.json`
 
 **Case A — New entry** (no `mcp-atlassian` in config yet):
-
-Add a new entry keyed `confluence` or `atlassian`:
 
 ```json
 "confluence": {
@@ -181,7 +181,7 @@ Add a new entry keyed `confluence` or `atlassian`:
 }
 ```
 
-**Case B — Merge into existing `jira` entry** (when Jira was already configured via `mcp-atlassian`):
+**Case B — Merge into existing `jira` entry:**
 
 Read the existing `jira` (or `atlassian`) entry. Add the Confluence env vars to its `env` block:
 
@@ -202,9 +202,54 @@ Read the existing `jira` (or `atlassian`) entry. Add the Confluence env vars to 
 
 Do NOT duplicate the server entry. This is the recommended path when both exist.
 
+#### OpenCode branch — `~/.config/opencode/opencode.jsonc`
+
+JSONC (JSON with comments) — preserve comments when rewriting.
+
+**Case A — New entry** (no `mcp-atlassian` in config yet):
+
+```json
+"confluence": {
+  "type": "local",
+  "enabled": true,
+  "command": ["npx", "-y", "mcp-atlassian"],
+  "environment": {
+    "CONFLUENCE_URL": "<base URL>",
+    "CONFLUENCE_USERNAME": "<email>",
+    "CONFLUENCE_API_TOKEN": "<token>"
+  }
+}
+```
+
+**Case B — Merge into existing `jira` entry:**
+
+Read the existing `jira` (or `atlassian`) entry. Add the Confluence env vars to its `environment` block:
+
+```json
+"jira": {
+  "type": "local",
+  "enabled": true,
+  "command": ["npx", "-y", "mcp-atlassian"],
+  "environment": {
+    "JIRA_URL": "...",
+    "JIRA_USERNAME": "...",
+    "JIRA_API_TOKEN": "...",
+    "CONFLUENCE_URL": "<new>",
+    "CONFLUENCE_USERNAME": "<new>",
+    "CONFLUENCE_API_TOKEN": "<new>"
+  }
+}
+```
+
+**Key differences from Claude Code:** `type: "local"` + `enabled: true` are required; `command` is an array; `environment` instead of `env`.
+
+Do NOT duplicate the server entry. This is the recommended path when both exist.
+
+---
+
 Back up before editing. Parse, merge, write, `chmod 600`, show redacted preview.
 
-If the config parse fails, save status `error` with the exact message, give the PO the raw block to paste manually.
+If the config parse fails, save status `error` with the exact message, give the PO the raw block to paste manually (use the block matching their host).
 
 ## Step 6 — Save status + handle restart
 

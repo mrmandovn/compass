@@ -288,12 +288,57 @@ Locate the config file:
 #### OpenCode branch
 
 1. Config file: use `$MCP_CONFIG` from Step 1 (may be `~/.config/opencode/opencode.jsonc` or `~/.opencode/opencode.jsonc`). JSONC (JSON with comments) — be careful not to strip comments when rewriting.
-2. If the file doesn't exist, create it with `{ "mcp": {} }`.
+2. If the file doesn't exist, create it with:
+   ```json
+   {
+     "$schema": "https://opencode.ai/config.json",
+     "mcp": {}
+   }
+   ```
 3. Find the `mcp` object (OpenCode's MCP schema key). If absent, add it.
-4. Merge the server entry with the same shape as above (keyed `jira`).
+4. Merge the server entry keyed `jira` using OpenCode's MCP schema (DIFFERENT from Claude Code — do NOT reuse the block above):
+
+   ```json
+   "jira": {
+     "type": "local",
+     "enabled": true,
+     "command": ["npx", "-y", "mcp-atlassian"],
+     "environment": {
+       "JIRA_URL": "<base URL>",
+       "JIRA_USERNAME": "<email>",
+       "JIRA_API_TOKEN": "<token>",
+       "CONFLUENCE_URL": "<base URL>/wiki",
+       "CONFLUENCE_USERNAME": "<email>",
+       "CONFLUENCE_API_TOKEN": "<token>"
+     }
+   }
+   ```
+
+   **Key differences from Claude Code's `mcp.json` schema:**
+   - `type: "local"` — required discriminator (OpenCode supports multiple server types).
+   - `enabled: true` — required flag (OpenCode disables servers by default without it).
+   - `command` is an **array** containing the executable + all args (Claude Code separates `command` + `args`).
+   - `environment` instead of `env`.
+
+   If a key named `jira` already exists, ask the PO: "An entry named `jira` already exists. Overwrite? (Yes / Rename to jira-compass / Cancel)".
+
 5. Write back. Do not reformat unrelated lines. Preserve comments where possible.
 6. `chmod 600 ~/.config/opencode/opencode.jsonc`.
-7. Show the same redacted preview to the PO.
+7. Show the PO a REDACTED preview:
+
+   ```json
+   "jira": {
+     "type": "local",
+     "enabled": true,
+     "command": ["npx", "-y", "mcp-atlassian"],
+     "environment": {
+       "JIRA_URL": "https://acme.atlassian.net",
+       "JIRA_USERNAME": "po@acme.com",
+       "JIRA_API_TOKEN": "<REDACTED>",
+       ...
+     }
+   }
+   ```
 
 If config edit fails for any reason (permission denied, parse error, unknown schema), save status `error` with the exact error message and tell the PO to edit the file manually. Give them the raw JSON block to paste.
 

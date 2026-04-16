@@ -181,11 +181,15 @@ If Skip install, ask for the package name the PO wants Compass to reference (e.g
 
 ### 5.5 — Edit the host MCP config (5/5)
 
-Locate file (Claude Code: `~/.claude/mcp.json`, OpenCode: `~/.config/opencode/opencode.jsonc`).
+The MCP config schema DIFFERS between Claude Code and OpenCode. Pick the correct branch based on `$HOST` from Step 1.
+
+#### Claude Code branch
+
+Locate `~/.claude/mcp.json`.
 
 1. Back up before editing.
 2. Parse.
-3. Merge entry keyed `figma`:
+3. Merge entry keyed `figma` under `mcpServers`:
 
    ```json
    "figma": {
@@ -200,7 +204,7 @@ Locate file (Claude Code: `~/.claude/mcp.json`, OpenCode: `~/.config/opencode/op
    If a key `figma` already exists, ask: "Overwrite? / Rename to figma-compass / Cancel".
 
 4. Write back.
-5. `chmod 600 <config file>`.
+5. `chmod 600 ~/.claude/mcp.json`.
 6. Show the PO a redacted preview:
 
    ```json
@@ -211,7 +215,50 @@ Locate file (Claude Code: `~/.claude/mcp.json`, OpenCode: `~/.config/opencode/op
    }
    ```
 
-If edit fails, save status `error`, tell the PO to edit manually, give them the raw block.
+#### OpenCode branch
+
+Locate `~/.config/opencode/opencode.jsonc` (JSONC — preserve comments).
+
+1. Back up before editing.
+2. If the file doesn't exist, create it with:
+   ```json
+   {
+     "$schema": "https://opencode.ai/config.json",
+     "mcp": {}
+   }
+   ```
+3. Parse. Find the `mcp` object; create if absent.
+4. Merge entry keyed `figma` using OpenCode's MCP schema (DIFFERENT from Claude Code):
+
+   ```json
+   "figma": {
+     "type": "local",
+     "enabled": true,
+     "command": ["npx", "-y", "figma-developer-mcp"],
+     "environment": {
+       "FIGMA_API_KEY": "<token>"
+     }
+   }
+   ```
+
+   **Key differences from Claude Code:** `type: "local"` + `enabled: true` are required; `command` is an array containing executable + args; `environment` instead of `env`.
+
+   If a key `figma` already exists, ask: "Overwrite? / Rename to figma-compass / Cancel".
+
+5. Write back. Preserve comments where possible.
+6. `chmod 600 ~/.config/opencode/opencode.jsonc`.
+7. Show the PO a redacted preview:
+
+   ```json
+   "figma": {
+     "type": "local",
+     "enabled": true,
+     "command": ["npx", "-y", "figma-developer-mcp"],
+     "environment": { "FIGMA_API_KEY": "<REDACTED>" }
+   }
+   ```
+
+If edit fails (either branch), save status `error`, tell the PO to edit manually, give them the raw block for their host.
 
 ## Step 6 — Save status + handle restart
 

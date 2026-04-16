@@ -1,6 +1,6 @@
 {
   "name": "compass",
-  "version": "1.0.10",
+  "version": "1.0.11",
   "description": "PO/PM productivity toolkit \u2014 repo-aware, multi-host, with integrations wizard",
   "language_default": "en",
   "commands": [
