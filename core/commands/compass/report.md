@@ -1,6 +1,6 @@
 ---
 name: compass:report
-description: Generate a quarterly report — domain scope (all products in the domain) or product scope (current project). Aggregates release notes, epics, cross-domain dependencies; asks PO for commentary. Uses shared/templates/quarterly-report-template.md via resolver.
+description: Generate a period report — pick period type (quarter / half / multi-quarter / annual / custom date range) and scope (domain or current project). Aggregates release notes, epics, cross-domain dependencies; asks PO for commentary. Uses shared/templates/period-report-template.md via resolver.
 allowed-tools:
   - Read
   - Write
@@ -21,4 +21,4 @@ Read and execute the workflow at `~/.compass/core/workflows/report.md`.
 
 ## Notes
 
-Output path must match CI naming pattern `reports/[DOMAIN_OR_PREFIX]-Q[N]-[YYYY]-report.md`. Frontmatter fields must include: title, type, domain, quarter, year, po_lead, status — enforced by `shared/ci/validate_frontmatter.py`. Template is resolved via `core/shared/template-resolver.md` — shared/templates/quarterly-report-template.md wins if present; bundled fallback otherwise (currently none for this type — warn + free-form).
+Output path must match one of 5 CI naming patterns — quarter: `[PREFIX]-Q[N]-YYYY-report.md`, half: `[PREFIX]-H[1-2]-YYYY-report.md`, multi-quarter: `[PREFIX]-Q[N]Q[M](Q[K])-YYYY-report.md`, annual: `[PREFIX]-FYYYYY-report.md`, custom: `[PREFIX]-YYYYMMDD-YYYYMMDD-report.md`. Frontmatter must include: title, type=period-report, domain, period_type, period_label, period_start, period_end, po_lead, status — enforced by `shared/ci/validate_frontmatter.py`. Legacy `type: quarterly-report` files (with quarter+year fields) continue to validate under the old rule. Template is resolved via `core/shared/template-resolver.md` — shared/templates/period-report-template.md wins if present; bundled fallback otherwise (currently none for this type — warn + free-form).

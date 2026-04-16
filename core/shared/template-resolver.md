@@ -66,7 +66,7 @@ Workflows use these template names (matching `shared/templates/` filenames):
 | `/compass:roadmap` | — | _(none)_ | _(none)_ — free-form |
 | `/compass:sprint plan` (default) | — | _(none)_ | _(none)_ — free-form (plan is a lightweight list, no template) |
 | `/compass:sprint review` | `sprint-review-template` | `sprint-review-template.md` | _(none)_ |
-| `/compass:report` | `quarterly-report-template` | `quarterly-report-template.md` | _(none)_ |
+| `/compass:report` | `period-report-template` | `period-report-template.md` | _(none)_ |
 | `/compass:research` | — | _(none)_ | _(none)_ — free-form |
 | `/compass:ideate` | — | _(none)_ | _(none)_ — free-form |
 | `/compass:feedback` | — | _(none)_ | _(none)_ — free-form |
