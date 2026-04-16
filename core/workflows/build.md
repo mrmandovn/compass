@@ -182,13 +182,20 @@ $(echo "$WAVE" | jq -r '.tasks[] | "### \(.task_id) — \(.name)\n- Files affect
 END
 )
 
-  # --- Step 5.C: Spawn sub-agent ---
-  # (pseudocode — Agent tool invocation by main workflow)
-  # RESPONSE = Agent(
-  #   description: "Implement wave $WAVE_ID",
-  #   subagent_type: "general-purpose",
-  #   prompt: $PROMPT
-  # )
+  # --- Step 5.C: Dispatch wave (real Agent tool call) ---
+  # Action (main workflow AI): For each task in the current wave, emit ONE Agent tool call.
+  # If the wave has multiple tasks, batch ALL Agent calls in a single assistant message
+  # so they dispatch concurrently.
+  #
+  # Required pattern (one call per task, built from $PROMPT in Step 5.B):
+  #   Agent(
+  #     description: "Implement wave $WAVE_ID — task <task.id>",
+  #     subagent_type: "general-purpose",
+  #     prompt: $PROMPT   # built in Step 5.B
+  #   )
+  #
+  # Do NOT simulate by reading files manually. Do NOT batch all tasks into one Agent call.
+  # One Agent call = one task, concurrently dispatched with its siblings in the same wave.
 
   # --- Step 5.D: Parse response, handle failure ---
   # Parse RESPONSE JSON block

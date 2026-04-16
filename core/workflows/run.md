@@ -118,13 +118,26 @@ Then load cross-session memory from the v1.0 project-memory store:
    - For any pointer that matches **zero** files on disk at this moment → halt dispatch for that task and escalate to the user via AskUserQuestion (see "Missing context_pointer escalation" below). Do NOT silently skip the task, do NOT widen scope to compensate, do NOT drop the pointer.
    - Pointers that were produced by an earlier stage in this same run will now exist — that is expected. Only pointers that resolve to zero matches *at the moment the stage starts* are errors.
 2. Print stage plan with all colleagues marked `🔄` and their 3-6 word job description (existing progress pattern).
-3. Spawn each Colleague in the stage as a subagent (Task tool) with a fresh context window. The briefing MUST contain ONLY:
+3. **Dispatch Colleagues (parallel execution required).** **Call the `Agent` tool once per Colleague in a single assistant message.** All `Agent` calls for a stage MUST be emitted together so they execute concurrently.
+
+   For each Colleague in the stage, emit one call with this shape:
+
+   ```
+   Agent(
+     description: "Colleague <name> — <task.name>",
+     subagent_type: "general-purpose",
+     prompt: <rendered Colleague worker prompt template>
+   )
+   ```
+
+   The `prompt` (briefing) MUST contain ONLY:
    - that task's `briefing_notes` + structured `briefing` fields (constraints, stakeholders, deadline)
    - the files resolved from that task's `context_pointers`
    - the top-level aggregates digest from `project-memory.json` (loaded in Initialization)
    - the shared base rules
+
    Do NOT pass files from other tasks, other sessions, or unrelated areas of the repo — strict scope is a v1.0 guarantee.
-4. Stages with multiple Colleagues run in **parallel** — all Colleagues in the stage start at the same time.
+4. **Parallelism requirement.** If the stage has N Colleagues, your message MUST contain N `Agent` tool calls. Never emit them sequentially across multiple messages — that breaks parallelism and violates the v1.0 execution contract.
 5. As each Colleague finishes, emit `✓ <colleague name> (<elapsed>s)` live to main chat (existing progress pattern) — do NOT wait for stage end to report.
 6. When all Colleagues in the current stage finish, emit stage-transition separator (`─── Stage N complete (total, artifacts) ───`) (existing progress pattern).
 7. Run post-stage consistency check (Step 5).
