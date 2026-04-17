@@ -101,30 +101,35 @@ fn validate_plan(path: &Path) -> Result<String, String> {
 
     // Dispatch on plan_version. v1.0 is the new schema. Anything else
     // falls through to the legacy checks but flags an upgrade hint.
-    match plan_version {
-        Some("1.0") => {
-            validate_plan_v1(&data, &mut errors, &mut warnings);
-        }
-        Some(other) => {
-            errors.push(violation(
-                "UNSUPPORTED_PLAN_VERSION",
-                None,
-                Some("plan_version"),
-                &format!(
-                    "Unsupported plan_version '{}'. Run `compass-cli migrate` to upgrade to 1.0.",
-                    other
-                ),
-            ));
-            validate_plan_legacy(&data, &mut errors, &mut warnings);
-        }
-        None => {
-            errors.push(violation(
-                "MISSING_PLAN_VERSION",
-                None,
-                Some("plan_version"),
-                "Missing plan_version. Run `compass-cli migrate` to upgrade to 1.0.",
-            ));
-            validate_plan_legacy(&data, &mut errors, &mut warnings);
+    // Dev plans auto-detected: flat tasks with colleague:null / task_id / files_affected.
+    if is_dev_plan(&data) {
+        validate_plan_dev(&data, &mut errors, &mut warnings);
+    } else {
+        match plan_version {
+            Some("1.0") => {
+                validate_plan_v1(&data, &mut errors, &mut warnings);
+            }
+            Some(other) => {
+                errors.push(violation(
+                    "UNSUPPORTED_PLAN_VERSION",
+                    None,
+                    Some("plan_version"),
+                    &format!(
+                        "Unsupported plan_version '{}'. Run `compass-cli migrate` to upgrade to 1.0.",
+                        other
+                    ),
+                ));
+                validate_plan_legacy(&data, &mut errors, &mut warnings);
+            }
+            None => {
+                errors.push(violation(
+                    "MISSING_PLAN_VERSION",
+                    None,
+                    Some("plan_version"),
+                    "Missing plan_version. Run `compass-cli migrate` to upgrade to 1.0.",
+                ));
+                validate_plan_legacy(&data, &mut errors, &mut warnings);
+            }
         }
     }
 
@@ -262,6 +267,104 @@ fn validate_task_v1(task: &serde_json::Value, errors: &mut Vec<serde_json::Value
                 }
             }
         },
+    }
+}
+
+/// Detect dev plan: flat `tasks` array where any task has `colleague: null`
+/// or uses `task_id` (instead of `id`) or `files_affected` (instead of `files`).
+fn is_dev_plan(data: &serde_json::Value) -> bool {
+    let tasks = data.get("tasks").and_then(|t| t.as_array());
+    match tasks {
+        Some(arr) => arr.iter().any(|t| {
+            t.get("colleague").map_or(false, |c| c.is_null())
+                || t.get("task_id").is_some()
+                || t.get("files_affected").is_some()
+        }),
+        None => false,
+    }
+}
+
+fn validate_plan_dev(
+    data: &serde_json::Value,
+    errors: &mut Vec<serde_json::Value>,
+    warnings: &mut Vec<String>,
+) {
+    // Top-level fields.
+    for field in ["name", "workspace_dir"] {
+        if data.get(field).is_none() {
+            errors.push(violation(
+                "MISSING_FIELD", None, Some(field),
+                &format!("Missing top-level field: {}", field),
+            ));
+        }
+    }
+
+    let tasks = match data.get("tasks").and_then(|t| t.as_array()) {
+        Some(arr) if !arr.is_empty() => arr,
+        Some(_) => {
+            errors.push(violation("EMPTY_TASKS", None, Some("tasks"), "tasks must be non-empty"));
+            return;
+        }
+        None => {
+            errors.push(violation("MISSING_FIELD", None, Some("tasks"), "Missing tasks array"));
+            return;
+        }
+    };
+
+    // Collect IDs (accept both `id` and `task_id`).
+    let ids: std::collections::HashSet<&str> = tasks.iter().filter_map(|t| {
+        t.get("task_id").or_else(|| t.get("id")).and_then(|v| v.as_str())
+    }).collect();
+
+    for (i, task) in tasks.iter().enumerate() {
+        let tid = task.get("task_id").or_else(|| task.get("id"))
+            .and_then(|v| v.as_str()).unwrap_or("");
+
+        // Required fields.
+        if tid.is_empty() {
+            errors.push(violation("MISSING_FIELD", None, Some("task_id"),
+                &format!("Task {}: missing task_id or id", i)));
+        }
+        if task.get("name").and_then(|v| v.as_str()).unwrap_or("").is_empty() {
+            errors.push(violation("MISSING_FIELD", Some(tid), Some("name"),
+                &format!("Task {}: missing name", tid)));
+        }
+
+        // files_affected OR files — at least one non-empty.
+        let has_files = task.get("files_affected")
+            .or_else(|| task.get("files"))
+            .and_then(|v| v.as_array())
+            .map_or(false, |a| !a.is_empty());
+        if !has_files {
+            errors.push(violation("EMPTY_FILES", Some(tid), Some("files_affected"),
+                &format!("Task {}: files_affected must be non-empty array", tid)));
+        }
+
+        // depends_on references must resolve.
+        if let Some(deps) = task.get("depends_on").and_then(|d| d.as_array()) {
+            for dep in deps {
+                if let Some(dep_id) = dep.as_str() {
+                    if !ids.contains(dep_id) {
+                        errors.push(violation("DANGLING_DEP", Some(tid), Some("depends_on"),
+                            &format!("Task {}: depends_on '{}' not found", tid, dep_id)));
+                    }
+                }
+            }
+        }
+
+        // acceptance — should exist (string or object).
+        if task.get("acceptance").is_none() {
+            warnings.push(format!("Task {}: missing acceptance criteria", tid));
+        }
+    }
+
+    // Budget sanity.
+    let declared = data.get("budget_tokens").and_then(|v| v.as_u64()).unwrap_or(0);
+    let sum: u64 = tasks.iter().filter_map(|t| {
+        t.get("budget_tokens").or_else(|| t.get("budget")).and_then(|v| v.as_u64())
+    }).sum();
+    if declared != 0 && declared != sum {
+        warnings.push(format!("Budget mismatch: declared {}, tasks sum to {}", declared, sum));
     }
 }
 

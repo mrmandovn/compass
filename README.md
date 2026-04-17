@@ -44,13 +44,13 @@ npx compass-m
 /compass:check               # validate + deliver to Jira / Confluence
 ```
 
-**Development:**
+**Development** (standalone or from PM artifacts):
 
 ```bash
-/compass:init dev            # lightweight: lang + stack detect + GitNexus
-/compass:spec "add auth"     # → DESIGN-SPEC + TEST-SPEC
-/compass:prepare             # → wave plan
-/compass:build               # → execute + test + commit
+/compass:init dev                         # one-time: lang + stack detect + GitNexus
+/compass:spec "implement STORY-001"       # → DESIGN-SPEC + TEST-SPEC
+/compass:prepare                          # → wave plan
+/compass:build                            # → execute + test + commit
 ```
 
 `/compass:project list` shows every registered project; `/compass:project use <path>` switches the active one. Commands run from **any cwd** — the active project is remembered in `~/.compass/projects.json`.
@@ -59,40 +59,65 @@ npx compass-m
 
 ## Pipeline
 
-```
-┌──────────┐   ┌────────┐   ┌───────┐   ┌────────┐
-│  brief   │ → │  plan  │ → │  run  │ → │  check │
-└──────────┘   └────────┘   └───────┘   └────────┘
-      │             │            │            │
- clarify +     DAG of wave   wave-by-wave  validator
- Colleague      + budget     parallel       + deliver
- selection                   Colleagues
-```
-
-Each Colleague runs in a fresh context with a strict `context_pointers` file list — no context rot, no scope creep.
-
-### Dev pipeline
+### Product Management
 
 ```
-┌────────┐   ┌──────────┐   ┌─────────┐
-│  spec  │ → │ prepare  │ → │  build  │
-└────────┘   └──────────┘   └─────────┘
-     │             │              │
- DESIGN-SPEC   DAG of wave   wave-by-wave
- + TEST-SPEC    + budget     parallel Agents
-                + context_   + verify TEST-SPEC
-                  pointers     acceptance
+┌──────────┐    ┌──────────┐    ┌──────────┐    ┌──────────┐
+│  brief   │ ──→│   plan   │ ──→│   run    │ ──→│  check   │
+│          │    │          │    │          │    │          │
+│ clarify  │    │ DAG of   │    │ wave-by- │    │ validate │
+│ + pick   │    │ wave +   │    │ wave     │    │ + deliver│
+│Colleagues│    │ budget   │    │ parallel │    │ to Jira  │
+└──────────┘    └──────────┘    └──────────┘    └────┬─────┘
+                                                     │
+                                                     ▼
+                                              ┌──────────────┐
+                                              │PRD + Stories │
+                                              │   + Epics    │
+                                              └──────────────┘
 ```
 
-Quick fix (skips full pipeline):
+### Development
 
 ```
-┌───────┐
-│  fix  │ → trace → patch → verify → commit
-└───────┘
+┌──────────┐    ┌──────────┐    ┌──────────┐
+│   spec   │ ──→│ prepare  │ ──→│  build   │
+│          │    │          │    │          │
+│ DESIGN-  │    │ DAG of   │    │ wave-by- │
+│ SPEC +   │    │ wave +   │    │ wave     │
+│ TEST-    │    │ budget + │    │ parallel │
+│ SPEC     │    │ context_ │    │ Agents + │
+│          │    │ pointers │    │ verify   │
+└──────────┘    └──────────┘    └────┬─────┘
+                                     │
+                                     ▼
+                              ┌──────────────┐
+                              │  Committed   │
+                              │    Code      │
+                              └──────────────┘
 ```
 
-Same architecture as PM pipeline: each task runs in a fresh context with strict `context_pointers` file scope — no context rot, no scope creep.
+### Full Product Lifecycle
+
+```
+  Product Management                              Development
+ ┌─────────────────────────────────────┐    ┌──────────────────────────────┐
+ │                                     │    │                              │
+ │  brief ──→ plan ──→ run ──→ check ──┼──→ │  spec ──→ prepare ──→ build  │
+ │                                     │    │                              │
+ └─────────────────────────────────────┘    └──────────────────────────────┘
+                                  │              ↑
+                                  └─ PRD ────────┘
+                                     Stories
+                                     Epics
+
+  Quick Fix
+ ┌────────────────────────────────────────────────┐
+ │  fix ──→ trace ──→ patch ──→ verify ──→ commit │
+ └────────────────────────────────────────────────┘
+```
+
+Each task (Colleague or Agent) runs in a fresh context with strict `context_pointers` file scope — no context rot, no scope creep.
 
 ---
 
@@ -157,19 +182,22 @@ Same architecture as PM pipeline: each task runs in a fresh context with strict 
 
 ## Dev Track
 
-For developers using Compass alongside AI for implementation — spec, plan, build, fix.
+Works standalone or picks up PRD / User Stories from the PM pipeline.
 
 ```bash
-/compass:init dev              # lightweight setup: lang + stack detect + GitNexus
-/compass:spec "add auth API"   # → DESIGN-SPEC + TEST-SPEC
-/compass:prepare               # → wave-based execution plan (DAG)
-/compass:build                 # → parallel Agent dispatch, wave-by-wave
-```
+/compass:init dev                           # one-time setup
 
-Quick fix without full spec cycle:
+# Standalone — describe any task directly
+/compass:spec "add rate limiting to API"    # → DESIGN-SPEC + TEST-SPEC
+/compass:prepare                            # → wave plan (DAG)
+/compass:build                              # → parallel Agents → test → commit
 
-```bash
-/compass:fix "login 500 error" # cross-layer trace → minimal fix → verify
+# From PM artifacts — pick up a story or PRD
+/compass:spec "implement STORY-001"
+/compass:spec "build the auth feature from PRD-auth-v1"
+
+# Quick fix — no spec needed
+/compass:fix "login 500 error after deploy" # trace → patch → verify → commit
 ```
 
 | Command | Action |

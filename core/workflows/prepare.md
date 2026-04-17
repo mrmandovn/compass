@@ -244,7 +244,7 @@ Write to `$SESSION_DIR/BUILD-PLAN.md`.
 
 ## Step 8 — Validate
 
-Best-effort CLI validation:
+CLI validation:
 
 ```bash
 compass-cli dag check "$SESSION_DIR/plan.json" 2>&1
@@ -252,18 +252,9 @@ compass-cli dag waves "$SESSION_DIR/plan.json" 2>&1   # sanity extract
 compass-cli validate plan "$SESSION_DIR/plan.json" 2>&1
 ```
 
-If `validate plan` rejects due to dev schema extras (e.g. `files_affected`, `acceptance.type=test-run`) → print as warnings, fall back to inline validation:
+The CLI auto-detects dev plans (flat tasks with `colleague: null` / `task_id` / `files_affected`) and applies dev-appropriate rules — no fallback needed.
 
-Inline validation:
-- [ ] plan_version = "1.0"
-- [ ] waves is non-empty array
-- [ ] All task_ids unique (no duplicates)
-- [ ] All `depends_on` references resolve to existing task_ids
-- [ ] No dependency cycles (topological sort succeeds)
-- [ ] Every REQ in DESIGN-SPEC appears in ≥1 task's `covers`
-- [ ] Every task has non-empty `files_affected` (for code/ops) OR checklist criteria (for content)
-
-Print checklist results with ✓/⚠ per check.
+If validation fails, show the violations and loop back to Step 3 to fix.
 
 ---
 
