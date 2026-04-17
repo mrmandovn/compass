@@ -28,6 +28,6 @@ Read and execute the workflow at `~/.compass/core/workflows/build.md`.
 
 ## Notes
 
-Experimental dev-track command. Requires a prepared dev session from `/compass:prepare`. Must run in a host with Claude Code Agent tool (Claude Code or OpenCode). Not promoted in README, help menu, or manifest.
+Dev-track command. Requires a prepared dev session from `/compass:prepare`. Must run in a host with Claude Code Agent tool (Claude Code or OpenCode).
 
 After completion, dev ships manually via `git push` + `gh pr create`.

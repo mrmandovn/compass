@@ -78,6 +78,14 @@ Project + housekeeping:
                          /compass:cleanup --archive    — move completed > 30d
                          /compass:cleanup --dry-run    — preview only
 
+Dev tools:
+  compass:spec         Turn task → DESIGN-SPEC + TEST-SPEC (adaptive per code/ops/content)
+  compass:prepare      Decompose spec → wave-based execution plan (DAG)
+  compass:build        Execute plan wave-by-wave (parallel Agent dispatch)
+  compass:fix          Targeted hotfix — cross-layer root-cause tracing
+                         /compass:init dev         — lightweight dev setup (stack detect + GitNexus)
+                         /compass:help dev         — dev-only help
+
 Setup & maintenance:
   compass:init         Set up project — language, mode, integrations
   compass:setup        Configure / verify tools (Jira, Figma, Confluence, Vercel)
@@ -85,7 +93,9 @@ Setup & maintenance:
                          /compass:setup figma      — configure Figma
                          /compass:setup confluence — configure Confluence
   compass:update       Update Compass to latest version
+  compass:migrate      Migrate state from v0.x to v1.0 (idempotent)
   compass:help         Show this help
+  compass:help dev     Show dev-only help
 
 Hosts:
   Claude Code:  /compass:brief, /compass:prd, ...

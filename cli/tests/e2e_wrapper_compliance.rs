@@ -29,7 +29,7 @@ const REQUIRED_HEADINGS: &[&str] = &["## Workflow", "## Instructions"];
 const REQUIRED_ANTI_MENU_PHRASE: &str =
     "Never synthesize menus from bash/CLI command listings";
 
-const EXPECTED_WRAPPER_COUNT: usize = 28;
+const EXPECTED_WRAPPER_COUNT: usize = 29;
 
 fn wrappers_dir() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR"))

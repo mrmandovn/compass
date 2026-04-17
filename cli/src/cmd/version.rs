@@ -82,7 +82,7 @@ mod tests {
         // even if all sources agree on the wrong value.
         assert_eq!(
             version_txt, "1.0.18",
-            "expected VERSION to be 1.0.2; got {}",
+            "VERSION pin mismatch — run ./scripts/bump-version.sh to sync; got {}",
             version_txt
         );
     }

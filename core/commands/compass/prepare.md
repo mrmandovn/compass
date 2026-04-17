@@ -22,6 +22,6 @@ Read and execute the workflow at `~/.compass/core/workflows/prepare.md`.
 
 ## Notes
 
-Experimental dev-track command. Requires a reviewed dev session from `/compass:spec`. Not promoted in README, help menu, or manifest.
+Dev-track command. Requires a reviewed dev session from `/compass:spec`.
 
 Next command in the dev flow: `/compass:build`.

@@ -34,12 +34,23 @@ npx compass-m
 
 ## Quick start
 
+**Product Management:**
+
 ```bash
 /compass:init                # first-time: global prefs, then create project
 /compass:brief "add 2FA"     # kick off the full PO pipeline
 /compass:plan                # review the DAG
 /compass:run                 # Colleagues execute in parallel
 /compass:check               # validate + deliver to Jira / Confluence
+```
+
+**Development:**
+
+```bash
+/compass:init dev            # lightweight: lang + stack detect + GitNexus
+/compass:spec "add auth"     # → DESIGN-SPEC + TEST-SPEC
+/compass:prepare             # → wave plan
+/compass:build               # → execute + test + commit
 ```
 
 `/compass:project list` shows every registered project; `/compass:project use <path>` switches the active one. Commands run from **any cwd** — the active project is remembered in `~/.compass/projects.json`.
@@ -59,6 +70,29 @@ npx compass-m
 ```
 
 Each Colleague runs in a fresh context with a strict `context_pointers` file list — no context rot, no scope creep.
+
+### Dev pipeline
+
+```
+┌────────┐   ┌──────────┐   ┌─────────┐
+│  spec  │ → │ prepare  │ → │  build  │
+└────────┘   └──────────┘   └─────────┘
+     │             │              │
+ DESIGN-SPEC   DAG of wave   wave-by-wave
+ + TEST-SPEC    + budget     parallel Agents
+                + context_   + verify TEST-SPEC
+                  pointers     acceptance
+```
+
+Quick fix (skips full pipeline):
+
+```
+┌───────┐
+│  fix  │ → trace → patch → verify → commit
+└───────┘
+```
+
+Same architecture as PM pipeline: each task runs in a fresh context with strict `context_pointers` file scope — no context rot, no scope creep.
 
 ---
 
@@ -121,14 +155,61 @@ Each Colleague runs in a fresh context with a strict `context_pointers` file lis
 
 ---
 
-## Architecture highlights (v1.1.x)
+## Dev Track
 
-- **Global project registry** at `~/.compass/projects.json` — every workflow resolves via `compass-cli project resolve`; no more "No compass config found" on fresh sessions.
-- **Per-task `context_pointers`** in `plan.json` — strict file scope per Colleague, enforced by validator.
-- **PRD taste rules** `R-FLOW` (ordered numeric lists in User Flows) + `R-XREF` (every `[LINK-…]` resolves) — block delivery on bad specs.
+For developers using Compass alongside AI for implementation — spec, plan, build, fix.
+
+```bash
+/compass:init dev              # lightweight setup: lang + stack detect + GitNexus
+/compass:spec "add auth API"   # → DESIGN-SPEC + TEST-SPEC
+/compass:prepare               # → wave-based execution plan (DAG)
+/compass:build                 # → parallel Agent dispatch, wave-by-wave
+```
+
+Quick fix without full spec cycle:
+
+```bash
+/compass:fix "login 500 error" # cross-layer trace → minimal fix → verify
+```
+
+| Command | Action |
+|---|---|
+| `spec <task>` | Task → DESIGN-SPEC + TEST-SPEC (adaptive per code/ops/content) |
+| `prepare` | Decompose spec → wave-based plan with dependencies |
+| `build` | Execute plan — one Agent per task, parallel within waves |
+| `fix <bug>` | Cross-layer root-cause trace → ≤5-file hotfix |
+
+Dev workflows use [GitNexus](https://github.com/nicobailey/gitnexus) for impact analysis when available — `gitnexus_impact()` checks blast radius before modifying symbols, `gitnexus_context()` maps callers/callees for dependency inference.
+
+`/compass:help dev` shows dev-only commands.
+
+---
+
+## Architecture highlights
+
+### Core
+- **Global project registry** at `~/.compass/projects.json` — every workflow resolves via `compass-cli project resolve` (returns `project_root`, `shared_root`, `config`); no more "No compass config found" on fresh sessions.
+- **Per-task `context_pointers`** in `plan.json` — strict file scope per Colleague/Agent, enforced by validator.
 - **Durable project memory** `.compass/.state/project-memory.json` — FIFO 10 sessions with aggregate preservation across rotation.
-- **Silver Tiger domains** — `ard | platform | communication | internal | access | ai` written directly into `CLAUDE.md`, so Claude Code auto-loads domain context every turn.
 - **Owner-only perms** on `~/.compass/` (0o700) — registry + global config protected on shared hosts.
+
+### Parallel dispatch
+- **Real Agent() dispatch** — wrapper commands enforce Agent tool usage at skill level (2-layer directive: wrapper + workflow). Stages/waves with N tasks emit N Agent calls in a single message for true concurrency.
+- **Fresh context per task** — each Colleague (PM) or worker (Dev) runs in an isolated context window with only its `context_pointers` — no context rot, no scope creep.
+
+### CLI gate + validation
+- **`compass-cli project gate`** — deterministic pipeline scoring: Jaccard relevance between task args and active pipeline titles, 4-case selection, stale detection (>14 days + 0 artifacts). Replaces prose-based scoring.
+- **PRD taste rules** `R-FLOW` + `R-XREF` — block delivery on bad specs.
+- **Version sync** — `bump-version.sh` checks 11 refs (VERSION, package.json, Cargo.toml, manifest.json, colleagues/manifest.json, version.rs pin, 4 platform packages). CI release guard rejects mismatched tags.
+
+### Dev track
+- **GitNexus integration** — shared `gitnexus-check.md` snippet wired into spec/prepare/build/fix. Workers call `gitnexus_impact()` for blast radius, `gitnexus_context()` for call graph. Fallback to Grep when unavailable.
+- **Adaptive spec** — DESIGN-SPEC + TEST-SPEC format adapts per category (code: types/interfaces, ops: runbook/config, content: outline/deliverables).
+- **`compass:init dev`** — lightweight init: lang + stack detect + GitNexus. No PM ceremony (integrations, domain, PO).
+
+### Silver Tiger
+- **Domain rules** — `ard | platform | communication | internal | access | ai` loaded from sibling `shared/domain-rules/`. `compass-cli project resolve` returns `shared_root` for automatic lookup.
+- **Capability registry** — `shared/capability-registry.yaml` validates `[LINK-<product>]` cross-references in PRDs and epics.
 
 ---
 

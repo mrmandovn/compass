@@ -204,6 +204,64 @@
       "tags": [
         "infra"
       ]
+    },
+    {
+      "name": "report",
+      "description": "Generate a period report (quarterly, half-year, annual, custom) from project artifacts and Jira data",
+      "workflow": "report.md",
+      "produces": "reports/REPORT-<period>-<slug>.md",
+      "tags": [
+        "documentation",
+        "reporting"
+      ]
+    },
+    {
+      "name": "cleanup",
+      "description": "Housekeeping: close stale pipelines, archive old sessions, purge orphaned artifacts",
+      "workflow": "cleanup.md",
+      "args": "[--stale|--archive|--dry-run]",
+      "tags": [
+        "infra",
+        "maintenance"
+      ]
+    },
+    {
+      "name": "spec",
+      "description": "Turn a task description into DESIGN-SPEC + TEST-SPEC with adaptive format (code/ops/content). Dev track entry point.",
+      "workflow": "spec.md",
+      "produces": ".compass/.state/sessions/<slug>/DESIGN-SPEC.md + TEST-SPEC.md",
+      "tags": [
+        "dev",
+        "spec"
+      ]
+    },
+    {
+      "name": "prepare",
+      "description": "Decompose a reviewed spec into wave-based execution plan (DAG). Produces plan.json for /compass:build.",
+      "workflow": "prepare.md",
+      "produces": ".compass/.state/sessions/<slug>/plan.json",
+      "tags": [
+        "dev",
+        "planning"
+      ]
+    },
+    {
+      "name": "build",
+      "description": "Execute a prepared plan wave-by-wave with parallel Agent dispatch. Each task runs in fresh context.",
+      "workflow": "build.md",
+      "tags": [
+        "dev",
+        "execution"
+      ]
+    },
+    {
+      "name": "fix",
+      "description": "Targeted hotfix — cross-layer root-cause tracing, minimal single-wave fix, commit.",
+      "workflow": "fix.md",
+      "tags": [
+        "dev",
+        "fix"
+      ]
     }
   ],
   "integrations": [

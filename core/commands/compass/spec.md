@@ -23,6 +23,6 @@ Read and execute the workflow at `~/.compass/core/workflows/spec.md`.
 
 ## Notes
 
-Experimental dev-track command. Not promoted in README, help menu, or manifest. Produces session artifacts at `.compass/.state/sessions/<slug>/` marked with `state.json.type = "dev"`. The adaptive sections come from `core/shared/spec-adaptive.md`.
+Dev-track command. Produces session artifacts at `.compass/.state/sessions/<slug>/` marked with `state.json.type = "dev"`. The adaptive sections come from `core/shared/spec-adaptive.md`.
 
 Next command in the dev flow: `/compass:prepare`.

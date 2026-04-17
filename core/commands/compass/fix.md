@@ -28,6 +28,6 @@ Read and execute the workflow at `~/.compass/core/workflows/fix.md`.
 
 ## Notes
 
-Experimental dev-track command. Creates a dev session marked `task_type: fix`, `is_hotfix: true`. Uses `fix/<slug>` branch (not `feat/<slug>`). Not promoted in README, help menu, or manifest.
+Dev-track command. Creates a dev session marked `task_type: fix`, `is_hotfix: true`. Uses `fix/<slug>` branch (not `feat/<slug>`).
 
 After fix, dev ships manually via `git push` + `gh pr create`.
