@@ -95,4 +95,46 @@ Repo:  ~/.compass
 Docs:  ~/.compass/README.md
 ```
 
+---
+
+## Dev mode
+
+If `$ARGUMENTS` contains "dev" (case-insensitive), print the following block INSTEAD of the PM block above:
+
+```
+COMPASS — Dev Track  v<VERSION>
+
+Quick start:
+  1. compass:init dev     Set up project for development (one-time)
+  2. compass:spec         Describe your task — get DESIGN-SPEC + TEST-SPEC
+  3. compass:prepare      Decompose spec into wave-based execution plan
+  4. compass:build        Execute plan wave-by-wave (parallel Agent dispatch)
+
+  Example:
+    /compass:spec "add auth middleware to Express API"
+    /compass:prepare
+    /compass:build
+
+Quick fix:
+  compass:fix             Targeted hotfix — cross-layer root-cause tracing
+
+  Example:
+    /compass:fix "login button returns 500 after last deploy"
+
+Shared commands (also available in PM mode):
+  compass:project         List/switch projects
+  compass:status          Project dashboard
+  compass:update          Update Compass
+  compass:help            Show PM help
+  compass:help dev        Show this help (dev mode)
+
+Hosts:
+  Claude Code:  /compass:spec, /compass:build, ...
+  Any AI:       paste ~/.compass/core/workflows/<name>.md into chat
+
+Repo:  ~/.compass
+```
+
+If `$ARGUMENTS` does NOT contain "dev", print the existing PM block (no change).
+
 Don't ask anything, don't create files.

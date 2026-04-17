@@ -34,6 +34,12 @@ Apply Step 0d. Dev sessions standalone.
 
 ---
 
+## Step 0b — GitNexus check
+
+Apply the shared snippet from `core/shared/gitnexus-check.md`. Sets `$GITNEXUS_STATUS` and `$GITNEXUS_REPO`. When available, use `gitnexus_impact()` in cross-layer trace (Step 4) instead of bash find/grep fallback. Include both in the Agent worker prompt (Step 10).
+
+---
+
 ## Step 1 — Git context
 
 Apply `core/shared/git-context.md` Parts A + B. Session slug will be derived after Step 2; branch creation happens in Step 6.
@@ -82,6 +88,16 @@ Store `$SCOPE` (one of ui / api / config / unclear).
 ---
 
 ## Step 4 — Cross-layer trace
+
+**If `$GITNEXUS_STATUS` = `GITNEXUS_AVAILABLE`** (preferred — replaces bash find/grep below):
+
+For each keyword extracted from `$BUG_DESC`:
+- `gitnexus_impact({target: "<keyword>", direction: "upstream", repo: "$GITNEXUS_REPO"})` → trace all callers across layers
+- `gitnexus_context({name: "<keyword>", repo: "$GITNEXUS_REPO"})` → get call graph, process participation
+
+Use impact results to identify cross-layer boundaries (e.g. frontend component calls API endpoint calls database query). Skip the bash blocks below — GitNexus provides more accurate results faster.
+
+**Fallback (when `$GITNEXUS_STATUS` != `GITNEXUS_AVAILABLE`):**
 
 Per `$SCOPE`:
 
@@ -293,6 +309,11 @@ PROMPT=$(cat <<END
 
 You are applying a single-file (or small multi-file) hotfix. Read FIX-PLAN below, make the change, verify with the listed test command, report back.
 
+## GitNexus
+GitNexus: $GITNEXUS_STATUS
+GitNexus Repo: $GITNEXUS_REPO
+If GitNexus is GITNEXUS_AVAILABLE, run gitnexus_impact({target: "symbolName", direction: "upstream", repo: "$GITNEXUS_REPO"}) before modifying any symbol. If risk is HIGH or CRITICAL, report back instead of proceeding.
+
 ## Strict scope rules
 - Files you may modify: $FILES_AFFECTED
 - Do NOT touch other files
@@ -321,8 +342,18 @@ $(cat "$SESSION_DIR/FIX-PLAN.md")
 END
 )
 
-# Agent(description: "Apply hotfix", subagent_type: "general-purpose", prompt: $PROMPT)
-# → parse response, retry up to 2x on fail
+# --- Dispatch (real Agent tool call) ---
+# Action: emit ONE Agent tool call with $PROMPT built above.
+# Required pattern:
+#   Agent(
+#     description: "Apply hotfix — <bug title>",
+#     subagent_type: "general-purpose",
+#     prompt: $PROMPT
+#   )
+#
+# Do NOT simulate by reading files manually in orchestrator context.
+# The sub-agent runs in a fresh context window with only FIX-PLAN + CONTEXT.
+# If acceptance fails, retry up to 2× with enriched error context, then escalate.
 ```
 
 Main-agent re-verify: run each command from FIX-PLAN Verification section. Capture exit codes.

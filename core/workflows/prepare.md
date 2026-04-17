@@ -33,6 +33,12 @@ Apply Step 0d. Dev sessions standalone — skip pipeline binding if the PO is mi
 
 ---
 
+## Step 0b — GitNexus check
+
+Apply the shared snippet from `core/shared/gitnexus-check.md`. Sets `$GITNEXUS_STATUS` and `$GITNEXUS_REPO`. When available, use `gitnexus_context()` in Step 3 (dependency analysis for `depends_on` + `context_pointers`).
+
+---
+
 ## Step 1 — Resolve target session
 
 ```bash
@@ -139,6 +145,13 @@ task = {
 ```
 
 **Dependency inference**:
+
+If `$GITNEXUS_STATUS` = `GITNEXUS_AVAILABLE` (preferred):
+- For each key symbol in `files_affected`, run `gitnexus_context({name: "<symbol>", repo: "$GITNEXUS_REPO"})` to get callers/callees
+- If task A modifies a symbol called by task B's symbol → B `depends_on` A
+- Run `gitnexus_impact({target: "<symbol>", direction: "upstream"})` on modified symbols → HIGH/CRITICAL risk → flag in plan + consider splitting
+
+Fallback (Grep-based):
 - If task A's `files_affected` is imported by task B's `files_affected` → B `depends_on` A
 - If task A creates a file that task B modifies → B `depends_on` A
 - Explicit sequencing in DESIGN-SPEC (e.g. "Step 1 must complete before Step 2" in ops runbook)

@@ -43,7 +43,13 @@ Apply Step 0d from `core/shared/resolve-project.md`. Dev sessions are always sta
 
 ---
 
-## Step 0b — Load/save dev preferences
+## Step 0b — GitNexus check
+
+Apply the shared snippet from `core/shared/gitnexus-check.md`. Sets `$GITNEXUS_STATUS` and `$GITNEXUS_REPO`. When available, use `gitnexus_context()` in research (Step 4) and `gitnexus_impact()` when identifying affected files for DESIGN-SPEC.
+
+---
+
+## Step 0c — Load/save dev preferences
 
 Dev-track adds a few preferences beyond what PM uses. Save-on-first-ask so the dev never answers the same question twice.
 
@@ -300,6 +306,16 @@ Keep depth matched to complexity: simple task → 1-2 Qs; complex → 3-5 Qs. Sa
 ## Step 8 — Research
 
 Scan codebase for existing patterns + affected files. Scope the search with keywords from `$INPUT_TITLE` + any module names from the Q&A.
+
+**If `$GITNEXUS_STATUS` = `GITNEXUS_AVAILABLE`** (preferred — faster + more accurate):
+
+For each key symbol/function/type mentioned in Q&A or input:
+- `gitnexus_context({name: "<symbol>", repo: "$GITNEXUS_REPO"})` → get callers, callees, process participation
+- `gitnexus_impact({target: "<symbol>", direction: "upstream", repo: "$GITNEXUS_REPO"})` → discover affected files at d=1 and d=2
+
+Use results to populate "Related Files" and "Dependencies" in RESEARCH.md. This replaces the grep loop below when GitNexus is available.
+
+**Fallback (when `$GITNEXUS_STATUS` != `GITNEXUS_AVAILABLE`)**:
 
 ```bash
 # Pattern-based search

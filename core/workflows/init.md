@@ -36,10 +36,332 @@ Then print exactly one banner before proceeding. For `STATE=existing`, load `lan
 | existing | `🔧 Updating Compass config for $(basename $(pwd))...` | `🔧 Đang cập nhật cấu hình Compass cho $(basename $(pwd))...` |
 
 Branch on the echoed value:
-- `STATE=fresh` → execute Step 1 (fresh setup — runs global wizard first if missing, then project create).
-- `STATE=existing` → execute Step 2 (update existing project config).
+- If `$ARGUMENTS` contains "dev" (case-insensitive):
+  - `STATE=fresh` → execute Step 1-DEV (dev setup — global wizard if missing, then lightweight dev project create).
+  - `STATE=existing` → execute Step 2-DEV (update existing config for dev persona).
+- Otherwise (no "dev" in `$ARGUMENTS`):
+  - `STATE=fresh` → execute Step 1 (fresh setup — runs global wizard first if missing, then project create).
+  - `STATE=existing` → execute Step 2 (update existing project config).
 
 Do NOT ask the user which branch to take. Do NOT present `STATE` values as options.
+
+> **If dev mode**: execute Step 1-DEV or Step 2-DEV below, then STOP. Do NOT continue to Step 1 (PM) or Step 2 (PM) — those are for non-dev init only.
+
+---
+
+## Step 1-DEV — Dev setup (fresh)
+
+Runs when `STATE=fresh` AND `$ARGUMENTS` contains "dev" (case-insensitive). Lightweight flow: global wizard → project name/prefix → stack detect → gitnexus → minimal structure → config → register → hand-off.
+
+### Step 1-DEV.0 — Language setup
+
+If `~/.compass/global-config.json` is missing OR `lang` is not set, ask language only (do NOT run Step 1A — it includes PM-specific questions like review_style that dev doesn't need; `/compass:spec` handles review_style lazily on first run):
+
+```json
+{"questions": [
+  {"question": "Which language combination?", "header": "Language", "multiSelect": false, "options": [
+    {"label": "Both Vietnamese", "description": "Chat + documents in Vietnamese"},
+    {"label": "Both English", "description": "Chat + documents in English"},
+    {"label": "Chat VN + Docs EN", "description": "Conversations in Vietnamese, artifacts in English"},
+    {"label": "Chat EN + Docs VN", "description": "Conversations in English, artifacts in Vietnamese"}
+  ]}
+]}
+```
+
+Map and save to global config (same mapping as Step 1A.1b). If global config already has `lang` set, skip to Step 1-DEV.a.
+
+### Step 1-DEV.a — Project name + prefix
+
+Auto-detect from folder name and git config:
+
+```bash
+TARGET=$(pwd)
+GLOBAL=$(compass-cli project global-config get)
+LANG=$(echo "$GLOBAL" | jq -r '.lang // "en"')
+DETECTED_NAME=$(basename "$TARGET")
+DETECTED_PREFIX=$(echo "$DETECTED_NAME" | awk -F- '{for(i=1;i<=NF;i++) printf "%s", toupper(substr($i,1,1))}' | cut -c1-5)
+echo "DEV_DETECT: NAME=$DETECTED_NAME PREFIX=$DETECTED_PREFIX"
+```
+
+Send 1 AskUserQuestion with 2 questions batched (in `$LANG`):
+
+en:
+```json
+{"questions": [
+  {"question": "Project name?", "header": "Project", "multiSelect": false, "options": [
+    {"label": "<DETECTED_NAME>", "description": "From folder name"},
+    {"label": "<title-cased DETECTED_NAME>", "description": "Title-cased variant"}
+  ]},
+  {"question": "Issue prefix? (2–5 uppercase letters)", "header": "Prefix", "multiSelect": false, "options": [
+    {"label": "<DETECTED_PREFIX>", "description": "Derived from project name"},
+    {"label": "<DETECTED_PREFIX[0:3]>", "description": "Shorter variant"}
+  ]}
+]}
+```
+
+vi:
+```json
+{"questions": [
+  {"question": "Tên project?", "header": "Project", "multiSelect": false, "options": [
+    {"label": "<DETECTED_NAME>", "description": "Từ tên thư mục"},
+    {"label": "<title-cased DETECTED_NAME>", "description": "Biến thể title-case"}
+  ]},
+  {"question": "Prefix ticket? (2–5 chữ cái viết hoa)", "header": "Prefix", "multiSelect": false, "options": [
+    {"label": "<DETECTED_PREFIX>", "description": "Suy ra từ tên project"},
+    {"label": "<DETECTED_PREFIX[0:3]>", "description": "Biến thể ngắn hơn"}
+  ]}
+]}
+```
+
+**IMPORTANT:** Replace every `<placeholder>` with actual detected values BEFORE calling AskUserQuestion.
+
+### Step 1-DEV.b — Stack detection
+
+Auto-detect tech stack from manifest files:
+
+```bash
+TARGET=$(pwd)
+DETECTED_STACKS=""
+[ -f "$TARGET/package.json" ] && DETECTED_STACKS="$DETECTED_STACKS typescript"
+[ -f "$TARGET/tsconfig.json" ] && DETECTED_STACKS="$DETECTED_STACKS typescript"
+[ -f "$TARGET/Cargo.toml" ] && DETECTED_STACKS="$DETECTED_STACKS rust"
+[ -f "$TARGET/pyproject.toml" ] || [ -f "$TARGET/requirements.txt" ] && DETECTED_STACKS="$DETECTED_STACKS python"
+[ -f "$TARGET/go.mod" ] && DETECTED_STACKS="$DETECTED_STACKS go"
+[ -f "$TARGET/pom.xml" ] || [ -f "$TARGET/build.gradle" ] && DETECTED_STACKS="$DETECTED_STACKS java"
+DETECTED_STACKS=$(echo "$DETECTED_STACKS" | tr ' ' '\n' | sort -u | tr '\n' ' ' | xargs)
+echo "DETECTED_STACKS=$DETECTED_STACKS"
+```
+
+Branch on detection result:
+
+- **Stacks detected** → AskUserQuestion to confirm (in `$LANG`):
+
+en:
+```json
+{"questions": [{"question": "Detected stack: [<DETECTED_STACKS>]. Confirm?", "header": "Tech Stack", "multiSelect": false, "options": [
+  {"label": "OK", "description": "Use detected stack as-is"},
+  {"label": "Add more", "description": "Keep detected + type additional stacks"},
+  {"label": "Change", "description": "Type your own stack list"}
+]}]}
+```
+
+vi:
+```json
+{"questions": [{"question": "Phát hiện stack: [<DETECTED_STACKS>]. Xác nhận?", "header": "Tech Stack", "multiSelect": false, "options": [
+  {"label": "OK", "description": "Dùng stack đã phát hiện"},
+  {"label": "Thêm", "description": "Giữ stack đã phát hiện + nhập thêm"},
+  {"label": "Đổi", "description": "Tự nhập danh sách stack"}
+]}]}
+```
+
+If "Add more / Thêm" or "Change / Đổi" → follow up with free-text AskUserQuestion for additional/replacement stacks.
+
+- **No stacks detected** → AskUserQuestion:
+
+en:
+```json
+{"questions": [{"question": "No stack detected. What's your tech stack?", "header": "Tech Stack", "multiSelect": false, "options": [
+  {"label": "Type your own answer", "description": "e.g. typescript, python, rust"}
+]}]}
+```
+
+vi:
+```json
+{"questions": [{"question": "Không phát hiện stack. Tech stack của bạn?", "header": "Tech Stack", "multiSelect": false, "options": [
+  {"label": "Type your own answer", "description": "vd: typescript, python, rust"}
+]}]}
+```
+
+### Step 1-DEV.c — GitNexus setup
+
+```bash
+TARGET=$(pwd)
+if [ -d "$TARGET/.gitnexus" ]; then
+  echo "GITNEXUS_AVAILABLE"
+else
+  echo "GITNEXUS_MISSING"
+fi
+```
+
+- **`GITNEXUS_AVAILABLE`** → print `✓ GitNexus ready` and skip to Step 1-DEV.d.
+
+- **`GITNEXUS_MISSING`** → AskUserQuestion (in `$LANG`):
+
+en:
+```json
+{"questions": [{"question": "Setup GitNexus for impact analysis?", "header": "GitNexus", "multiSelect": false, "options": [
+  {"label": "Sync now", "description": "Run gitnexus analyze (~30s) — enables blast radius analysis in /compass:spec and /compass:fix"},
+  {"label": "Skip", "description": "Setup later — /compass:spec and /compass:fix will still work but without impact analysis"}
+]}]}
+```
+
+vi:
+```json
+{"questions": [{"question": "Setup GitNexus cho impact analysis?", "header": "GitNexus", "multiSelect": false, "options": [
+  {"label": "Sync ngay", "description": "Chạy gitnexus analyze (~30s) — bật blast radius analysis cho /compass:spec và /compass:fix"},
+  {"label": "Bỏ qua", "description": "Setup sau — /compass:spec và /compass:fix vẫn chạy nhưng không có impact analysis"}
+]}]}
+```
+
+If user picks "Sync now / Sync ngay":
+
+```bash
+npx gitnexus analyze --embeddings 2>&1 | tail -5
+if [ -d "$TARGET/.gitnexus" ]; then
+  echo "GITNEXUS_SYNCED"
+else
+  echo "GITNEXUS_SYNC_FAILED"
+fi
+```
+
+Sync failure is non-blocking — print warning and continue.
+
+### Step 1-DEV.d — Create minimal structure
+
+```bash
+TARGET=$(pwd)
+mkdir -p "$TARGET/.compass/.state/sessions"
+echo "   ✓ .compass/.state/sessions/"
+echo "CREATED_DEV_STRUCTURE=$TARGET"
+```
+
+NO prd/, epics/, wiki/, prototype/, technical/, release-notes/, research/ folders.
+
+### Step 1-DEV.e — Write config.json
+
+Write minimal config with `persona: "dev"`:
+
+```bash
+TARGET=$(pwd)
+cat > "$TARGET/.compass/.state/config.json" <<JSON
+{
+  "version": "1.1.1",
+  "lang": "<LANG from global>",
+  "spec_lang": "<SPEC_LANG from global>",
+  "persona": "dev",
+  "project": {
+    "name": "<from Step 1-DEV.a>",
+    "prefix": "<from Step 1-DEV.a>"
+  },
+  "tech_stack": [<detected/confirmed stacks as quoted strings>],
+  "mode": "standalone",
+  "created_at": "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+}
+JSON
+echo "CONFIG_WRITTEN=$TARGET/.compass/.state/config.json"
+```
+
+**CRITICAL:** Replace all `<placeholder>` values with actual answers from previous steps before writing. Do NOT include `domain`, `po`, `review_style`, `output_paths`, or `naming` fields — those are PM-only.
+
+### Step 1-DEV.f — Register project
+
+```bash
+TARGET=$(pwd)
+compass-cli project add "$TARGET"
+compass-cli project use "$TARGET"
+echo "PROJECT_REGISTERED=$TARGET"
+```
+
+If either CLI call fails, surface the error to the user — never silently swallow.
+
+### Step 1-DEV.g — Hand-off
+
+Print (in `$LANG`):
+
+en:
+```
+✅ Dev project ready!
+   Project:  <name> (<TARGET>)
+   Stack:    [<tech_stack list>]
+   GitNexus: synced / skipped
+
+   Next: /compass:help dev
+```
+
+vi:
+```
+✅ Dev project sẵn sàng!
+   Project:  <name> (<TARGET>)
+   Stack:    [<tech_stack list>]
+   GitNexus: đã sync / bỏ qua
+
+   Tiếp theo: /compass:help dev
+```
+
+Stop. Do NOT auto-invoke any other workflow.
+
+---
+
+## Step 2-DEV — Update existing config for dev (STATE=existing)
+
+Runs when `STATE=existing` AND `$ARGUMENTS` contains "dev" (case-insensitive).
+
+### 2-DEV.a — Load current config
+
+```bash
+CONFIG_PATH=".compass/.state/config.json"
+CONFIG=$(cat "$CONFIG_PATH")
+LANG=$(echo "$CONFIG" | jq -r '.lang // "en"')
+CURRENT_PERSONA=$(echo "$CONFIG" | jq -r '.persona // "pm"')
+CURRENT_STACK=$(echo "$CONFIG" | jq -c '.tech_stack // []')
+echo "DEV_UPDATE: PERSONA=$CURRENT_PERSONA STACK=$CURRENT_STACK"
+```
+
+### 2-DEV.b — Update persona
+
+Set `persona` to `"dev"` in the config:
+
+```bash
+TMP=$(mktemp)
+echo "$CONFIG" | jq '.persona = "dev"' > "$TMP" && mv "$TMP" "$CONFIG_PATH"
+echo "PERSONA_UPDATED=dev"
+```
+
+### 2-DEV.c — Stack detection (if missing)
+
+If `tech_stack` is empty or missing in the current config, run stack detection (same logic as Step 1-DEV.b). If stacks are already present, skip this step.
+
+### 2-DEV.d — GitNexus setup (if missing)
+
+```bash
+TARGET=$(pwd)
+if [ -d "$TARGET/.gitnexus" ]; then
+  echo "GITNEXUS_AVAILABLE"
+else
+  echo "GITNEXUS_MISSING"
+fi
+```
+
+If `GITNEXUS_MISSING` → offer sync using the same AskUserQuestion as Step 1-DEV.c. If already available, print `✓ GitNexus ready` and skip.
+
+### 2-DEV.e — Summary
+
+Print (in `$LANG`):
+
+en:
+```
+✓ Config updated for dev persona.
+   Project:  <name> (<path>)
+   Persona:  dev
+   Stack:    [<tech_stack list>]
+   GitNexus: synced / skipped / already available
+
+   Next: /compass:help dev
+```
+
+vi:
+```
+✓ Đã cập nhật cấu hình cho dev persona.
+   Project:  <name> (<path>)
+   Persona:  dev
+   Stack:    [<tech_stack list>]
+   GitNexus: đã sync / bỏ qua / đã có sẵn
+
+   Tiếp theo: /compass:help dev
+```
+
+Stop. Do NOT auto-invoke any other workflow.
+
 
 ---
 
@@ -714,6 +1036,8 @@ vi:
    <field-1>: <old> → <new>
    <field-2>: <old> → <new>
 ```
+
+---
 
 ---
 

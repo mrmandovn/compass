@@ -34,6 +34,12 @@ Apply Step 0d. Dev sessions standalone.
 
 ---
 
+## Step 0b — GitNexus check
+
+Apply the shared snippet from `core/shared/gitnexus-check.md`. Sets `$GITNEXUS_STATUS` and `$GITNEXUS_REPO`. Include both in every Agent worker prompt (Step 5.B) so workers can call `gitnexus_impact()` before modifying symbols.
+
+---
+
 ## Step 1 — Resolve target session
 
 Same pattern as `/compass:prepare` Step 1:
@@ -146,6 +152,11 @@ for WAVE_ID in $(seq $START_WAVE $TOTAL_WAVES); do
 # Wave $WAVE_ID — $(echo "$WAVE" | jq -r '.title')
 
 You are implementing a wave of code changes. Read the context below, then implement ONLY the listed tasks.
+
+## GitNexus
+GitNexus: $GITNEXUS_STATUS
+GitNexus Repo: $GITNEXUS_REPO
+If GitNexus is GITNEXUS_AVAILABLE, run gitnexus_impact({target: "symbolName", direction: "upstream", repo: "$GITNEXUS_REPO"}) before modifying any function/class/method. If risk is HIGH or CRITICAL, report to orchestrator before proceeding.
 
 ## Strict scope rules
 - Files you may modify: $FILES_AFFECTED
