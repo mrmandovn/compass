@@ -1,6 +1,6 @@
 [package]
 name = "compass-cli"
-version = "1.0.20"
+version = "1.0.21"
 edition = "2021"
 description = "CLI for Compass — Product Management AI Toolkit"
 license = "MIT"
