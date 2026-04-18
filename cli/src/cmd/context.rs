@@ -29,7 +29,7 @@ pub fn run(args: &[String]) -> Result<String, String> {
         for ptr in pointers {
             if let Some(ptr_str) = ptr.as_str() {
                 // Parse "path:start-end" or just "path"
-                let (file_path, _range) = if let Some(colon_pos) = ptr_str.rfind(':') {
+                let (file_path, range) = if let Some(colon_pos) = ptr_str.rfind(':') {
                     let maybe_range = &ptr_str[colon_pos + 1..];
                     if maybe_range.contains('-') && maybe_range.chars().all(|c| c.is_ascii_digit() || c == '-') {
                         (&ptr_str[..colon_pos], Some(maybe_range))
@@ -41,7 +41,22 @@ pub fn run(args: &[String]) -> Result<String, String> {
                 };
 
                 if let Ok(content) = std::fs::read_to_string(file_path) {
-                    files.insert(file_path.to_string(), json!(content));
+                    let sliced = if let Some(range_str) = range {
+                        let parts: Vec<&str> = range_str.split('-').collect();
+                        if parts.len() == 2 {
+                            let start: usize = parts[0].parse().unwrap_or(1);
+                            let end: usize = parts[1].parse().unwrap_or(usize::MAX);
+                            let lines: Vec<&str> = content.lines().collect();
+                            let start_idx = start.saturating_sub(1); // 1-based to 0-based
+                            let end_idx = end.min(lines.len());
+                            lines[start_idx..end_idx].join("\n")
+                        } else {
+                            content
+                        }
+                    } else {
+                        content
+                    };
+                    files.insert(ptr_str.to_string(), json!(sliced));
                 }
             }
         }
