@@ -301,6 +301,18 @@ Show FIX-PLAN.md. Then:
 Apply `core/shared/wave-execution.md` for a single-wave "fix" variant:
 
 ```bash
+# Load worker rules (same pattern as cook)
+if [ -f "$PROJECT_ROOT/.compass/worker-rules.md" ]; then
+  WORKER_RULES=$(cat "$PROJECT_ROOT/.compass/worker-rules.md")
+else
+  WORKER_RULES=$(cat "$HOME/.compass/core/worker-rules/base.md")
+fi
+TECH_STACK=$(echo "$CONFIG" | jq -r '.tech_stack // [] | .[]' 2>/dev/null)
+for STACK in $TECH_STACK; do
+  ADDON="$HOME/.compass/core/worker-rules/addons/$STACK.md"
+  [ -f "$ADDON" ] && WORKER_RULES="$WORKER_RULES\n---\n$(sed '1,/^---$/d' "$ADDON")"
+done
+
 # Build sub-agent prompt
 FILES_AFFECTED=$(grep -oE "File: \`[^\`]+\`" "$SESSION_DIR/FIX-PLAN.md" | sed 's/File: `//;s/`$//' | tr '\n' ' ')
 
@@ -325,6 +337,9 @@ $(cat "$SESSION_DIR/CONTEXT.md")
 
 ## FIX-PLAN
 $(cat "$SESSION_DIR/FIX-PLAN.md")
+
+## Worker Rules
+$WORKER_RULES
 
 ## Execution steps
 1. Read the files in files_affected

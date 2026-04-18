@@ -159,6 +159,20 @@ for WAVE_ID in $(seq $START_WAVE $TOTAL_WAVES); do
     CONTEXT_BUNDLE="$CONTEXT_BUNDLE\n\n--- Task $TASK_ID context ---\n$PACK"
   done
 
+  # --- Step 5.A2: Load worker rules ---
+  # Base rules (project override takes priority)
+  if [ -f "$PROJECT_ROOT/.compass/worker-rules.md" ]; then
+    WORKER_RULES=$(cat "$PROJECT_ROOT/.compass/worker-rules.md")
+  else
+    WORKER_RULES=$(cat "$HOME/.compass/core/worker-rules/base.md")
+  fi
+  # Append matched framework addons based on config.tech_stack
+  TECH_STACK=$(echo "$CONFIG" | jq -r '.tech_stack // [] | .[]' 2>/dev/null)
+  for STACK in $TECH_STACK; do
+    ADDON="$HOME/.compass/core/worker-rules/addons/$STACK.md"
+    [ -f "$ADDON" ] && WORKER_RULES="$WORKER_RULES\n---\n$(sed '1,/^---$/d' "$ADDON")"
+  done
+
   # --- Step 5.B: Build sub-agent prompt ---
   FILES_AFFECTED=$(echo "$WAVE" | jq -r '[.tasks[].files_affected[]] | unique | .[]' | tr '\n' ' ')
   
@@ -205,6 +219,9 @@ $TEST_SECTIONS
 
 ## Wave tasks
 $(echo "$WAVE" | jq -r '.tasks[] | "### \(.task_id) — \(.name)\n- Files affected: \(.files_affected | join(", "))\n- Briefing: \(.briefing_notes)\n- Acceptance commands:\n\(.acceptance.criteria | map("    " + .) | join("\n"))\n"')
+
+## Worker Rules
+$WORKER_RULES
 
 ## Execution steps
 1. Read each file in files_affected to understand current state
