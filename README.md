@@ -80,41 +80,35 @@ npx compass-m
 ### Development
 
 ```
-┌──────────┐    ┌──────────┐    ┌──────────┐
-│   spec   │ ──→│ prepare  │ ──→│   cook   │
-│          │    │          │    │          │
-│ DESIGN-  │    │ DAG of   │    │ wave-by- │
-│ SPEC +   │    │ wave +   │    │ wave     │
-│ TEST-    │    │ budget + │    │ parallel │
-│ SPEC     │    │ context_ │    │ Agents + │
-│          │    │ pointers │    │ verify   │
-└──────────┘    └──────────┘    └────┬─────┘
-                                     │
-                                     ▼
-                              ┌──────────────┐
-                              │  Committed   │
-                              │    Code      │
-                              └──────────────┘
+┌──────────┐    ┌──────────┐    ┌──────────┐    ┌────────────┐    ┌──────────┐
+│   spec   │ ──→│ prepare  │ ──→│   cook   │ ──→│   test     │ ──→│  commit  │
+│          │    │          │    │          │    │            │    │          │
+│ DESIGN-  │    │ DAG of   │    │ wave-by- │    │ run        │    │ smart    │
+│ SPEC +   │    │ wave +   │    │ wave     │    │ TEST-SPEC  │    │ stage +  │
+│ TEST-    │    │ budget + │    │ parallel │    │ acceptance │    │ generate │
+│ SPEC     │    │ context  │    │ Agents   │    │ or detect  │    │ message  │
+│          │    │ packs    │    │          │    │ suite      │    │          │
+└──────────┘    └──────────┘    └──────────┘    └────────────┘    └──────────┘
 ```
 
 ### Full Product Lifecycle
 
 ```
   Product Management                              Development
- ┌─────────────────────────────────────┐    ┌──────────────────────────────┐
- │                                     │    │                              │
- │  brief ──→ plan ──→ run ──→ check ──┼──→ │  spec ──→ prepare ──→ cook   │
- │                                     │    │                              │
- └─────────────────────────────────────┘    └──────────────────────────────┘
+ ┌─────────────────────────────────────┐    ┌────────────────────────────────────────────────┐
+ │                                     │    │                                                │
+ │  brief ──→ plan ──→ run ──→ check ──┼──→ │  spec ──→ prepare ──→ cook ──→ test ──→ commit │
+ │                                     │    │                                                │
+ └─────────────────────────────────────┘    └────────────────────────────────────────────────┘
                                   │              ↑
                                   └─ PRD ────────┘
                                      Stories
                                      Epics
 
   Quick Fix
- ┌────────────────────────────────────────────────┐
- │  fix ──→ trace ──→ patch ──→ verify ──→ commit │
- └────────────────────────────────────────────────┘
+ ┌───────────────────────────────────────────────────────────┐
+ │  fix ──→ trace ──→ patch ──→ test ──→ commit              │
+ └───────────────────────────────────────────────────────────┘
 ```
 
 Each task (Colleague or Agent) runs in a fresh context with strict `context_pointers` file scope — no context rot, no scope creep.
