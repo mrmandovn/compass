@@ -81,7 +81,7 @@ mod tests {
         // a partial bump (e.g. VERSION updated but Cargo.toml not)
         // even if all sources agree on the wrong value.
         assert_eq!(
-            version_txt, "1.0.21",
+            version_txt, "1.0.22",
             "VERSION pin mismatch — run ./scripts/bump-version.sh to sync; got {}",
             version_txt
         );
