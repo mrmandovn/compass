@@ -14,7 +14,7 @@ allowed-tools:
 
 ## Workflow
 
-Read and execute the workflow at `~/.compass/core/workflows/build.md`.
+Read and execute the workflow at `~/.compass/core/workflows/cook.md`.
 
 ## Instructions
 

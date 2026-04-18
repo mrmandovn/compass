@@ -248,7 +248,7 @@
     {
       "name": "cook",
       "description": "Execute a prepared plan wave-by-wave with parallel Agent dispatch (cook). Each task runs in fresh context.",
-      "workflow": "build.md",
+      "workflow": "cook.md",
       "tags": [
         "dev",
         "execution"
