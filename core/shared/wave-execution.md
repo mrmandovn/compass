@@ -2,7 +2,7 @@
 
 **Purpose**: Execute a wave of implementation tasks by spawning a Claude Code sub-agent with **strictly scoped** context — zero carry-over from the main conversation or prior waves. This is the anti-context-pollution mechanism that makes iterative dev work practical on large codebases.
 
-**Used by**: `/compass:build` (per wave), `/compass:fix` (single wave).
+**Used by**: `/compass:cook` (per wave), `/compass:fix` (single wave).
 
 ---
 

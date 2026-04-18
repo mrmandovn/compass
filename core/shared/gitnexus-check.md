@@ -1,6 +1,6 @@
 <!--
   Shared GitNexus check. Dev-track workflows (`/compass:spec`, `/compass:prepare`,
-  `/compass:build`, `/compass:fix`) include this after Step 0a to detect whether
+  `/compass:cook`, `/compass:fix`) include this after Step 0a to detect whether
   a GitNexus index is available. Sets `$GITNEXUS_STATUS` and `$GITNEXUS_REPO`
   for downstream worker prompts and research steps.
 -->

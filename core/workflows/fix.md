@@ -2,7 +2,7 @@
 
 You are the hotfix lead. Mission: take a bug description → trace root cause across layers (UI / API / data / config) → propose ≥2 hypotheses with evidence → apply a minimal fix in a single wave → verify → commit.
 
-**Principles:** Minimal is the right size. Fix the root cause, not the symptom. Don't refactor while fixing. Propose alternatives, let the dev pick. If scope exceeds hotfix (>5 files OR >1 layer), stop and redirect to `/compass:spec` + `/compass:prepare` + `/compass:build`.
+**Principles:** Minimal is the right size. Fix the root cause, not the symptom. Don't refactor while fixing. Propose alternatives, let the dev pick. If scope exceeds hotfix (>5 files OR >1 layer), stop and redirect to `/compass:spec` + `/compass:prepare` + `/compass:cook`.
 
 **Purpose**: Targeted bug fix with cross-layer tracing, without going through the full spec + prepare + build loop.
 
@@ -273,7 +273,7 @@ fi
 ```json
 {"questions": [{"question": "Scope beyond typical hotfix ($AFFECTED_FILES files, $AFFECTED_LAYERS layer(s)). Proceed anyway?", "header": "Scope check", "multiSelect": false, "options": [
   {"label": "Continue hotfix flow", "description": "Accept the scope; single-wave fix"},
-  {"label": "Switch to full spec flow", "description": "Abort — use /compass:spec + /compass:prepare + /compass:build for this scope"},
+  {"label": "Switch to full spec flow", "description": "Abort — use /compass:spec + /compass:prepare + /compass:cook for this scope"},
   {"label": "Cancel", "description": "Stop, rethink scope manually"}]}]}
 ```
 
@@ -360,9 +360,23 @@ Main-agent re-verify: run each command from FIX-PLAN Verification section. Captu
 
 ---
 
-## Step 11 — Commit
+## Step 11 — Chain: test → commit
 
-If tests pass:
+### 11a. Chain to compass:test
+
+en:
+```json
+{"questions": [{"question": "Run tests before committing?", "header": "Test", "multiSelect": false, "options": [
+  {"label": "Run compass:test (Recommended)", "description": "Verify fix didn't break anything"},
+  {"label": "Skip tests", "description": "Commit without testing"}
+]}]}
+```
+
+vi: translate (`Chạy compass:test (Khuyến nghị)` / `Bỏ qua tests`).
+
+If "Run compass:test" → invoke `/compass:test` workflow inline (read and execute `~/.compass/core/workflows/test.md`). Wait for results.
+
+### 11b. Chain to commit
 
 ```bash
 git add $FILES_AFFECTED
@@ -372,10 +386,25 @@ SCOPE=$(echo "$FILES_AFFECTED" | tr ' ' '\n' | sed 's|^src/||; s|/.*$||' | sort 
 
 SUMMARY=$(echo "$BUG_TITLE" | head -c 72)
 MSG="fix($SCOPE): $SUMMARY"
+```
 
-compass-cli git commit "$MSG" || git commit -m "$MSG"
+en:
+```json
+{"questions": [{"question": "Commit fix?", "header": "Commit", "multiSelect": false, "options": [
+  {"label": "Commit (Recommended)", "description": "git commit -m \"<MSG>\""},
+  {"label": "Edit message", "description": "Type your own commit message"},
+  {"label": "Cancel", "description": "Don't commit — keep changes staged"}
+]}]}
+```
+
+vi: translate.
+
+If "Commit" → `compass-cli git commit "$MSG" || git commit -m "$MSG"`.
+If "Edit message" → ask for custom message, commit with that.
+If "Cancel" → stop.
+
+```bash
 COMMIT_SHA=$(git rev-parse HEAD)
-
 compass-cli state update "$SESSION_DIR" '{"status":"complete","commit_sha":"'$COMMIT_SHA'","completed_at":"'$(date -u +%FT%TZ)'"}'
 ```
 
@@ -390,6 +419,7 @@ Print (adapted to `$LANG`):
 ✓ Fix applied.
   Session:  <slug>
   Commit:   <sha>
+  Tests:    passed / skipped
   Branch:   fix/<slug>
 
   Ship when ready:

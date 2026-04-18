@@ -237,7 +237,7 @@
     },
     {
       "name": "prepare",
-      "description": "Decompose a reviewed spec into wave-based execution plan (DAG). Produces plan.json for /compass:build.",
+      "description": "Decompose a reviewed spec into wave-based execution plan (DAG). Produces plan.json for /compass:cook.",
       "workflow": "prepare.md",
       "produces": ".compass/.state/sessions/<slug>/plan.json",
       "tags": [
@@ -246,12 +246,30 @@
       ]
     },
     {
-      "name": "build",
-      "description": "Execute a prepared plan wave-by-wave with parallel Agent dispatch. Each task runs in fresh context.",
+      "name": "cook",
+      "description": "Execute a prepared plan wave-by-wave with parallel Agent dispatch (cook). Each task runs in fresh context.",
       "workflow": "build.md",
       "tags": [
         "dev",
         "execution"
+      ]
+    },
+    {
+      "name": "commit",
+      "description": "Smart commit — auto-generate conventional commit message from staged or changed files",
+      "workflow": "commit.md",
+      "tags": [
+        "dev",
+        "git"
+      ]
+    },
+    {
+      "name": "test",
+      "description": "Run tests — from TEST-SPEC acceptance criteria or auto-detected test suite",
+      "workflow": "test.md",
+      "tags": [
+        "dev",
+        "testing"
       ]
     },
     {

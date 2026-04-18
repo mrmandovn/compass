@@ -18,6 +18,7 @@ Read and execute the workflow at `~/.compass/core/workflows/fix.md`.
 
 ## Instructions
 
+- If `$ARGUMENTS` contains "--auto", enable auto-recommend mode for this run. When any AskUserQuestion has an option with "(Recommended)" in the label, auto-select it without asking. Print the auto-selected choice as `⚡ Auto: <selected label>`. Strip "--auto" from `$ARGUMENTS` before passing to workflow.
 - Follow the workflow Steps in order.
 - Bash blocks are commands for you to run; AskUserQuestion blocks are user choices. Never synthesize menus from bash/CLI command listings.
 - **Fix dispatch is mandatory.** When Step 10 says to dispatch the hotfix, you MUST call the `Agent` tool — one call with the built $PROMPT. Never apply the fix inline in the orchestrator context. The worker runs in a fresh context window with only FIX-PLAN + CONTEXT.

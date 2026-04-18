@@ -1,10 +1,10 @@
 # Workflow: compass:prepare
 
-You are the planner. Mission: decompose a reviewed DESIGN-SPEC + TEST-SPEC into a wave-based DAG that `/compass:build` can execute one wave at a time, with fresh sub-agent context per wave.
+You are the planner. Mission: decompose a reviewed DESIGN-SPEC + TEST-SPEC into a wave-based DAG that `/compass:cook` can execute one wave at a time, with fresh sub-agent context per wave.
 
 **Principles:** Small waves beat big waves — 1-4 atomic tasks per wave keeps sub-agent prompts lean. Tasks within a wave must be file-conflict free (parallel-safe). Every REQ in DESIGN-SPEC must map to ≥1 task. Every task needs runnable acceptance criteria.
 
-**Purpose**: Produce `plan.json` + `BUILD-PLAN.md` so `/compass:build` has a concrete, machine-readable execution plan.
+**Purpose**: Produce `plan.json` + `BUILD-PLAN.md` so `/compass:cook` has a concrete, machine-readable execution plan.
 
 **Output**:
 - `$SESSION_DIR/plan.json` (machine DAG — consumed by `compass-cli dag waves`)
@@ -13,7 +13,7 @@ You are the planner. Mission: decompose a reviewed DESIGN-SPEC + TEST-SPEC into 
 
 **When to use**:
 - After `/compass:spec` — you have DESIGN-SPEC + TEST-SPEC reviewed
-- Before `/compass:build` — can't execute without a plan
+- Before `/compass:cook` — can't execute without a plan
 
 ---
 
@@ -265,14 +265,14 @@ Show BUILD-PLAN.md summary to PO/dev. Then:
 en:
 ```json
 {"questions": [{"question": "Build plan OK?", "header": "Review", "multiSelect": false, "options": [
-  {"label": "OK, lock and next /compass:build", "description": "Set status=prepared, hint next"},
+  {"label": "OK, lock and next /compass:cook", "description": "Set status=prepared, hint next"},
   {"label": "Adjust waves", "description": "Wave boundaries wrong — describe changes in Other"},
   {"label": "Adjust budget / scope", "description": "Task too big/small — list task IDs in Other"},
   {"label": "Cancel", "description": "Abort — session kept"}
 ]}]}
 ```
 
-vi: translate (`OK, tiếp /compass:build`, `Chỉnh waves`, `Chỉnh budget`, `Cancel`).
+vi: translate (`OK, tiếp /compass:cook`, `Chỉnh waves`, `Chỉnh budget`, `Cancel`).
 
 Branch:
 - **OK** → proceed to Step 10
@@ -296,10 +296,10 @@ JSON
 ```
 
 Print:
-- en: `✓ Plan ready at $SESSION_DIR/BUILD-PLAN.md. Next: /compass:build to execute waves.`
-- vi: `✓ Plan sẵn ở $SESSION_DIR/BUILD-PLAN.md. Tiếp: /compass:build để execute waves.`
+- en: `✓ Plan ready at $SESSION_DIR/BUILD-PLAN.md. Next: /compass:cook to execute waves.`
+- vi: `✓ Plan sẵn ở $SESSION_DIR/BUILD-PLAN.md. Tiếp: /compass:cook để execute waves.`
 
-Stop. Do NOT auto-invoke `/compass:build`.
+**Auto-chain**: if `--auto` mode is active (set by wrapper), invoke `/compass:cook` inline automatically (read and execute `~/.compass/core/workflows/cook.md`). Otherwise stop — do NOT auto-invoke.
 
 ---
 

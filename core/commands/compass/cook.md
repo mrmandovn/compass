@@ -1,5 +1,5 @@
 ---
-name: compass:build
+name: compass:cook
 description: (experimental, dev track) Execute a prepared wave-based plan. Spawns a fresh sub-agent per wave (Claude Code Agent tool, general-purpose) with strictly scoped context; runs tests after each wave; commits with conventional messages. Resumable if interrupted.
 allowed-tools:
   - Read
@@ -18,6 +18,7 @@ Read and execute the workflow at `~/.compass/core/workflows/build.md`.
 
 ## Instructions
 
+- If `$ARGUMENTS` contains "--auto", enable auto-recommend mode for this run. When any AskUserQuestion has an option with "(Recommended)" in the label, auto-select it without asking. Print the auto-selected choice as `⚡ Auto: <selected label>`. Strip "--auto" from `$ARGUMENTS` before passing to workflow.
 - Follow the workflow Steps in order.
 - Bash blocks are commands for you to run; AskUserQuestion blocks are user choices. Never synthesize menus from bash/CLI command listings.
 - **Wave dispatch is mandatory.** When Step 5.C says to dispatch tasks for a wave, you MUST call the `Agent` tool — one call per task, all calls in a single message so they run concurrently. Never execute task work inline in the orchestrator context. Each worker gets a fresh context window — this is the core invariant.

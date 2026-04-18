@@ -1,15 +1,15 @@
-# Workflow: compass:build
+# Workflow: compass:cook
 
-You are the build orchestrator. Mission: execute a prepared plan wave by wave, spawning a fresh sub-agent per wave with **strictly scoped context**, verifying tests locally after each wave, and committing per wave with a conventional message. Prevent context pollution; keep the main agent focused on orchestration, not implementation.
+You are the build orchestrator. Mission: execute a prepared plan wave by wave, spawning a fresh sub-agent per wave with **strictly scoped context**. After all waves, chain to `/compass:test` then `/compass:commit` with user confirmation at each step. Prevent context pollution; keep the main agent focused on orchestration, not implementation.
 
-**Principles:** Sub-agents implement; main agent orchestrates. Fresh context per wave — no carry-over between waves. Main agent re-runs tests after sub-agent reports (LLM confabulation safeguard). Retry 2x on failure, then ask the dev. One wave = one commit.
+**Principles:** Sub-agents implement; main agent orchestrates. Fresh context per wave — no carry-over between waves. Retry 2x on failure, then ask the dev. Test and commit are separate steps chained after all waves — user confirms each.
 
 **Purpose**: Turn `plan.json` into merged code, wave by wave.
 
 **Output**:
 - Implemented code on the session's feat branch
-- One git commit per wave with conventional message
-- `state.json` waves array populated with wave_id, status, commit_sha, test_results
+- Chain: `/compass:test` → `/compass:commit` (user confirms each)
+- `state.json` waves array populated with wave_id, status, retry_count
 - Session status: `build` → `complete`
 
 **When to use**:
@@ -213,50 +213,21 @@ END
   # If status=needs_human → AskUserQuestion retry-with-guidance / skip / abort
   # If status=partial → AskUserQuestion accept / retry-full / abort
 
-  # --- Step 5.E: Main-agent test verification ---
-  TEST_PASS=true
-  for CRITERIA in $(echo "$WAVE" | jq -r '.tasks[].acceptance.criteria[]'); do
-    eval "$CRITERIA" >/dev/null 2>&1 || TEST_PASS=false
-  done
-
-  if [ "$TEST_PASS" != "true" ]; then
-    # Retry loop — up to 2 auto-retries, then dev-input prompt
-    # (see retry policy detail in wave-execution.md)
-    continue
-  fi
-
-  # --- Step 5.F: Commit wave ---
-  for F in $FILES_AFFECTED; do
-    git -C "$PROJECT_ROOT" add "$F" 2>/dev/null || true
-  done
-  
-  TASK_TYPE=$(echo "$STATE" | jq -r '.task_type')
-  WAVE_TITLE=$(echo "$WAVE" | jq -r '.title')
-  SCOPE=$(echo "$FILES_AFFECTED" | tr ' ' '\n' | sed 's|^src/||; s|/.*$||' | sort -u | head -1)
-  [ -z "$SCOPE" ] && SCOPE="core"
-  
-  COMMIT_MSG="$TASK_TYPE($SCOPE): $WAVE_TITLE"
-  compass-cli git commit "$COMMIT_MSG" || git -C "$PROJECT_ROOT" commit -m "$COMMIT_MSG"
-  COMMIT_SHA=$(git -C "$PROJECT_ROOT" rev-parse HEAD)
-
-  # --- Step 5.G: Persist state ---
+  # --- Step 5.E: Persist wave progress ---
   compass-cli state update "$SESSION_DIR" "$(cat <<JSON
 {
   "waves": [{
     "wave_id": $WAVE_ID,
     "status": "done",
-    "commit_sha": "$COMMIT_SHA",
-    "test_results": {"passed": N, "failed": 0, "skipped": 0},
     "retry_count": $RETRIES,
     "completed_at": "$(date -u +%FT%TZ)"
   }]
 }
 JSON
 )"
-  
-  compass-cli progress save "$SESSION_DIR" "wave-$WAVE_ID-done" "{\"last_wave_done\": $WAVE_ID, \"commit_sha\": \"$COMMIT_SHA\"}"
+  compass-cli progress save "$SESSION_DIR" "wave-$WAVE_ID-done" "{\"last_wave_done\": $WAVE_ID}"
 
-  # --- Step 5.H: Review gate ---
+  # --- Step 5.F: Review gate ---
   # AskUserQuestion:
   #   Continue / Retry wave / Pause / Abort
 done
@@ -269,7 +240,7 @@ en:
 {"questions": [{"question": "Wave $WAVE_ID done. Continue?", "header": "Wave $WAVE_ID", "multiSelect": false, "options": [
   {"label": "Continue to next wave", "description": "Wave $((WAVE_ID+1)) will start"},
   {"label": "Retry this wave", "description": "Roll back this wave's commit and redo (git reset --hard HEAD~1)"},
-  {"label": "Pause build", "description": "Save state and stop — resume later with /compass:build"},
+  {"label": "Pause build", "description": "Save state and stop — resume later with /compass:cook"},
   {"label": "Abort build", "description": "Stop completely — commits stay, branch stays, status=paused"}
 ]}]}
 ```
@@ -282,26 +253,62 @@ On "Abort" → status=paused, stop.
 
 ---
 
-## Step 6 — Completion
+## Step 6 — Chain: test → commit
 
-After all waves done:
+After all waves done, chain to test and commit with user confirmation at each step.
+
+### 6a. Print cook summary
 
 ```bash
-COMMIT_COUNT=$(git -C "$PROJECT_ROOT" log --oneline "$BASE_BRANCH..$FEAT_BRANCH" | wc -l | tr -d ' ')
 TOTAL_RETRIES=$(echo "$STATE" | jq '[.waves[].retry_count] | add // 0')
+```
 
+en: `✓ All <TOTAL_WAVES> waves dispatched. Retries: <TOTAL_RETRIES>.`
+vi: `✓ Đã dispatch <TOTAL_WAVES> waves. Retries: <TOTAL_RETRIES>.`
+
+### 6b. Chain to compass:test
+
+en:
+```json
+{"questions": [{"question": "Run tests?", "header": "Test", "multiSelect": false, "options": [
+  {"label": "Run compass:test (Recommended)", "description": "Verify all acceptance criteria from TEST-SPEC + detect test suite"},
+  {"label": "Skip tests", "description": "I'll test manually later"}
+]}]}
+```
+
+vi: translate (`Chạy compass:test (Khuyến nghị)` / `Bỏ qua tests`).
+
+If "Run compass:test" → invoke `/compass:test` workflow inline (read and execute `~/.compass/core/workflows/test.md`). Wait for results.
+
+### 6c. Chain to compass:commit
+
+After test completes (or was skipped):
+
+en:
+```json
+{"questions": [{"question": "Commit changes?", "header": "Commit", "multiSelect": false, "options": [
+  {"label": "Run compass:commit (Recommended)", "description": "Auto-generate conventional commit message from all changes"},
+  {"label": "Skip commit", "description": "I'll commit manually later"}
+]}]}
+```
+
+vi: translate (`Chạy compass:commit (Khuyến nghị)` / `Bỏ qua commit`).
+
+If "Run compass:commit" → invoke `/compass:commit` workflow inline (read and execute `~/.compass/core/workflows/commit.md`).
+
+### 6d. Final status
+
+```bash
 compass-cli state update "$SESSION_DIR" '{"status":"complete","updated_at":"'$(date -u +%FT%TZ)'"}'
 ```
 
-Print summary (adapted to `$LANG`):
-
-- en:
+en:
 ```
-✓ Build complete
+✓ Cook complete
   Session:  <slug>
   Waves:    <TOTAL_WAVES>
-  Commits:  <COMMIT_COUNT>
-  Retries:  <TOTAL_RETRIES>
+  Tests:    passed / skipped
+  Commit:   <SHA> / skipped
   Branch:   <FEAT_BRANCH>
 
   Ship when ready:
@@ -309,7 +316,7 @@ Print summary (adapted to `$LANG`):
     gh pr create
 ```
 
-- vi: same content, translated labels.
+vi: same content, translated labels.
 
 Stop. Do NOT auto-push or auto-create PR.
 
@@ -323,10 +330,10 @@ Stop. Do NOT auto-push or auto-create PR.
 | All waves already done | Step 3 exits early with `✓ All waves complete` |
 | Git dirty on non-session branch | Step 2 git-context dialog handles |
 | Sub-agent times out | After spawn, treat same as "needs_human" — prompt dev |
-| Sub-agent reports success but tests fail locally | Step 5.E catches, retry loop |
+| Sub-agent reports success but tests fail | compass:test chain catches after all waves |
 | Retry count reaches 3 | Prompt dev (retry-with-guidance / skip / abort) |
 | Dev picks "skip wave" | Wave marked status=skipped, continue to next. Note in state.json. |
-| Commit fails (hook rejects, etc.) | Print error, pause, keep state — dev fixes hook issue then resume |
+| Commit fails (hook rejects, etc.) | compass:commit handles — print error, dev fixes hook issue |
 | Branch diverged during build (external commits) | Detect via `git rev-parse` mismatch vs state.json.git.session_start_sha — warn, ask dev |
 | `compass-cli context pack` fails for a task | Skip context pack, fall back to raw file read in prompt. Log warning. |
 | Sub-agent unavailable (no Agent tool) | Fail fast with error: "Build requires Claude Code Agent tool. Run in Claude Code or OpenCode." |

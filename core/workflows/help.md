@@ -81,8 +81,10 @@ Project + housekeeping:
 Dev tools:
   compass:spec         Turn task → DESIGN-SPEC + TEST-SPEC (adaptive per code/ops/content)
   compass:prepare      Decompose spec → wave-based execution plan (DAG)
-  compass:build        Execute plan wave-by-wave (parallel Agent dispatch)
+  compass:cook         Execute plan wave-by-wave (parallel Agent dispatch)
   compass:fix          Targeted hotfix — cross-layer root-cause tracing
+  compass:commit       Smart commit with auto-generated message
+  compass:test         Run tests from TEST-SPEC or auto-detected suite
                          /compass:init dev         — lightweight dev setup (stack detect + GitNexus)
                          /compass:help dev         — dev-only help
 
@@ -118,15 +120,17 @@ Quick start:
   1. compass:init dev     Set up project for development (one-time)
   2. compass:spec         Describe your task — get DESIGN-SPEC + TEST-SPEC
   3. compass:prepare      Decompose spec into wave-based execution plan
-  4. compass:build        Execute plan wave-by-wave (parallel Agent dispatch)
+  4. compass:cook         Execute plan wave-by-wave (parallel Agent dispatch)
 
   Example:
     /compass:spec "add auth middleware to Express API"
     /compass:prepare
-    /compass:build
+    /compass:cook
 
 Quick fix:
   compass:fix             Targeted hotfix — cross-layer root-cause tracing
+  compass:commit          Smart commit with auto-generated message
+  compass:test            Run tests from TEST-SPEC or auto-detected suite
 
   Example:
     /compass:fix "login button returns 500 after last deploy"
@@ -139,7 +143,7 @@ Shared commands (also available in PM mode):
   compass:help dev        Show this help (dev mode)
 
 Hosts:
-  Claude Code:  /compass:spec, /compass:build, ...
+  Claude Code:  /compass:spec, /compass:cook, ...
   Any AI:       paste ~/.compass/core/workflows/<name>.md into chat
 
 Repo:  ~/.compass

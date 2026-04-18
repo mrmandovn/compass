@@ -2,7 +2,7 @@
 
 **Purpose**: Detect the repo's base branch, manage the feature branch for a dev session, and handle dirty working-tree state so dev tasks don't accidentally contaminate unrelated work.
 
-**Used by**: `/compass:spec` (Step 1), `/compass:build` (Step 2), `/compass:fix` (Step 1).
+**Used by**: `/compass:spec` (Step 1), `/compass:cook` (Step 2), `/compass:fix` (Step 1).
 
 ---
 
@@ -94,7 +94,7 @@ compass-cli state update "$SESSION_DIR" '{
 }'
 ```
 
-This lets `/compass:build` verify dev didn't wander off-branch between sessions, and lets `/compass:fix` know the base state for diff calculations.
+This lets `/compass:cook` verify dev didn't wander off-branch between sessions, and lets `/compass:fix` know the base state for diff calculations.
 
 ---
 
@@ -127,7 +127,7 @@ AskUserQuestion:
 
 ## Part E — Session-end summary
 
-At the end of `/compass:build` or `/compass:fix`, print a git-state recap:
+At the end of `/compass:cook` or `/compass:fix`, print a git-state recap:
 
 ```bash
 COMMIT_COUNT=$(git log --oneline "$BASE_BRANCH..$FEAT_BRANCH" | wc -l | tr -d ' ')

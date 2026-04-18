@@ -2,7 +2,7 @@
   Build Plan Template
 
   Two output artifacts share this template:
-  1. plan.json — machine-readable DAG (consumed by /compass:build via compass-cli dag waves)
+  1. plan.json — machine-readable DAG (consumed by /compass:cook via compass-cli dag waves)
   2. BUILD-PLAN.md — human-readable table for PO/dev review
 
   Produced by /compass:prepare. Validated by compass-cli dag check + inline checks.

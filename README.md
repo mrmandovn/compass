@@ -50,7 +50,7 @@ npx compass-m
 /compass:init dev                         # one-time: lang + stack detect + GitNexus
 /compass:spec "implement STORY-001"       # → DESIGN-SPEC + TEST-SPEC
 /compass:prepare                          # → wave plan
-/compass:build                            # → execute + test + commit
+/compass:cook                            # → execute + test + commit
 ```
 
 `/compass:project list` shows every registered project; `/compass:project use <path>` switches the active one. Commands run from **any cwd** — the active project is remembered in `~/.compass/projects.json`.
@@ -81,7 +81,7 @@ npx compass-m
 
 ```
 ┌──────────┐    ┌──────────┐    ┌──────────┐
-│   spec   │ ──→│ prepare  │ ──→│  build   │
+│   spec   │ ──→│ prepare  │ ──→│   cook   │
 │          │    │          │    │          │
 │ DESIGN-  │    │ DAG of   │    │ wave-by- │
 │ SPEC +   │    │ wave +   │    │ wave     │
@@ -103,7 +103,7 @@ npx compass-m
   Product Management                              Development
  ┌─────────────────────────────────────┐    ┌──────────────────────────────┐
  │                                     │    │                              │
- │  brief ──→ plan ──→ run ──→ check ──┼──→ │  spec ──→ prepare ──→ build  │
+ │  brief ──→ plan ──→ run ──→ check ──┼──→ │  spec ──→ prepare ──→ cook   │
  │                                     │    │                              │
  └─────────────────────────────────────┘    └──────────────────────────────┘
                                   │              ↑
@@ -190,7 +190,7 @@ Works standalone or picks up PRD / User Stories from the PM pipeline.
 # Standalone — describe any task directly
 /compass:spec "add rate limiting to API"    # → DESIGN-SPEC + TEST-SPEC
 /compass:prepare                            # → wave plan (DAG)
-/compass:build                              # → parallel Agents → test → commit
+/compass:cook                              # → parallel Agents → test → commit
 
 # From PM artifacts — pick up a story or PRD
 /compass:spec "implement STORY-001"
@@ -206,6 +206,8 @@ Works standalone or picks up PRD / User Stories from the PM pipeline.
 | `prepare` | Decompose spec → wave-based plan with dependencies |
 | `build` | Execute plan — one Agent per task, parallel within waves |
 | `fix <bug>` | Cross-layer root-cause trace → ≤5-file hotfix |
+| `commit` | Smart commit with auto-generated conventional message |
+| `test` | Run tests from TEST-SPEC or auto-detected test suite |
 
 Dev workflows use [GitNexus](https://github.com/nicobailey/gitnexus) for impact analysis when available — `gitnexus_impact()` checks blast radius before modifying symbols, `gitnexus_context()` maps callers/callees for dependency inference.
 

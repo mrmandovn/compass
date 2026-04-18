@@ -16,7 +16,7 @@ You are the spec lead. Mission: turn a vague dev task (from a user story, a desc
 **When to use**:
 - You have a user story, PRD, or task description and want to start implementing
 - You're about to fix a bug and want a proper spec first (otherwise use `/compass:fix`)
-- You want /compass:prepare + /compass:build to consume a structured plan
+- You want /compass:prepare + /compass:cook to consume a structured plan
 
 ---
 
@@ -508,7 +508,7 @@ Print (adapted to `$LANG`):
 - en: `✓ Spec ready at $SESSION_DIR. Next: /compass:prepare to decompose into waves.`
 - vi: `✓ Spec sẵn ở $SESSION_DIR. Tiếp: /compass:prepare để chia thành waves.`
 
-Stop. Do NOT auto-invoke `/compass:prepare`.
+**Auto-chain**: if `--auto` mode is active (set by wrapper), invoke `/compass:prepare` inline automatically (read and execute `~/.compass/core/workflows/prepare.md` with `$ARGUMENTS` = session slug). Otherwise stop — do NOT auto-invoke.
 
 ---
 
