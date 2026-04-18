@@ -18,12 +18,12 @@ pub fn run(args: &[String]) -> Result<String, String> {
 }
 
 fn dag_check(tasks: &[serde_json::Value]) -> Result<String, String> {
-    let ids: HashSet<&str> = tasks.iter().filter_map(|t| t["id"].as_str()).collect();
+    let ids: HashSet<&str> = tasks.iter().filter_map(|t| t["id"].as_str().or_else(|| t["task_id"].as_str())).collect();
     let mut dangling = vec![];
     let mut adj: HashMap<&str, Vec<&str>> = HashMap::new();
 
     for task in tasks {
-        let id = task["id"].as_str().unwrap_or("");
+        let id = task["id"].as_str().or_else(|| task["task_id"].as_str()).unwrap_or("");
         adj.entry(id).or_default();
         if let Some(deps) = task.get("depends_on").and_then(|d| d.as_array()) {
             for dep in deps {
@@ -80,7 +80,7 @@ fn dag_waves(tasks: &[serde_json::Value]) -> Result<String, String> {
     let mut task_map: HashMap<String, &serde_json::Value> = HashMap::new();
 
     for task in tasks {
-        let id = task["id"].as_str().unwrap_or("").to_string();
+        let id = task["id"].as_str().or_else(|| task["task_id"].as_str()).unwrap_or("").to_string();
         in_degree.entry(id.clone()).or_insert(0);
         adj.entry(id.clone()).or_default();
         task_map.insert(id.clone(), task);

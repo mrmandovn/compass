@@ -20,7 +20,7 @@ pub fn run(args: &[String]) -> Result<String, String> {
         .ok_or("No tasks array in plan")?;
 
     let task = tasks.iter()
-        .find(|t| t["id"].as_str() == Some(task_id))
+        .find(|t| t["id"].as_str() == Some(task_id) || t["task_id"].as_str() == Some(task_id))
         .ok_or(format!("Task {} not found", task_id))?;
 
     let mut files: serde_json::Map<String, serde_json::Value> = serde_json::Map::new();

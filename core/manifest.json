@@ -1,6 +1,6 @@
 {
   "name": "compass",
-  "version": "1.0.19",
+  "version": "1.0.20",
   "description": "Product Management productivity toolkit \u2014 repo-aware, multi-host, with integrations wizard",
   "language_default": "en",
   "commands": [

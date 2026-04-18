@@ -1,6 +1,6 @@
 {
   "name": "@compass-m/cli-linux-arm64",
-  "version": "1.0.19",
+  "version": "1.0.20",
   "description": "linux-arm64 binary for compass-m",
   "os": [
     "linux"

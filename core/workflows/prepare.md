@@ -282,6 +282,20 @@ Branch:
 
 ---
 
+## Step 9b — Pre-build context packs
+
+After plan is validated + approved, generate a context pack for each task so cook-phase workers start with pre-loaded file contents instead of reading from scratch:
+
+```bash
+for TASK_ID in $(jq -r '.tasks[].task_id // .tasks[].id' "$SESSION_DIR/plan.json"); do
+  compass-cli context pack "$SESSION_DIR" "$TASK_ID" 2>/dev/null && echo "  ✓ Context pack: $TASK_ID" || echo "  ⚠ Context pack failed for $TASK_ID (cook will fall back to raw file read)"
+done
+```
+
+Each `<task_id>.context.json` bundles the task's `context_pointers` file contents so workers don't re-read the codebase from scratch. If a pack fails, log warning but don't block — cook falls back to raw file reads.
+
+---
+
 ## Step 10 — Finalize + hand-off
 
 ```bash
