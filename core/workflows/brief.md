@@ -256,8 +256,10 @@ Start from base, add based on judged needs:
 | Task clearly mentions executive / board / leadership audience | +Stakeholder Communicator |
 | Task explicitly asks for competitive / market context | +Research Aggregator + Market Analyst (if not already added) |
 | Task explicitly asks for prioritization / scoring | +Prioritizer (if not already added) |
+| Task is metric-driven / analytics-heavy (mentions conversion, KPIs, dashboards, A/B tests, baselines) | +Data Analyst |
+| Project `domain` ∈ {`ard`, `access`} OR task touches PII / auth / encryption / audit logs / third-party data flow | +Compliance Reviewer |
 
-Deduplicate. Canonical display order: Research Aggregator, Market Analyst, Product Writer, Story Breaker, Prioritizer, UX Reviewer, Consistency Reviewer, Stakeholder Communicator.
+Deduplicate. Canonical display order: Research Aggregator, Market Analyst, Data Analyst, Product Writer, Story Breaker, Prioritizer, UX Reviewer, Consistency Reviewer, Compliance Reviewer, Stakeholder Communicator.
 
 ### 2c. Deliverable inference
 
@@ -365,18 +367,20 @@ vi:
 
 **On "Yes"** → proceed to Step 4 immediately (create session) + Step 5 (summary).
 
-**On "Adjust manually"** → show the 8-colleague multi-select picker with derived colleagues pre-indicated via `⭐ ` prefix:
+**On "Adjust manually"** → show the 10-colleague multi-select picker with derived colleagues pre-indicated via `⭐ ` prefix:
 
 en:
 ```json
 {"questions": [{"question": "Pick the colleagues for this session (⭐ = recommended).", "header": "Pick Colleagues", "multiSelect": true, "options": [
   {"label": "⭐ Research Aggregator", "description": "Aggregate context from multiple sources"},
   {"label": "Market Analyst", "description": "Market trends, competitors, positioning"},
+  {"label": "Data Analyst", "description": "Metrics, baselines, targets, measurement design"},
   {"label": "⭐ Product Writer", "description": "Enterprise-grade PRD author"},
   {"label": "⭐ Story Breaker", "description": "Break PRDs into User Stories + AC"},
   {"label": "Prioritizer", "description": "RICE / MoSCoW scoring, backlog ordering"},
   {"label": "⭐ UX Reviewer", "description": "UX, user flows, edge cases"},
   {"label": "⭐ Consistency Reviewer", "description": "Cross-document consistency + TBD hunt"},
+  {"label": "Compliance Reviewer", "description": "Security, privacy, audit, third-party data flow — required for ard/access domains"},
   {"label": "Stakeholder Communicator", "description": "Executive summaries + stakeholder emails"}
 ]}]}
 ```

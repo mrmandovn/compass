@@ -42,14 +42,34 @@ Vietnamese example — if `lang: "vi"`: _"Đang tải kế hoạch cộng tác..
 - If no `plan.json` found → tell user to run `/compass:plan` first, stop here
 - If validation fails → show which entries are invalid, ask user to fix or skip
 
-### 1a. Read auto-chain mode
+### 1a. Read auto-chain mode + complexity
 
 ```bash
 AUTO_MODE=$(jq -r '.auto_mode // "manual"' "$SESSION_DIR/context.json" 2>/dev/null)
+COMPLEXITY=$(jq -r '.complexity // "medium"' "$SESSION_DIR/context.json" 2>/dev/null)
+STAGE_COUNT=$(jq -r '.stages // [] | length' "$SESSION_DIR/plan.json" 2>/dev/null)
 ```
 
-- `"auto"` → skip end-of-workflow gate in Step 7; auto-invoke `/compass:check` after run completes
-- `"manual"` or missing → show 3-option gate at end (Continue / Auto-chain / Stop)
+`AUTO_MODE`:
+- `"auto"` → skip end-of-workflow gate; auto-invoke `/compass:check` after run completes
+- `"manual"` or missing → show 3-option gate at end
+
+### 1b. MINIMAL mode selection
+
+Decide execution flow from complexity + stages:
+
+- **MINIMAL mode** — trigger when `STAGE_COUNT ≤ 2` AND `COMPLEXITY ∈ {"small", "medium"}`. Single-stage or 2-stage plans don't need per-stage review gates between stages.
+- **FULL mode** — otherwise. Keep existing per-stage review behavior.
+
+Print: `✓ Run mode: <minimal|full>`.
+
+**MINIMAL mode changes**:
+- Step 2 confirm: unchanged (still ask once before starting)
+- Step 3 execution: run all stages sequentially without per-stage pause. Show progress inline.
+- Step 4 escalation: unchanged (only trigger on actual failures)
+- Step 6 report + Step 7 hand-off: unchanged.
+
+**FULL mode**: unchanged from current behavior (per-stage review gates).
 
 ---
 

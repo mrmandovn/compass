@@ -348,6 +348,53 @@ echo "$CONFIG" | jq '.persona = "dev"' > "$TMP" && mv "$TMP" "$CONFIG_PATH"
 echo "PERSONA_UPDATED=dev"
 ```
 
+### 2-DEV.b2 — Language update (optional)
+
+Offer the PO a chance to change `lang` and `spec_lang` on re-init. This is missing from the original flow — users had no path to switch language without editing config.json manually.
+
+Read current values:
+```bash
+CURRENT_LANG=$(echo "$CONFIG" | jq -r '.lang // "en"')
+CURRENT_SPEC_LANG=$(echo "$CONFIG" | jq -r '.spec_lang // "en"')
+```
+
+AskUserQuestion (in `$LANG`):
+
+en:
+```json
+{"questions": [{"question": "Change language settings?", "header": "Language", "multiSelect": false, "options": [
+  {"label": "Keep current (lang=<CURRENT_LANG>, spec_lang=<CURRENT_SPEC_LANG>)", "description": "No change"},
+  {"label": "Both Vietnamese", "description": "Chat + docs in Vietnamese"},
+  {"label": "Both English", "description": "Chat + docs in English"},
+  {"label": "Chat VN + Docs EN", "description": "Conversations in Vietnamese, artifacts in English"},
+  {"label": "Chat EN + Docs VN", "description": "Conversations in English, artifacts in Vietnamese"}
+]}]}
+```
+
+vi:
+```json
+{"questions": [{"question": "Đổi cài đặt ngôn ngữ?", "header": "Ngôn ngữ", "multiSelect": false, "options": [
+  {"label": "Giữ nguyên (lang=<CURRENT_LANG>, spec_lang=<CURRENT_SPEC_LANG>)", "description": "Không đổi"},
+  {"label": "Cả hai Tiếng Việt", "description": "Chat + docs Tiếng Việt"},
+  {"label": "Cả hai English", "description": "Chat + docs English"},
+  {"label": "Chat VN + Docs EN", "description": "Conversations Tiếng Việt, artifacts English"},
+  {"label": "Chat EN + Docs VN", "description": "Conversations English, artifacts Tiếng Việt"}
+]}]}
+```
+
+Map answer → `lang` + `spec_lang` (same mapping as Step 1A.1b). Persist via `jq` if changed:
+
+```bash
+TMP=$(mktemp)
+echo "$CONFIG" | jq --arg lang "<new_lang>" --arg spec "<new_spec_lang>" '.lang = $lang | .spec_lang = $spec' > "$TMP" && mv "$TMP" "$CONFIG_PATH"
+# Also update global-config so next init uses new default
+compass-cli project global-config set --key lang --value "<new_lang>"
+compass-cli project global-config set --key spec_lang --value "<new_spec_lang>"
+echo "LANG_UPDATED=$new_lang $new_spec_lang"
+```
+
+If "Keep current" → skip write, continue to 2-DEV.c.
+
 ### 2-DEV.c — Stack + framework detection (if missing)
 
 Run Step 1-DEV.b detection logic. Then merge into config:

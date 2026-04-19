@@ -1,5 +1,5 @@
 {
-  "version": "1.0.26",
+  "version": "1.0.27",
   "colleagues": {
     "researcher": {
       "name": "Research Aggregator",
@@ -124,6 +124,38 @@
         "prioritizer"
       ],
       "workflow": "stakeholder-comm.md"
+    },
+    "data-analyst": {
+      "name": "Data Analyst",
+      "role": "data-analyst",
+      "description": "Define success metrics, baseline current state, propose targets, and identify measurement gaps. Pulls in for metric-heavy or analytics-driven tasks.",
+      "budget_range": [
+        7000,
+        18000
+      ],
+      "output_pattern": "research/METRICS-{PREFIX}-{slug}.md",
+      "requires_integration": [],
+      "can_depend_on": [
+        "researcher",
+        "writer"
+      ],
+      "workflow": "data-analyst.md"
+    },
+    "compliance-reviewer": {
+      "name": "Compliance Reviewer",
+      "role": "compliance-reviewer",
+      "description": "Review PRD + stories for compliance risks — security, privacy, data classification, access control, auditability. Surfaces blockers before ship in regulated domains (ard, access).",
+      "budget_range": [
+        8000,
+        20000
+      ],
+      "output_pattern": "research/COMPLIANCE-{PREFIX}-{slug}.md",
+      "requires_integration": [],
+      "can_depend_on": [
+        "writer",
+        "story-breaker"
+      ],
+      "workflow": "compliance-reviewer.md"
     }
   }
 }

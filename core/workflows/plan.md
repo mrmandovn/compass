@@ -44,16 +44,34 @@ If config missing → tell user to run `/compass:init` first, stop.
 - If no session directory found → tell user: "No brief session found. Please run `/compass:brief` first to create one."
 - If `context.json` is malformed → warn user and offer to re-run `/compass:brief`
 
-### 1a. Read auto-chain mode
+### 1a. Read auto-chain mode + complexity
 
 ```bash
 AUTO_MODE=$(jq -r '.auto_mode // "manual"' "$SESSION_DIR/context.json" 2>/dev/null)
+COMPLEXITY=$(jq -r '.complexity // "medium"' "$SESSION_DIR/context.json" 2>/dev/null)
+COLLEAGUE_COUNT=$(jq -r '.colleagues_selected // [] | length' "$SESSION_DIR/context.json" 2>/dev/null)
 ```
 
-`AUTO_MODE` will be:
-- `"auto"` → skip end-of-workflow gate in Step 7 below; auto-invoke `/compass:run` after plan saved
-- `"manual"` or missing → show 3-option gate at end (Continue / Auto-chain / Stop)
-- `"stop"` → treat as `"manual"` (user can still opt to chain forward from here)
+`AUTO_MODE`:
+- `"auto"` → skip end-of-workflow gate; auto-invoke `/compass:run` after plan saved
+- `"manual"` or missing → show 3-option gate at end
+- `"stop"` → treat as `"manual"`
+
+### 1b. MINIMAL mode selection (adaptive per complexity)
+
+Decide compose mode from complexity + team size:
+
+- **MINIMAL mode** — trigger when `COMPLEXITY = "small"` OR (`COMPLEXITY = "medium"` AND `COLLEAGUE_COUNT ≤ 2`). Small scope doesn't need 4-option DAG adjustment dialog. Single confirm suffices.
+- **FULL mode** — otherwise.
+
+Print: `✓ Plan mode: <minimal|full>` so PO knows which flow is coming.
+
+**MINIMAL mode changes**:
+- Step 3 (DAG) still runs but output simpler — at most 2 stages typically.
+- Step 6 review: simpler AskUserQuestion with just `Approve` / `Adjust manually` / `Cancel` (instead of 5 options including Add/Remove/Change Colleague). PO rarely needs structural edits for 1-2 colleagues.
+- Step 8 hand-off: unchanged (still honor AUTO_MODE).
+
+**FULL mode**: unchanged from current behavior.
 
 **Vietnamese prompt example:**
 > "Không tìm thấy phiên brief nào. Hãy chạy `/compass:brief` trước để tạo brief session nhé!"
@@ -244,7 +262,9 @@ Stage 4 (depends_on Stage 3):
   [C-06] Reviewer → depends_on: C-03, C-04, C-05 → output: review-<slug>.md
 ```
 
-Use AskUserQuestion to ask for approval or changes. Pick the block matching `$LANG`:
+Use AskUserQuestion to ask for approval or changes. **Picker varies by compose mode (from Step 1b)**:
+
+### FULL mode (default) — 5 options
 
 en:
 ```json
@@ -265,6 +285,48 @@ en:
   ]
 }
 ```
+
+### MINIMAL mode — 3 options (simpler, for 1-2 colleague small tasks)
+
+en:
+```json
+{
+  "questions": [
+    {
+      "question": "Plan looks good?",
+      "header": "Review plan",
+      "multiSelect": false,
+      "options": [
+        { "label": "Approve — save and proceed", "description": "Save plan.json and proceed to /compass:run" },
+        { "label": "Adjust manually", "description": "Edit colleagues, dependencies, or budget — shows full picker" },
+        { "label": "Cancel", "description": "Stop here — no plan.json written" }
+      ]
+    }
+  ]
+}
+```
+
+vi (MINIMAL):
+```json
+{
+  "questions": [
+    {
+      "question": "Plan ổn chứ?",
+      "header": "Review plan",
+      "multiSelect": false,
+      "options": [
+        { "label": "Duyệt — lưu và tiếp tục", "description": "Lưu plan.json và tiếp tục /compass:run" },
+        { "label": "Tự điều chỉnh", "description": "Edit colleagues, dependencies, budget — hiện full picker" },
+        { "label": "Huỷ", "description": "Dừng ở đây — không lưu plan.json" }
+      ]
+    }
+  ]
+}
+```
+
+**In MINIMAL mode**, picking "Adjust manually" escalates to FULL mode's 5-option picker. Picking "Approve" proceeds directly to Step 7. Picking "Cancel" stops workflow.
+
+### FULL mode vi (existing):
 
 vi:
 ```json
