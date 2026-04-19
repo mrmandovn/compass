@@ -1,38 +1,41 @@
 # Workflow: compass:brief
 
-You are the project planner. Mission: understand what the PO needs and assemble the right Colleagues to deliver it — minimize friction, detect before asking, ask once, save forever.
+You are the project planner. Mission: **understand what the PO actually wants**, then auto-derive the right team and plan. Clarify before committing; ask only about content (what to build), never about metadata (deadline/audience/polish).
 
-**Principles:** Clarify before committing, but do NOT ask anything the workflow can infer. Suggest a plan, don't force the PO to pick Colleagues by name. Show what will happen before executing. Auto-derive Colleagues from business-level answers, not the other way round.
+**Principles:**
+- Understand the task FIRST — metadata and team derive from clarified scope, not the other way round.
+- If the task maps cleanly to a single dedicated workflow (prototype, story, research, etc.), redirect there instead of running the heavy brief → plan → run pipeline.
+- Adaptive probing: depth of clarification matches ambiguity of input. Clear task → 0 Qs. Vague task → 3-5 Qs.
+- Colleagues derive from content needs (not from a deliverable dropdown the PO had to guess at).
 
-**Purpose**: Gather requirements for a complex PO task, identify which Colleagues are needed, and create a collaboration session for the Compass Colleague system.
+**Purpose**: Take a task description, clarify intent, and either (a) redirect to a dedicated workflow if single-artifact, or (b) assemble a Colleague team for the brief → plan → run pipeline.
 
-**Output**: `$PROJECT_ROOT/.compass/.state/sessions/<slug>/context.json`
+**Output**: `$PROJECT_ROOT/.compass/.state/sessions/<slug>/context.json` (+ `pipeline.json` + `CONTEXT.md` with clarification Q&A).
 
 **When to use**:
-- You have a new feature, initiative, or task and need multiple Colleagues to collaborate
-- You want to scope a deliverable before running `/compass:plan`
+- You have a new feature, initiative, or task and aren't sure yet whether it's a single artifact or needs multi-colleague collaboration.
+- You want the workflow to figure out the right scope + team from your description.
 
 ---
 
 Apply the UX rules from `core/shared/ux-rules.md`.
 
-> **Additional rule for brief**: Session file content is always in English (machine-readable), regardless of `lang` or `spec_lang`.
+> **Additional rule for brief**: Session file content (`context.json`, `pipeline.json`) is always in English (machine-readable). User-facing chat and `CONTEXT.md` use `lang` / `spec_lang` from config.
 
 ---
 
 ## Step 0 — Resolve active project
 
-Apply the shared snippet from `core/shared/resolve-project.md`. It sets up `$PROJECT_ROOT`, `$CONFIG`, and `$PROJECT_NAME` for downstream steps and prints the "Using: <name>" banner.
+Apply the shared snippet from `core/shared/resolve-project.md`. It sets up `$PROJECT_ROOT`, `$CONFIG`, and `$PROJECT_NAME` and prints the "Using: <name>" banner.
 
-From `$CONFIG`, extract required fields:
-- `lang` — chat language (`en` or `vi`)
+From `$CONFIG`, extract:
+- `lang` — chat language (`en` / `vi`)
 - `mode` — `silver-tiger` or `standalone`
 - `prefix` — project prefix (Silver Tiger only)
 - `output_paths` — where to write session artifacts
-- `domain` — Silver Tiger domain (`ard`/`platform`/`access`/`communication`/`internal`/`ai`) if present
 - `interaction_level` — `quick` / `standard` (default) / `detailed`
 
-If any required field is missing in `$CONFIG`, list them and tell the user to run `/compass:init` to fix the config.
+If any required field is missing, list them and tell the user to run `/compass:init`.
 
 **Language enforcement**: from this point on, ALL user-facing chat text MUST be in `lang`.
 
@@ -40,15 +43,11 @@ If any required field is missing in `$CONFIG`, list them and tell the user to ru
 
 ## Step 0a — Interaction level (adaptive)
 
-Read `interaction_level` from `$CONFIG` (default: `"standard"` if missing):
+Read `interaction_level` from `$CONFIG` (default: `"standard"`):
 
-- `quick`: silent detection wherever possible; skip every question whose answer can be inferred from `$ARGUMENTS`, project-memory, or domain defaults. Only ask when truly ambiguous. Use AUTOFILL summary instead of per-field questions.
-- `standard` (default): ask only fields that have no confident AUTOFILL value. For fields where AUTOFILL came from detection or saved memory, place the detected value as `options[0]` using its natural name as the label (e.g. `Leadership`, not `Auto-detected: Leadership`). The `description` field is where you note the source (`Detected from your request — click to confirm` or `From last brief in this project`).
-- `detailed`: ask every field even if AUTOFILL present. AUTOFILL value is placed as `options[0]` with the natural name, and description names the source (`Detected`, `Project default`, or `Recommended`).
-
-This setting governs both Step 1 and Step 2 question density below.
-
-**Labeling rule across all modes:** NEVER prefix the user-facing `label` with `Auto-detected:` or similar meta-text. The label is the value as the PO would say it. Sources and confirmation prompts belong in the `description` field only.
+- `quick`: silent mode — minimize questions. Intent routing (Step 1a) still runs because it may save the whole pipeline; content deep-dive (Step 1b) asks only if task is critically ambiguous.
+- `standard` (default): full adaptive flow. Step 1a runs. Step 1b asks 0-5 Qs based on judged ambiguity.
+- `detailed`: always probe. Step 1b forces a minimum of 2 Qs even if task seems clear.
 
 ---
 
@@ -57,96 +56,20 @@ This setting governs both Step 1 and Step 2 question density below.
 Apply the shared project-scan module from `core/shared/project-scan.md`.
 Pass: `keywords=$ARGUMENTS`, `type="brief"`.
 
-The module also scans existing sessions (`$PROJECT_ROOT/.compass/.state/sessions/*/context.json` and `transcript.md`) in addition to project documents.
+The module scans existing sessions (`$PROJECT_ROOT/.compass/.state/sessions/*/context.json` and `transcript.md`) plus project documents.
 
-The module handles scanning, matching, and asking the user:
-- If "Load as context" → read ALL found files, inject their content into the session's `context.json` under a `prior_work` key so every Colleague receives it as background.
-- If "Resume session" → load the existing session context.json, ask what needs to change or continue from where it left off.
-- If "Ignore" → continue fresh.
-- If "Show me" → display files, re-ask.
-
----
-
-## Step 0c — Build AUTOFILL hints (silent)
-
-Before any question, build a silent `AUTOFILL` map from three sources. This step prints NOTHING — it only populates variables used by Steps 1–2.
-
-### 0c.1. Parse `$ARGUMENTS` for keywords
-
-```
-KEYWORD_MAP = {
-  deliverable: {
-    "PRD only" : /\bprd\b/i AND NOT /\b(stor(y|ies)|epic|research|competitor)\b/i
-    "PRD + Stories": /\bprd\b/i AND /\b(stor(y|ies)|epic)\b/i
-    "Full package": /\b(research|competitor|market|analyze|full package)\b/i
-  }
-  timing: {
-    "This sprint"  : /\b(end of sprint|this sprint|2 weeks?|14 days?)\b/i
-    "This quarter" : /\b(quarter|Q[1-4]|90 days?)\b/i
-    "Specific date": /\b\d{4}-\d{2}-\d{2}\b/ OR /\b(by|before) [A-Z][a-z]+ \d+\b/
-  }
-  audience: {
-    "Leadership"  : /\b(exec|leadership|ceo|cto|review board)\b/i
-    "External"    : /\b(customer|partner|external|public)\b/i
-    "Cross-team"  : /\b(cross[- ]team|other teams?)\b/i
-  }
-  depth: {
-    "Fast draft"      : /\b(draft|rough|quick|same[- ]day)\b/i
-    "Production-ready": /\b(production[- ]ready|final|ship[- ]ready)\b/i
-  }
-}
-```
-
-Apply to `$ARGUMENTS`. For each field, set `AUTOFILL.<field>` to the first rule that matches.
-
-### 0c.2. Layer project-memory (last-used values)
-
-Read `$PROJECT_ROOT/.compass/.state/project-memory.json` → `aggregates`:
-
-```
-If AUTOFILL.depth    is unset AND aggregates.last_brief_depth    exists → AUTOFILL.depth    = aggregates.last_brief_depth
-If AUTOFILL.audience is unset AND aggregates.last_brief_audience exists → AUTOFILL.audience = aggregates.last_brief_audience
-```
-
-This realizes the "save-once-reuse" pattern: after the first brief in a project, subsequent ones pre-fill depth and audience automatically.
-
-### 0c.3. Layer Silver Tiger domain defaults
-
-If `AUTOFILL.audience` is still unset AND `$CONFIG.domain` is non-null, apply the `DOMAIN_AUDIENCE_MAP`:
-
-| `config.domain` | default audience | reason |
-|---|---|---|
-| `ard` | `Leadership` | security products → compliance review expected |
-| `platform` | `Cross-team` | platform services consumed by many teams |
-| `access` | `Leadership` | access control → security review expected |
-| `communication` | `Cross-team` | messaging products → shared concerns |
-| `internal` | `Team internal` | internal tooling → limited stakeholders |
-| `ai` | `Cross-team` | AI features → platform-level concerns |
-| (null / unset) | `Cross-team` | safe default when domain unknown |
-
-### 0c.4. Final-layer fallback defaults (never null after this step)
-
-```
-If AUTOFILL.deliverable is unset → AUTOFILL.deliverable = "PRD only"         (sensible minimal)
-If AUTOFILL.timing      is unset → AUTOFILL.timing      = "No hard deadline" (safe default)
-If AUTOFILL.depth       is unset → AUTOFILL.depth       = "Balanced"         (Recommended)
-AUTOFILL.audience is already guaranteed by Step 0c.3
-```
-
-Also extract `AUTOFILL.task`:
-- If `$ARGUMENTS` is non-empty and ≥3 words → `AUTOFILL.task = $ARGUMENTS (trimmed, first 80 chars)`
-- Else → `AUTOFILL.task = null` (will ask in Step 1)
-
-After 0c, you MUST have these 5 keys populated (or `null` only for `task` when input was truly empty):
-`AUTOFILL.task`, `AUTOFILL.deliverable`, `AUTOFILL.timing`, `AUTOFILL.audience`, `AUTOFILL.depth`.
+- "Load as context" → read found files, inject under `prior_work` key so Colleagues see it as background.
+- "Resume session" → load existing session context.json, ask what needs to change.
+- "Ignore" → continue fresh.
+- "Show me" → display files, re-ask.
 
 ---
 
-## Step 1 — Task description (only if missing)
+## Step 1 — Task description (ask only if missing)
 
-If `AUTOFILL.task` is non-null → skip this step entirely (use the value).
+If `$ARGUMENTS` is non-empty and ≥3 words → set `TASK_DESCRIPTION = $ARGUMENTS` (trimmed, max 500 chars) and skip the question.
 
-If `AUTOFILL.task` is null, ask via AskUserQuestion with an "examples" hybrid option:
+If `$ARGUMENTS` is empty or too short, ask via AskUserQuestion:
 
 en:
 ```json
@@ -164,155 +87,239 @@ vi:
 ]}]}
 ```
 
-If PO picks "Show examples first / Xem ví dụ trước", print 3 example briefs relevant to the project domain (pick from project-scan results if available, else generic), then re-ask.
+If PO picks "Show examples first", print 3 example briefs (pick from project-scan results if available, else generic like "Add 2FA login for enterprise tier", "Redesign onboarding flow", "Launch payment provider X") then re-ask.
 
-If PO types their own → set `AUTOFILL.task = <user input>`.
-
-**Continue to Step 2 immediately** — do NOT stop after this AskUserQuestion returns. The task description is one input among several the workflow needs.
+Set `TASK_DESCRIPTION = <user input>`. Continue immediately to Step 1a.
 
 ---
 
-## Step 2 — AUTOFILL summary + fill the unknowns
+## Step 1a — Intent router (adaptive, AI-judged)
 
-Show the PO what was detected so they see the context the workflow is about to use. Then ask the minimum remaining questions based on `interaction_level`.
+**Mission**: Analyze `TASK_DESCRIPTION` semantically. If the task maps to a single dedicated workflow, suggest redirect. Brief → plan → run is a multi-colleague pipeline — overkill when one artifact suffices.
 
-### 2a. Print the AUTOFILL summary
+**Judge intent** — do NOT match keywords. Read the task and answer:
 
-en:
-```
-⚡ Detected context for this brief:
-   Task:        <AUTOFILL.task>
-   Deliverable: <AUTOFILL.deliverable>   (auto)
-   Timing:      <AUTOFILL.timing>        (auto)
-   Audience:    <AUTOFILL.audience>      (auto, from domain=<config.domain> default)
-   Depth:       <AUTOFILL.depth>         (auto, from last brief in this project)
-```
+1. What output is the PO actually asking for? (1 artifact vs multi-artifact?)
+2. Which phase of product work? (ideation / design / planning / execution / review?)
+3. Is there an explicit verb indicating intent? ("mockup", "prioritize", "quarterly report")
 
-vi:
-```
-⚡ Context đã detect cho brief này:
-   Task:        <AUTOFILL.task>
-   Deliverable: <AUTOFILL.deliverable>   (auto)
-   Timing:      <AUTOFILL.timing>        (auto)
-   Audience:    <AUTOFILL.audience>      (auto, từ domain=<config.domain> default)
-   Depth:       <AUTOFILL.depth>         (auto, từ brief gần nhất)
-```
+**Map intent → workflow** (reference for AI judgment):
 
-Append `(Recommended)` instead of `(auto)` for any field whose source is the fallback default, not an actual detection.
+| Intent | Workflow |
+|---|---|
+| Design / UI / mockup / visual | `/compass:prototype` |
+| User stories + AC breakdown | `/compass:story` |
+| Competitive / market / tech / user research | `/compass:research` |
+| Brainstorm ideas from pain point | `/compass:ideate` |
+| Score / rank / prioritize backlog | `/compass:prioritize` |
+| Roadmap / timeline | `/compass:roadmap` |
+| Sprint planning from existing stories | `/compass:sprint` |
+| Release notes | `/compass:release` |
+| Synthesize user feedback | `/compass:feedback` |
+| Create epic folder / scaffolding | `/compass:epic` |
+| Quarterly / half-year / annual report | `/compass:report` |
 
-### 2b. Ask based on interaction_level
+**Decision threshold**:
 
-**Case `interaction_level = quick`:**
+- Confidence ≥ 80% that a single workflow fits → suggest redirect
+- Confidence < 80% OR task clearly spans multiple artifacts → silently skip, continue to Step 1b (do NOT ask the user)
+- When in doubt, default to continue brief — Step 1b will clarify further
 
-Skip all per-field questions. Show the summary above followed by ONE confirmation (see Step 3).
+**Examples of AI judgment**:
 
-**Case `interaction_level = standard` (default):**
+- `"làm prototype login page"` → prototype clearly = UI artifact, narrow scope → confidence 95% → suggest `/compass:prototype`
+- `"nghiên cứu competitor nào đang làm 2FA"` → research scope, single artifact → confidence 90% → suggest `/compass:research`
+- `"add 2FA login cho enterprise tier"` → feature = likely PRD + stories → multi-artifact → confidence 30% → skip, continue brief
+- `"Stealth mode cho photo capture"` → ambiguous scope, could be any shape → skip, continue brief
+- `"sprint plan cho Q2"` → sprint intent clear → confidence 85% → suggest `/compass:sprint`
 
-For each of `deliverable`, `timing`, `audience`, `depth`:
-- If the field's AUTOFILL source is `$ARGUMENTS` keyword-match OR project-memory → **do not ask** (trust inference).
-- Else (source is domain default OR final fallback default) → **ask it** using AskUserQuestion with AUTOFILL as `options[0]` labeled `Auto-detected: <value>`.
-
-Batch ask-worthy fields in ONE AskUserQuestion call (1 call, up to 4 questions — `ux-rules.md` permits).
-
-Example when only `depth` was fallback-defaulted:
+**When redirect is triggered**:
 
 en:
 ```json
-{"questions": [{"question": "What level of polish for the deliverables?", "header": "Depth", "multiSelect": false, "options": [
-  {"label": "Balanced", "description": "Recommended default — solid spec, a few gaps accepted"},
-  {"label": "Fast draft", "description": "Same-day, rough outline, fill gaps later"},
-  {"label": "Production-ready", "description": "Reviewed end-to-end, ready for exec approval"}
-]}]}
+{"questions": [{"question": "This looks like a <workflow> task. Redirect?", "header": "Intent", "multiSelect": false, "options": [
+  {"label": "Yes, redirect to /compass:<workflow>", "description": "Run the dedicated workflow directly — faster, narrower scope"},
+  {"label": "No, continue brief", "description": "Treat as multi-artifact scope needing PRD + colleagues"},
+  {"label": "Cancel", "description": "Stop — I'll decide later"}]}]}
 ```
 
-vi: same shape, translated.
-
-**Case `interaction_level = detailed`:**
-
-Ask ALL four fields even if each has a confident AUTOFILL. The detected value stays as `options[0]` using its natural name (not `Auto-detected: ...`); the `description` field names the source. Batch in ONE call with 4 questions.
-
-After any asked question, overwrite the corresponding `AUTOFILL.<field>` with the PO's final choice.
-
-**IMPORTANT — do NOT stop after this batched call returns.** The AskUserQuestion in Step 2b is not the end of the workflow. As soon as the PO's answers come back, **immediately continue** to Step 2c (persist memory) and Step 3 (derive Colleagues + confirm). Do not wait for the user to type another prompt; do not treat the returned answers as a terminal state.
-
-### 2c. Persist depth + audience to project-memory
-
-After Step 2b completes (no matter the interaction level), save the final `AUTOFILL.depth` and `AUTOFILL.audience` as the project's last-used values — so the next brief for the same project uses them as defaults:
-
-```bash
-compass-cli memory update "$PROJECT_ROOT" --session "<slug-or-pending>" --merge '{"aggregates":{"last_brief_depth":"<AUTOFILL.depth>","last_brief_audience":"<AUTOFILL.audience>"}}'
+vi:
+```json
+{"questions": [{"question": "Task này giống /compass:<workflow>. Redirect?", "header": "Intent", "multiSelect": false, "options": [
+  {"label": "Có, redirect /compass:<workflow>", "description": "Chạy workflow dedicated — nhanh, scope hẹp"},
+  {"label": "Không, tiếp tục brief", "description": "Treat như multi-artifact scope cần PRD + colleagues"},
+  {"label": "Cancel", "description": "Dừng — quyết định sau"}]}]}
 ```
 
-Non-blocking: if the memory CLI fails, print a one-line warning and continue — the brief still proceeds, just without the update.
+**On "Yes"** → invoke `/compass:<workflow>` inline (read and execute `~/.compass/core/workflows/<workflow>.md` with `$ARGUMENTS = TASK_DESCRIPTION`). Do not continue brief.
+
+**On "No"** → continue to Step 1b.
+
+**On "Cancel"** → print `✗ Cancelled.` and stop.
 
 ---
 
-## Step 3 — Auto-derive Colleagues + single confirm
+## Step 1b — Content deep-dive (adaptive, AI-judged)
 
-Based on the finalized AUTOFILL map, derive the Colleague team from `core/colleagues/manifest.json`. **The PO never picks Colleagues from a list** — unless they explicitly opt into manual adjustment in the confirm step.
+**Mission**: Ensure the task's core intent is clear enough that colleagues (Product Writer, Story Breaker, etc.) can produce accurate artifacts without fabricating assumptions.
 
-### 3a. Derivation rules (apply in order, union of results)
+**Analyze ambiguity** — NOT word count. Evaluate 4 elements of the task:
 
-| Condition | Always add |
+1. **Concrete subject?** — specific noun vs generic?
+   - Vague: *"stealth mode"*, *"dashboard"*, *"better UX"*
+   - Clear: *"TOTP 2FA login for enterprise tier"*
+
+2. **Clear actor + trigger?** — who uses it, when?
+   - Vague: *"add X"* (for whom?)
+   - Clear: *"for journalists in-field when capturing sensitive evidence"*
+
+3. **Specified behavior?** — what happens, vs current state?
+   - Vague: *"stealth mode"* (hide UI? no shutter? incognito upload?)
+   - Clear: *"no camera shutter sound + auto-save to encrypted album"*
+
+4. **Scope boundary?** — what's in, what's out?
+   - Vague: *"redesign signup"* (entire flow? landing only?)
+   - Clear: *"only the email verification step"*
+
+**Depth scaling based on ambiguity score** (not word count):
+
+- 4/4 clear → 0 Qs, proceed immediately to Step 2
+- 3/4 clear → 1 Q targeting the gap
+- 2/4 clear → 2-3 Qs
+- ≤ 1/4 clear → 3-5 Qs, ask one angle at a time (not batched)
+
+**Question angles** — AI picks only what's unclear:
+
+| Gap | Question |
 |---|---|
-| base | `Product Writer` + `Consistency Reviewer` |
-| `deliverable` contains "Stories" or "Full package" | `Story Breaker` |
-| `deliverable` = "Full package" | `Research Aggregator` + `Market Analyst` + `Prioritizer` + `UX Reviewer` + `Stakeholder Communicator` |
-| `deliverable` = "PRD + Stories" | `Research Aggregator` |
-| `audience` = "Leadership" | `Stakeholder Communicator` + `UX Reviewer` |
-| `audience` = "External" | `UX Reviewer` |
-| `audience` = "Cross-team" | (no extra, already covered if deliverable demands) |
-| `depth` = "Production-ready" | `UX Reviewer` + `Prioritizer` |
-| `depth` = "Fast draft" | remove `UX Reviewer` if not required elsewhere |
+| Subject ambiguous | "What does *<X>* specifically do? Pick the closest or describe." |
+| Actor ambiguous | "Who uses this + in what moment?" |
+| Behavior ambiguous | "What happens step-by-step when triggered?" |
+| Scope ambiguous | "What's explicitly NOT in this task?" |
+| Optional | "Any hard constraint? (compliance / platform / deadline)" |
 
-Compute the final set, deduplicated, preserving a canonical display order:
-`Research Aggregator`, `Market Analyst`, `Product Writer`, `Story Breaker`, `Prioritizer`, `UX Reviewer`, `Consistency Reviewer`, `Stakeholder Communicator`.
+Each question uses AskUserQuestion with 3-5 derived options (based on project context, similar features, common patterns) + "Type your own answer" affordance. Do not ask open-ended without suggestions.
 
-### 3b. Print the team and ask ONE confirm
+**Stop as soon as core intent is clear** — questions past that point become interrogation. Trust colleagues to fill secondary details.
+
+**Save output**: After deep-dive, write `$SESSION_DIR/CONTEXT.md` with structured Q&A (will be created in Step 4, this step just collects answers into memory):
+
+```markdown
+# Context — <TASK_DESCRIPTION short title>
+
+## Task
+<TASK_DESCRIPTION verbatim>
+
+## Clarified scope
+
+**Subject**: <what X specifically does>
+**Actor + trigger**: <who uses it + when>
+**Core behavior**: <step-by-step flow>
+**Out of scope**: <what's NOT in this task>
+**Constraints**: <if any were mentioned>
+
+## Discussion log
+
+### [Q1] <Question asked>
+- Options: A / B / C
+- Chosen: <choice>
+- Reason: <brief rationale if given>
+
+### [Q2] ...
+```
+
+---
+
+## Step 2 — AI analysis + auto-derive team
+
+Based on clarified scope from Step 1b (or TASK_DESCRIPTION directly if 4/4 clear), analyze and derive:
+
+### 2a. Complexity judgment
+
+Classify task as `small` / `medium` / `large` / `strategic`:
+
+- **small**: single feature, narrow scope, ≤ 2 files of typical change, obvious pattern (e.g. "add logout button")
+- **medium**: multi-file feature, some integration, may need UI + backend (e.g. "add 2FA login")
+- **large**: cross-feature, multi-component, affects 3+ areas (e.g. "redesign signup flow")
+- **strategic**: new product direction, needs research, affects company-level positioning (e.g. "launch new payment provider")
+
+### 2b. Colleague team derivation
+
+Start from base, add based on judged needs:
+
+| Condition | Add colleagues |
+|---|---|
+| base (always) | Product Writer + Consistency Reviewer |
+| complexity ∈ {`medium`, `large`, `strategic`} | +UX Reviewer |
+| complexity ∈ {`large`, `strategic`} | +Story Breaker |
+| complexity = `strategic` | +Research Aggregator + Market Analyst + Prioritizer |
+| Task clearly mentions executive / board / leadership audience | +Stakeholder Communicator |
+| Task explicitly asks for competitive / market context | +Research Aggregator + Market Analyst (if not already added) |
+| Task explicitly asks for prioritization / scoring | +Prioritizer (if not already added) |
+
+Deduplicate. Canonical display order: Research Aggregator, Market Analyst, Product Writer, Story Breaker, Prioritizer, UX Reviewer, Consistency Reviewer, Stakeholder Communicator.
+
+### 2c. Deliverable inference
+
+Derive the `goal` field based on complexity + team:
+
+- `small` + base 2 → `goal = "Draft a focused PRD for <title>"`
+- `medium/large` with Story Breaker → `goal = "PRD + user stories for <title>"`
+- `strategic` with Research + Market + Prioritizer → `goal = "Full package (research, PRD, stories, prioritization) for <title>"`
+
+### 2d. Persist complexity to project-memory (best-effort)
+
+```bash
+compass-cli memory update "$PROJECT_ROOT" --session "<slug-or-pending>" --merge '{"aggregates":{"last_brief_complexity":"<complexity>"}}'
+```
+
+Non-blocking — if CLI fails, print warning, continue.
+
+---
+
+## Step 3 — Confirm plan
+
+Print the analysis summary (in `$LANG`) — NO metadata questions, NO team picker by default.
 
 en:
 ```
-✓ Ready to start.
+✓ Task understood:
+  <1-2 sentence summary of clarified scope>
 
-Team for "<AUTOFILL.task>" (<N> colleagues):
-
+Complexity: <small|medium|large|strategic>
+Team (<N> colleagues):
 - ⭐ **Product Writer**         — draft the PRD
-- ⭐ **Story Breaker**          — break PRD into User Stories + AC
-- ⭐ **Research Aggregator**    — aggregate context from prior sessions and docs
 - ⭐ **Consistency Reviewer**   — cross-check final artifacts
-- ⭐ **UX Reviewer**            — check user flow (audience: Leadership)
+<additional colleagues as derived>
 
-Estimated runtime: <~Nmin> with all colleagues running in parallel.
-Next step after confirm: /compass:plan → /compass:run
+Next: /compass:plan → /compass:run
 ```
 
-vi: same structure, translated descriptors per colleague.
+vi: translate (use "Colleagues" as-is, "Product Writer" as-is — they're proper nouns).
 
-Then ask:
+Then ONE AskUserQuestion:
 
 en:
 ```json
 {"questions": [{"question": "Start with this team?", "header": "Confirm", "multiSelect": false, "options": [
-  {"label": "Yes — start now", "description": "Create session with this team and proceed"},
-  {"label": "Adjust team manually", "description": "Show full colleague picker for manual override"}
+  {"label": "Yes — start now", "description": "Create session and proceed"},
+  {"label": "Adjust team manually", "description": "Show full colleague picker for manual override"},
+  {"label": "Refine task more", "description": "Go back and clarify task further before committing"}
 ]}]}
 ```
 
 vi:
 ```json
 {"questions": [{"question": "Bắt đầu với team này?", "header": "Confirm", "multiSelect": false, "options": [
-  {"label": "Có — bắt đầu ngay", "description": "Tạo session với team này và tiếp tục"},
-  {"label": "Tôi tự điều chỉnh team", "description": "Hiển thị full colleague picker để override thủ công"}
+  {"label": "Có — bắt đầu ngay", "description": "Tạo session và tiếp tục"},
+  {"label": "Tự điều chỉnh team", "description": "Hiển thị full colleague picker để override thủ công"},
+  {"label": "Làm rõ task thêm", "description": "Quay lại Step 1b để clarify task sâu hơn trước khi commit"}
 ]}]}
 ```
 
-**On "Yes / Có":** immediately proceed to Step 4 (create session) and Step 5 (summary + hand-off). Do NOT stop — the PO has confirmed and expects the session to be created in the same turn.
+**On "Yes"** → proceed to Step 4 immediately (create session) + Step 5 (summary).
 
-**On "Adjust manually":** run Step 3c below, then proceed to Step 4 + Step 5 with the PO's selected colleague set.
-
-### 3c. Adjust-manually fallback (only if chosen)
-
-If PO picks "Adjust team manually / Tôi tự điều chỉnh team", show the full 8-colleague picker with derived colleagues pre-indicated via `⭐ ` prefix on their label.
+**On "Adjust manually"** → show the 8-colleague multi-select picker with derived colleagues pre-indicated via `⭐ ` prefix:
 
 en:
 ```json
@@ -328,65 +335,107 @@ en:
 ]}]}
 ```
 
-vi: same shape, translated.
+vi: same shape, translated descriptions.
 
-**Handling user's final selection:**
-- Strip `⭐ ` prefix from chosen labels before mapping to manifest IDs.
-- If PO selects zero colleagues, auto-add `Consistency Reviewer` as the minimum and notify them: print `⚠ At least one colleague is required — added Consistency Reviewer as the minimum.` / `⚠ Cần ít nhất 1 colleague — đã tự thêm Consistency Reviewer.`
+Strip `⭐ ` prefix from chosen labels. If zero selected → force `Consistency Reviewer` as minimum and warn.
+
+**On "Refine task more"** → loop back to Step 1b with current clarified state. User can add detail or adjust answers.
 
 ---
 
 ## Step 4 — Create session
 
-Generate a `slug` from `AUTOFILL.task` (lowercase, hyphens, max 40 chars, alphanumeric + hyphen). Create the session directory and write context:
+Generate `slug` from TASK_DESCRIPTION (lowercase, hyphens, max 40 chars, alphanumeric + hyphen). Create session dir and write files:
 
-`$PROJECT_ROOT/.compass/.state/sessions/<slug>/context.json`
+**`$PROJECT_ROOT/.compass/.state/sessions/<slug>/context.json`** (English, machine-readable):
 
 ```json
 {
-  "title": "<AUTOFILL.task>",
-  "description": "<AUTOFILL.task, full>",
-  "deliverable_goal": "<AUTOFILL.deliverable snake_case: prd_only | prd_stories | full_package>",
-  "timing": "<AUTOFILL.timing>",
-  "audience": "<AUTOFILL.audience>",
-  "depth": "<AUTOFILL.depth>",
-  "colleagues_selected": ["<manifest-id-1>", "<manifest-id-2>", "..."],
+  "title": "<short title from TASK_DESCRIPTION>",
+  "slug": "<slug>",
+  "goal": "<derived goal from Step 2c>",
+  "task_description": "<TASK_DESCRIPTION verbatim>",
+  "complexity": "<small|medium|large|strategic>",
+  "colleagues_selected": ["<manifest-id-1>", "..."],
   "interaction_level": "<from config>",
-  "task_link": "<Jira/Linear URL or null>",
-  "created_at": "<ISO 8601 timestamp>"
+  "created_at": "<ISO 8601>"
 }
 ```
 
-Also create `pipeline.json` in the same session directory:
-
-`$PROJECT_ROOT/.compass/.state/sessions/<slug>/pipeline.json`
+**`$PROJECT_ROOT/.compass/.state/sessions/<slug>/pipeline.json`**:
 
 ```json
 {
   "id": "<slug>",
-  "created_at": "<ISO 8601 timestamp>",
+  "created_at": "<ISO 8601>",
   "status": "active",
   "artifacts": [],
   "colleagues_selected": ["<same as context.json>"]
 }
 ```
 
-This marks the session as an active pipeline. Subsequent commands (`/compass:prd`, `/compass:story`, `/compass:research`) will auto-detect this file and offer to save their output into this session.
+**`$PROJECT_ROOT/.compass/.state/sessions/<slug>/CONTEXT.md`** (in `$LANG`, human-readable):
+
+Content from Step 1b deep-dive: Task, Clarified scope (subject / actor / behavior / out-of-scope / constraints), Discussion log. Colleagues read this first in `/compass:run` to avoid re-asking.
+
+If Step 1b ran 0 Qs (task was 4/4 clear), write minimal CONTEXT.md:
+
+```markdown
+# Context — <title>
+
+## Task
+<TASK_DESCRIPTION>
+
+## Clarified scope
+Task was clear from input — no clarification needed.
+```
 
 ---
 
-## Step 5 — Summary & next steps
+## Step 5 — Summary & hand-off
 
-Show a clean summary to the PO:
-- Session slug and title
-- Selected Colleagues (names only, no IDs)
-- Deliverable, timing, audience, depth
-- Deadline (if set via timing = Specific date)
+Print (in `$LANG`):
 
-Then suggest the next command:
+en:
+```
+✓ Brief session ready.
 
-- en: `✓ Session **<slug>** ready. Next: /compass:plan to assign tasks to each Colleague, then /compass:run to execute.`
-- vi: `✓ Session **<slug>** sẵn sàng. Tiếp theo: /compass:plan để phân công nhiệm vụ cho từng Colleague, rồi /compass:run để execute.`
+  Session: <slug>
+  Task:    <title>
+  Team:    <N> colleagues (<list names>)
+
+  Next step?
+```
+
+Then AskUserQuestion (3-option pattern for pipeline chaining):
+
+en:
+```json
+{"questions": [{"question": "Brief done. Next?", "header": "Next", "multiSelect": false, "options": [
+  {"label": "Continue to /compass:plan (Recommended)", "description": "Build the execution DAG now — you'll be asked again at next checkpoint"},
+  {"label": "Auto-chain plan → run → check", "description": "Run full pipeline without more prompts"},
+  {"label": "Stop here", "description": "I'll run /compass:plan manually later"}
+]}]}
+```
+
+vi:
+```json
+{"questions": [{"question": "Brief xong. Next?", "header": "Next", "multiSelect": false, "options": [
+  {"label": "Tiếp tục /compass:plan (Recommended)", "description": "Build DAG ngay — sẽ hỏi lại ở checkpoint tiếp theo"},
+  {"label": "Auto-chain plan → run → check", "description": "Chạy full pipeline không hỏi thêm"},
+  {"label": "Dừng ở đây", "description": "Tự chạy /compass:plan sau"}
+]}]}
+```
+
+**On "Continue"** → invoke `/compass:plan` inline (read and execute `~/.compass/core/workflows/plan.md`).
+
+**On "Auto-chain"** → save `auto_mode=auto` to session state, then invoke `/compass:plan` (downstream workflows read state and skip their own gates).
+
+**On "Stop"** → print hand-off text:
+- en: `✓ Run /compass:plan when ready.`
+- vi: `✓ Chạy /compass:plan khi sẵn sàng.`
+
+Stop. Do NOT auto-invoke beyond the picked option.
 
 ---
 
@@ -395,22 +444,18 @@ Then suggest the next command:
 | Situation | Handling |
 |---|---|
 | Empty `$ARGUMENTS` | Step 1 asks via AskUserQuestion with "examples-first" hybrid option. |
-| Task link (Jira/Linear URL) in args | Keep the URL in `context.task_link`. No MCP auto-fetch in v1.0.6. |
-| AUTOFILL fully populated, `interaction_level = quick` | Skip Step 1 + 2b; go straight from 2a summary → Step 3 confirm. |
-| No Colleagues derived (shouldn't happen — base always adds 2) | Auto-add `Consistency Reviewer`, notify PO. |
-| Config file missing | Stop and tell user to run `/compass:init`. |
-| Config file corrupt / invalid JSON | Stop with clear error, suggest `/compass:init`. |
-| `manifest.json` unreadable | Show hardcoded Colleague list as fallback. |
-| Slug collision (session already exists) | Append `-2`, `-3` suffix to slug. |
-| `project-memory.json` missing / CLI fails in 2c | Non-blocking — print warning, skip persistence, continue. |
+| Intent router matches with high confidence but user picks "No, continue brief" | Respect choice, continue to Step 1b. Record the signal in CONTEXT.md ("User opted for multi-artifact path despite single-workflow signal"). |
+| Intent router confident but no matching workflow exists yet | Silently skip, continue brief. Never hard-fail here. |
+| Step 1b yields 0 Qs (task 4/4 clear) | Still derive team in Step 2, proceed to Step 3 immediately. |
+| Step 1b — user picks "Refine task more" from Step 3 | Loop back with accumulated state. Cap at 3 loops to avoid infinite refinement. |
+| Config file missing / corrupt | Stop, suggest `/compass:init`. |
+| `manifest.json` unreadable | Show hardcoded colleague list as fallback in Step 3 picker. |
+| Slug collision | Append `-2`, `-3` suffix. |
+| `project-memory.json` missing / CLI fails in Step 2d | Non-blocking — print warning, skip persistence, continue. |
+| Task link (Jira / Linear / GitHub) in args | Keep URL in `context.task_description`; no MCP auto-fetch in this version. |
 
 ---
 
 ## Final — Hand-off
 
-After session creation, print one of these closing messages (pick based on `$LANG`):
-
-- en: `✓ Brief done. Next: /compass:plan to build the execution DAG, then /compass:run to execute stage-by-stage.`
-- vi: `✓ Brief xong. Tiếp theo: /compass:plan để build DAG thực thi, rồi /compass:run để chạy stage-by-stage.`
-
-Then stop. Do NOT auto-invoke the next workflow.
+Step 5 handled it. Stop cleanly based on user's chain choice.
