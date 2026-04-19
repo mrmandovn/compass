@@ -42,6 +42,15 @@ Vietnamese example — if `lang: "vi"`: _"Đang tải kế hoạch cộng tác..
 - If no `plan.json` found → tell user to run `/compass:plan` first, stop here
 - If validation fails → show which entries are invalid, ask user to fix or skip
 
+### 1a. Read auto-chain mode
+
+```bash
+AUTO_MODE=$(jq -r '.auto_mode // "manual"' "$SESSION_DIR/context.json" 2>/dev/null)
+```
+
+- `"auto"` → skip end-of-workflow gate in Step 7; auto-invoke `/compass:check` after run completes
+- `"manual"` or missing → show 3-option gate at end (Continue / Auto-chain / Stop)
+
 ---
 
 ## Step 2: Confirm execution
@@ -360,11 +369,48 @@ Done!
     - <path-2>
   Shared memory: <N> decisions recorded (<M> saved to cross-session memory)
   Budget used  : <X>k / <Y>k tokens
-
-  Next: /compass:check
 ```
 
-Vietnamese example: _"Hoàn tất! Tất cả các Đồng nghiệp đã chạy xong. Dùng /compass:check để xem lại kết quả."_
+Vietnamese example: _"Hoàn tất! Tất cả các Đồng nghiệp đã chạy xong."_
+
+---
+
+## Step 7 — Hand-off (adaptive per `auto_mode`)
+
+Read `AUTO_MODE` from Step 1a.
+
+**If `AUTO_MODE = "auto"`** → skip gate. Print `⚡ Auto-chain: invoking /compass:check...` and immediately invoke `/compass:check` inline (read and execute `~/.compass/core/workflows/check.md`).
+
+**If `AUTO_MODE = "manual"` or `"stop"`** → show 3-option gate:
+
+en:
+```json
+{"questions": [{"question": "Run done. Next?", "header": "Next", "multiSelect": false, "options": [
+  {"label": "Continue to /compass:check (Recommended)", "description": "Validate outputs + deliver to integrations — ask again at next checkpoint"},
+  {"label": "Auto-chain check", "description": "Run /compass:check without more prompts"},
+  {"label": "Stop here", "description": "I'll run /compass:check manually later"}
+]}]}
+```
+
+vi:
+```json
+{"questions": [{"question": "Run xong. Next?", "header": "Next", "multiSelect": false, "options": [
+  {"label": "Tiếp tục /compass:check (Recommended)", "description": "Validate outputs + deliver tới integrations — sẽ hỏi lại ở checkpoint tiếp theo"},
+  {"label": "Auto-chain check", "description": "Chạy /compass:check không hỏi thêm"},
+  {"label": "Dừng ở đây", "description": "Tự chạy /compass:check sau"}
+]}]}
+```
+
+**Branch**:
+- **Continue** → invoke `/compass:check` inline (persist `auto_mode` unchanged).
+- **Auto-chain** → set `auto_mode="auto"` in context.json, invoke `/compass:check`.
+- **Stop** → print `✓ Run /compass:check when ready.` / `✓ Chạy /compass:check khi sẵn sàng.` and stop.
+
+Persistence:
+```bash
+TMP=$(mktemp)
+jq --arg mode "<manual|auto>" '.auto_mode = $mode' "$SESSION_DIR/context.json" > "$TMP" && mv "$TMP" "$SESSION_DIR/context.json"
+```
 
 ---
 

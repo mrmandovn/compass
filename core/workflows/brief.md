@@ -275,6 +275,52 @@ compass-cli memory update "$PROJECT_ROOT" --session "<slug-or-pending>" --merge 
 
 Non-blocking — if CLI fails, print warning, continue.
 
+### 2e. Strategic pre-brief check (conditional)
+
+**Only fires when `complexity` ∈ {`strategic`, `large`}** — for smaller tasks, skip and proceed to Step 3.
+
+**Mission**: Before assembling a heavy multi-colleague team for a strategic/large task, offer the PO a chance to de-risk by running `/compass:ideate` (brainstorm options) or `/compass:research` (market/competitive context) first. The PRD that comes out of brief will be stronger if its direction has been deliberately chosen, not assumed.
+
+**Smart suggestion** — AI judges which path fits the task (don't always offer both):
+
+| Task signal | Suggested pre-step |
+|---|---|
+| Multiple viable approaches, unclear which to pick | `/compass:ideate` — brainstorm angles + deep-dive |
+| Market/competitive context missing, launching into a new space | `/compass:research` — competitive + market scan |
+| Both uncertain (e.g. new product direction) | Offer both as options |
+| PO already mentions prior ideation / existing research in deep-dive Q&A | Skip — trust they've prepped |
+
+**AskUserQuestion** (build options based on judged fit; always include "Continue" + "Skip"):
+
+en:
+```json
+{"questions": [{"question": "Task looks strategic/large. De-risk first?", "header": "Pre-brief", "multiSelect": false, "options": [
+  {"label": "Continue to team assembly (Recommended if direction is clear)", "description": "Proceed directly to Step 3 with the derived team"},
+  {"label": "Brainstorm options first — /compass:ideate", "description": "Explore multiple angles + deep-dive top picks before committing to a PRD direction"},
+  {"label": "Research context first — /compass:research", "description": "Gather market/competitive/user data before writing a PRD in an unknown space"},
+  {"label": "Skip — I've already prepped", "description": "I have prior ideation/research covering this"}
+]}]}
+```
+
+vi:
+```json
+{"questions": [{"question": "Task strategic/large. De-risk trước?", "header": "Pre-brief", "multiSelect": false, "options": [
+  {"label": "Tiếp tục assembly team (Khuyến nghị nếu direction đã rõ)", "description": "Đi thẳng Step 3 với team đã derive"},
+  {"label": "Brainstorm options trước — /compass:ideate", "description": "Explore nhiều angles + deep-dive top picks trước khi commit PRD direction"},
+  {"label": "Research context trước — /compass:research", "description": "Gather market/competitive/user data trước khi viết PRD ở space mới"},
+  {"label": "Skip — đã chuẩn bị rồi", "description": "Có prior ideation/research cover topic này"}
+]}]}
+```
+
+**Branch**:
+
+- **Continue** → proceed to Step 3.
+- **Brainstorm** → invoke `/compass:ideate` inline (read and execute `~/.compass/core/workflows/ideate.md` with `$ARGUMENTS = TASK_DESCRIPTION --from-brief`). After ideate completes, print hand-off: `"Re-run /compass:brief '<picked idea>' for team assembly with clarified direction."` and stop.
+- **Research** → invoke `/compass:research` inline. After research completes, print hand-off: `"Re-run /compass:brief '<task>' after reviewing research to assemble team with clarified direction."` and stop.
+- **Skip** → proceed to Step 3, record in CONTEXT.md note: `"PO opted to skip pre-brief (prior prep)"`.
+
+Only options the AI judges relevant should appear (e.g. if task signal strongly suggests ideate and not research, omit the research option).
+
 ---
 
 ## Step 3 — Confirm plan
@@ -427,15 +473,27 @@ vi:
 ]}]}
 ```
 
-**On "Continue"** → invoke `/compass:plan` inline (read and execute `~/.compass/core/workflows/plan.md`).
+**On "Continue"** → set `auto_mode="manual"` in context.json, then invoke `/compass:plan` inline (read and execute `~/.compass/core/workflows/plan.md`).
 
-**On "Auto-chain"** → save `auto_mode=auto` to session state, then invoke `/compass:plan` (downstream workflows read state and skip their own gates).
+**On "Auto-chain"** → set `auto_mode="auto"` in context.json, then invoke `/compass:plan` (downstream workflows read this and skip their own gates).
 
-**On "Stop"** → print hand-off text:
+**On "Stop"** → set `auto_mode="stop"` in context.json, print hand-off text:
 - en: `✓ Run /compass:plan when ready.`
 - vi: `✓ Chạy /compass:plan khi sẵn sàng.`
 
 Stop. Do NOT auto-invoke beyond the picked option.
+
+**Persist `auto_mode` to context.json**:
+
+```bash
+TMP=$(mktemp)
+jq --arg mode "<manual|auto|stop>" '.auto_mode = $mode' "$SESSION_DIR/context.json" > "$TMP" && mv "$TMP" "$SESSION_DIR/context.json"
+```
+
+Downstream workflows (`plan`, `run`, `check`) must read `auto_mode` at their own entry and:
+- `"auto"` → skip end-of-workflow gate, auto-invoke next workflow
+- `"manual"` or missing → show 3-option gate (Continue / Auto-chain / Stop)
+- `"stop"` → should not happen downstream since brief stopped, but if encountered, treat as `"manual"`
 
 ---
 

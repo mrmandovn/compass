@@ -39,9 +39,21 @@ If config missing → tell user to run `/compass:init` first, stop.
 ## Step 1: Load brief session
 
 - Scan `$PROJECT_ROOT/.compass/.state/sessions/` for the latest session directory (sorted by `created_at` in `context.json`)
-- Read `context.json` from that session dir — extract: `title`, `slug`, `goal`, `colleagues_selected`, `constraints`, `stakeholders`, `deadline`, `context_docs`
+- Read `context.json` from that session dir — extract: `title`, `slug`, `goal`, `colleagues_selected`, `constraints`, `stakeholders`, `deadline`, `context_docs`, `auto_mode`
+- **Backward compat**: if `goal` missing but `description` present (old schema) → use `description` as `goal`. Other missing optional fields → defaults.
 - If no session directory found → tell user: "No brief session found. Please run `/compass:brief` first to create one."
 - If `context.json` is malformed → warn user and offer to re-run `/compass:brief`
+
+### 1a. Read auto-chain mode
+
+```bash
+AUTO_MODE=$(jq -r '.auto_mode // "manual"' "$SESSION_DIR/context.json" 2>/dev/null)
+```
+
+`AUTO_MODE` will be:
+- `"auto"` → skip end-of-workflow gate in Step 7 below; auto-invoke `/compass:run` after plan saved
+- `"manual"` or missing → show 3-option gate at end (Continue / Auto-chain / Stop)
+- `"stop"` → treat as `"manual"` (user can still opt to chain forward from here)
 
 **Vietnamese prompt example:**
 > "Không tìm thấy phiên brief nào. Hãy chạy `/compass:brief` trước để tạo brief session nhé!"
@@ -305,13 +317,52 @@ compass-cli validate plan "$PROJECT_ROOT/.compass/.state/sessions/<slug>/plan.js
   4. Loop back to Step 4/4a to regenerate, then re-validate — do NOT hand the plan off to `/compass:run` until `compass-cli validate plan` returns `0`.
 
 Confirm to user only after the validator passes:
-> "Plan saved to `sessions/<slug>/plan.json` and validated against schema v1.0. Next step: run `/compass:run` to execute stage by stage!"
+> "Plan saved to `sessions/<slug>/plan.json` and validated against schema v1.0."
 
 **Vietnamese prompt example:**
-> "Đã lưu plan.json và validate thành công theo schema v1.0. Bước tiếp theo: chạy `/compass:run` để thực thi từng stage theo thứ tự DAG!"
+> "Đã lưu plan.json và validate thành công theo schema v1.0."
 
 **Vietnamese — when validation fails:**
 > "Plan chưa hợp lệ theo schema v1.0 (lỗi: `<error_code>` ở trường `<field>`). Mình sẽ chỉnh lại theo gợi ý rồi validate lại trước khi bàn giao cho `/compass:run`."
+
+---
+
+## Step 8 — Hand-off (adaptive per `auto_mode`)
+
+Read `AUTO_MODE` from Step 1a.
+
+**If `AUTO_MODE = "auto"`** → skip gate below. Print `⚡ Auto-chain: invoking /compass:run...` and immediately invoke `/compass:run` inline (read and execute `~/.compass/core/workflows/run.md`). Do not stop.
+
+**If `AUTO_MODE = "manual"` (default) or `"stop"`** → show 3-option gate:
+
+en:
+```json
+{"questions": [{"question": "Plan ready. Next?", "header": "Next", "multiSelect": false, "options": [
+  {"label": "Continue to /compass:run (Recommended)", "description": "Execute the DAG stage-by-stage — ask again at next checkpoint"},
+  {"label": "Auto-chain run → check", "description": "Run remaining pipeline without more prompts"},
+  {"label": "Stop here", "description": "I'll run /compass:run manually later"}
+]}]}
+```
+
+vi:
+```json
+{"questions": [{"question": "Plan xong. Next?", "header": "Next", "multiSelect": false, "options": [
+  {"label": "Tiếp tục /compass:run (Recommended)", "description": "Execute DAG stage-by-stage — sẽ hỏi lại ở checkpoint tiếp theo"},
+  {"label": "Auto-chain run → check", "description": "Chạy pipeline còn lại không hỏi thêm"},
+  {"label": "Dừng ở đây", "description": "Tự chạy /compass:run sau"}
+]}]}
+```
+
+**Branch**:
+- **Continue** → invoke `/compass:run` inline. Persist `auto_mode` unchanged.
+- **Auto-chain** → set `auto_mode="auto"` in context.json, invoke `/compass:run`.
+- **Stop** → print hand-off `✓ Run /compass:run when ready.` / `✓ Chạy /compass:run khi sẵn sàng.` and stop.
+
+Persistence:
+```bash
+TMP=$(mktemp)
+jq --arg mode "<manual|auto>" '.auto_mode = $mode' "$SESSION_DIR/context.json" > "$TMP" && mv "$TMP" "$SESSION_DIR/context.json"
+```
 
 ---
 

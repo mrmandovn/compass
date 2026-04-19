@@ -161,6 +161,14 @@ If no completed session found → show (in `lang`):
 - vi: `"Chưa có run nào hoàn thành. Chạy /compass:run trước rồi quay lại."`
 Then stop.
 
+### 1a. Read auto-chain mode (for context, no further chaining)
+
+```bash
+AUTO_MODE=$(jq -r '.auto_mode // "manual"' "$SESSION_DIR/context.json" 2>/dev/null)
+```
+
+`check` is the terminal workflow of the PM pipeline — no downstream step to auto-chain to. If `AUTO_MODE = "auto"`, note in the final report that auto-chain completed the full brief → plan → run → check pipeline. No end gate needed.
+
 **Pipeline detection (alongside run session):**
 
 Also check whether the same session directory contains a `pipeline.json` with `"status": "active"`. If found:

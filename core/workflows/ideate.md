@@ -176,25 +176,110 @@ Use AskUserQuestion with:
   - `{label: "No new external dependencies", description: "Cannot add third-party services or libraries"}` (en) / `{label: "Không thêm phụ thuộc bên ngoài", description: "Không được thêm dịch vụ hoặc thư viện bên thứ ba"}` (vi)
   - `{label: "Other / None", description: "Skip or add a constraint in chat"}` (en) / `{label: "Khác / Không có", description: "Bỏ qua hoặc thêm ràng buộc trong chat"}` (vi)
 
-## Step 3 — Generate ideas
+## Step 2d — Propose diversity angles + user picks
 
-Produce **5–10 solution ideas** in the format below. Each idea should be a *distinct approach* — NOT a small variation of the same direction.
+**Before generating any ideas**, analyze the pain point (Q2), project context (Step 1 load), and constraints (Q3) to propose **5–7 RELEVANT diversity angles** — not a fixed template.
 
-Diversity rules — at least one of each:
-- A "do nothing / just educate users" idea
-- A "fix it properly, expensive" idea
-- A "quick win, 80/20" idea
-- A "lateral thinking — change the flow / mental model entirely" idea
-- A "leverage something we already have from another feature" idea
+**How to generate angles**:
+- Each angle = a HIGH-LEVEL direction for solving the pain (not a specific idea yet)
+- Angles must be genuinely distinct in approach (not minor variations)
+- Pull from:
+  - Capabilities already in registry (leverage-existing angles)
+  - Competitor patterns mentioned in Q2 or project context
+  - Standard solve archetypes: fix-properly / quick-win / rethink-mental-model / education-first / automate / borrow / do-nothing
+  - Constraint-informed angles: if "no backend" → surface frontend-only angles; if "tight timeline" → surface quick-wins
 
-**Silver Tiger only — cross-product awareness**: When generating ideas, consult the capability registry loaded in Step 1. If any idea would naturally touch a capability owned by another product team, note it in `**Open questions**` as: `"Depends on [Capability Name] — coordinate with [PO]?"`. This is informational; do NOT block idea generation on it.
+**Context-aware — DO NOT fall back to fixed template**. If project has PRDs about auth, angles should reference auth specifics. If registry has capability "session-management", one angle may leverage it.
 
-Format for each idea:
+**AskUserQuestion format**:
+
+en:
+```json
+{"questions": [{"question": "Pick 2-4 angles to explore — ideas will focus on these.", "header": "Angles", "multiSelect": true, "options": [
+  {"label": "<angle 1 name>", "description": "<why this angle fits the pain point>"},
+  {"label": "<angle 2 name>", "description": "..."},
+  {"label": "<angle 3 name>", "description": "..."},
+  {"label": "<angle 4 name>", "description": "..."},
+  {"label": "<angle 5 name>", "description": "..."}
+]}]}
+```
+
+vi:
+```json
+{"questions": [{"question": "Chọn 2-4 hướng để đào — ideas sẽ tập trung vào các hướng này.", "header": "Hướng", "multiSelect": true, "options": [
+  {"label": "<tên hướng 1>", "description": "<tại sao hướng này phù hợp với pain point>"},
+  {"label": "<tên hướng 2>", "description": "..."}
+]}]}
+```
+
+**Example angles for pain point "MFA flow too complex, 40% drop-off"**:
+
+- `Reduce friction in current flow` — fix existing MFA UX, giảm bước
+- `Rethink mental model` — thay MFA bằng passkey/biometric
+- `Borrow from Apple Passkey` — copy industry-leading UX
+- `Education-first` — giữ flow, cải thiện onboarding/copy
+- `Progressive rollout` — MFA optional cho low-risk actions, required cho high-risk
+- `Leverage session logic` — extend existing session to cover MFA
+- `Do nothing, accept drop-off` — measure ROI của fix trước
+
+Store user selection as `CHOSEN_ANGLES = [...]`. Continue to Step 3.
+
+---
+
+## Step 3 — Generate ideas (shallow → deep)
+
+Two-phase: generate shallow per angle, let PO pick which to deep-dive.
+
+### 3a. Shallow generation (per angle)
+
+For each angle in `CHOSEN_ANGLES`, generate 1-2 **shallow** ideas. Shallow = 1-line summary only — NO effort/impact/pros/risks yet. Goal: breadth before depth.
+
+**Output format** (print inline in chat):
+
+```
+## Angle: <Angle 1 name>
+  - <Idea 1 — one sentence what this idea does>
+  - <Idea 2 — one sentence what this idea does>
+
+## Angle: <Angle 2 name>
+  - <Idea 1 — ...>
+  - <Idea 2 — ...>
+```
+
+Typical total: 3-8 shallow ideas across all chosen angles.
+
+**Silver Tiger cross-product hint**: If an idea clearly leverages a capability from registry, note `[leverages: <Capability>]` inline at end of the 1-liner.
+
+### 3b. Deep-dive picker
+
+Show all shallow ideas (above), then ask PO which to expand.
+
+en:
+```json
+{"questions": [{"question": "Which ideas to expand? Pick 1-3 for full analysis.", "header": "Deep-dive", "multiSelect": true, "options": [
+  {"label": "<idea 1 name from 3a>", "description": "<from angle X — short recap>"},
+  {"label": "<idea 2 name>", "description": "..."}
+]}]}
+```
+
+vi:
+```json
+{"questions": [{"question": "Idea nào đáng deep-dive? Chọn 1-3 để expand full analysis.", "header": "Deep-dive", "multiSelect": true, "options": [
+  {"label": "<tên idea 1>", "description": "<từ hướng X — recap ngắn>"},
+  {"label": "<tên idea 2>", "description": "..."}
+]}]}
+```
+
+If PO picks 0 → warn `⚠ At least 1 idea must be picked for deep-dive.` / `⚠ Cần ít nhất 1 idea để deep-dive.` then re-ask.
+
+### 3c. Deep-dive expansion
+
+For each PICKED idea, expand to the full format below. NON-picked ideas keep their shallow 1-liner from 3a (will be preserved in output file for reference).
 
 ```markdown
 ### Idea N: <Short, action-oriented name>
 
-**Summary**: One sentence describing what this idea does.
+**Summary**: <one sentence — same as shallow>
 
 **Who benefits**: <specific user segment>
 
@@ -212,13 +297,16 @@ Format for each idea:
 **Open questions**: 1–2 things to validate before committing
 ```
 
+**Silver Tiger cross-product awareness**: If a deep-dived idea touches a capability owned by another team, note in `**Open questions**` as: `"Depends on [Capability Name] — coordinate with [PO]?"`. Informational — do NOT block.
+
 ## Step 4 — Self-review
 
-After generating, the model self-reviews:
-1. Are any ideas essentially duplicates? Merge if so.
-2. Does any idea violate a stated constraint? Drop it or mark `⚠️ violates constraint X`.
-3. Are the 5–10 ideas genuinely diverse in approach? If not, add more.
-4. **Silver Tiger only**: For each idea touching a capability in the registry, verify the cross-product note was added to `**Open questions**`. If a dependency was missed, add it now.
+After Step 3c, review both deep-dived + shallow ideas:
+
+1. **Duplicates?** Merge if any two ideas (across all angles) are essentially the same approach.
+2. **Constraint violations?** Drop or mark `⚠️ violates constraint X` — applies to both shallow + deep ideas.
+3. **Angle coverage**: every `CHOSEN_ANGLE` must have ≥1 idea. If one angle ended up empty after deduplication, add a replacement shallow idea for it.
+4. **Silver Tiger only**: For each deep-dived idea touching a registry capability, verify the cross-product note was added. If missed, add it.
 
 ## Step 5 — Write the output file
 
@@ -238,6 +326,9 @@ title: <Topic name>
 created: <YYYY-MM-DD>
 po: <from config>
 trigger: <from Step 2 Q1>
+chosen_angles: [<CHOSEN_ANGLES list from Step 2d>]
+deep_dived_count: <N — number of ideas deep-dived in Step 3c>
+shallow_count: <M — number of ideas kept shallow from Step 3a>
 status: brainstorm
 ---
 
@@ -251,15 +342,23 @@ status: brainstorm
 
 <List from Step 2 Q3>
 
-## Ideas
+## Angles explored
 
-<5–10 ideas from Step 3>
+<List each CHOSEN_ANGLE with its 1-line description from Step 2d>
+
+## Ideas — deep-dived
+
+<Picked ideas from Step 3c with full format (Summary / Who benefits / Effort / Impact / Pros / Risks / Open questions)>
+
+## Ideas — shallow (for reference)
+
+<Non-picked ideas from Step 3a grouped by angle, 1-line each. Omit this section if all shallow ideas were deep-dived.>
 
 ## Next steps
 
-- [ ] Review with <relevant stakeholders from config>
-- [ ] Pick top 2–3 ideas → /compass:prioritize to score
-- [ ] Whichever passes → /compass:prd to spec in detail
+- [ ] Review deep-dived ideas with <relevant stakeholders from config>
+- [ ] Pick 1 to spec in detail → `/compass:prd <idea-name>`
+- [ ] Compare across all → `/compass:prioritize`
 ```
 
 If `spec_lang` is `bilingual`, also generate a translated version alongside the primary file (e.g. `IDEA-foo-2026-04-11.md` in English + `IDEA-foo-2026-04-11-vi.md` in Vietnamese).
@@ -296,22 +395,55 @@ This step is SKIPPED in standalone mode.
 
 If no dependencies are found, omit the section entirely (do NOT write an empty table).
 
-## Step 7 — Confirm with the user
+## Step 7 — Confirm + context-aware hand-off
 
 Show a summary in `lang`:
 
 ```
-✓ Generated <N> ideas for "<topic>"
+✓ Generated <N> ideas for "<topic>" (<deep_dived> deep-dived, <shallow> shallow)
   File: <resolved output path>
 
-Top 3 by Impact / Effort:
+Top deep-dived by Impact / Effort:
   1. <Idea X> — Impact High / Effort S
   2. <Idea Y> — Impact High / Effort M
   3. <Idea Z> — Impact Medium / Effort S
+```
 
+**Hand-off — adapt based on invocation context**:
+
+Check if this ideate was invoked FROM `/compass:brief` complexity gate. Detect via ANY of:
+- `$ARGUMENTS` contains `--from-brief` flag
+- `$PROJECT_ROOT/.compass/.state/sessions/<active>/context.json` has `from_workflow=brief`
+- Direct hand-off hint in the invoking prompt
+
+**If came from brief**:
+
+en:
+```
+Next: re-run `/compass:brief '<top deep-dived idea name>'` to assemble the team
+with this clarified direction — brief will use your picked idea as the task.
+```
+
+vi:
+```
+Tiếp theo: chạy lại `/compass:brief '<tên idea deep-dived top>'` để assembly team
+với direction đã clarified — brief sẽ dùng idea mày pick làm task.
+```
+
+**If standalone invocation**:
+
+en:
+```
 Next:
-  /compass:prioritize  — full scoring if you want to compare
-  /compass:prd <idea>  — write a PRD for one specific idea
+  /compass:prioritize       — full scoring to compare across ideas
+  /compass:prd <idea-name>  — write a PRD for one specific idea
+```
+
+vi:
+```
+Tiếp theo:
+  /compass:prioritize       — scoring đầy đủ để compare
+  /compass:prd <tên-idea>   — viết PRD cho 1 idea cụ thể
 ```
 
 ## Save session
