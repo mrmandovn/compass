@@ -180,7 +180,7 @@ en:
 ]}]}
 ```
 
-"Other" accepts: `test, docs, ci, infra, design, chore`.
+"Other" accepts: `test, docs, ci, infra, design, chore, deploy`.
 
 vi: translate labels.
 
@@ -281,29 +281,56 @@ Now apply git-context Part C — create `feat/$SLUG` branch if currently on `$BA
 
 ## Step 7 — Deep-dive Q&A (adaptive)
 
-Ask questions one at a time (no batches). ≥3 options per question. Pick question set based on `$TASK_TYPE`:
+Ask questions one at a time (no batches). ≥3 options per question. Pick question set based on `$TASK_TYPE`, grouped by category:
 
-**feat**: scope boundaries, API contract, error handling, rollback/feature-flag, data migration if any
-**fix**: root cause hypothesis, affected surfaces, regression risk, test strategy
-**refactor**: invariants to preserve, success metric, rollback
-**perf**: baseline metrics, target, acceptable trade-offs
-**test**: coverage target, test strategy, mocking approach
-**ci**: trigger conditions, environments, secrets, rollback, notifications
-**infra**: base image, resource limits, networking, persistence, scaling
-**chore**: scope boundary, preservation rules, breaking-change risk
-**docs**: audience, format, depth, examples
-**design**: target audience, brand, responsive needs, CTA goals
+**Code tasks** (category=code):
+- **feat**: scope boundaries, API contract, error handling, rollback/feature-flag, data migration if any
+- **fix**: root cause hypothesis, affected surfaces, regression risk, test strategy
+- **refactor**: invariants to preserve, success metric, rollback
+- **perf**: baseline metrics, target, acceptable trade-offs
+- **test**: coverage target, test strategy, mocking approach
+
+**Ops tasks** (category=ops):
+- **ci**: trigger conditions, environments, secrets, rollback, notifications
+- **infra**: base image, resource limits, networking, persistence, scaling
+- **deploy**: zero-downtime strategy, health checks, rollback plan, environment parity
+- **chore**: scope boundary, preservation rules, breaking-change risk
+
+**Content tasks** (category=content):
+- **docs**: audience, format, depth, examples
+- **design**: target audience, brand, responsive needs, CTA goals
 
 **Cross-cutting** (ask when relevant):
 - Timeline pressure (affects spec depth)
 - Who else is affected (team coord)
 - Existing examples to follow
 
-Keep depth matched to complexity: simple task → 1-2 Qs; complex → 3-5 Qs. Save each Q + picked option + reason to the Discussion Log section of CONTEXT.md.
+**Depth scaling (mandatory)** — match number of Q&A rounds to actual task complexity. Do NOT ask a fixed set.
+
+- **1-2 Qs** for narrow tasks: small config tweaks, typo/rename, single-file changes, obvious scope, `fix` with pinpointed bug location
+- **3-5 Qs** for complex tasks: new features, cross-cutting refactors, multi-file scope, ambiguous requirements, unclear boundaries
+
+Stop as soon as CONTEXT is complete — extra questions past the "no new info" point are noise. If the PO answered the core intent in Step 2 already, 1 confirmation question may be enough.
+
+Save each Q + picked option + reason to the Discussion Log section of CONTEXT.md.
 
 ---
 
 ## Step 8 — Research
+
+### 8.0 — Skip gate
+
+Skip this step entirely when the task scope is narrow — research noise outweighs value. Skip when ANY of these hold:
+
+- `$TASK_TYPE` in [`chore`, `docs`] AND category = `content`
+- Q&A in Step 7 yielded ≤ 2 rounds AND scope clearly points to a single file/symbol
+- `$TASK_TYPE = fix` AND the Q&A pinpointed the bug location (file + symbol)
+
+When skipped: write `$SESSION_DIR/RESEARCH.md` with a one-line note `⏭ Research skipped — scope is narrow, context already clear from Step 7 Q&A.` Then continue to Step 9.
+
+Otherwise, proceed with the scan below.
+
+### 8.1 — Scan
 
 Scan codebase for existing patterns + affected files. Scope the search with keywords from `$INPUT_TITLE` + any module names from the Q&A.
 
@@ -341,7 +368,16 @@ Compose `RESEARCH.md` with sections:
 
 ## Step 9 — Compose DESIGN-SPEC.md
 
-Read `core/templates/design-spec-template.md`. Apply category filter from `core/shared/spec-adaptive.md`:
+### 9.0 — Mode selection (minimal vs full)
+
+Decide composition mode from the actual Q&A depth in Step 7:
+
+- **MINIMAL mode** — trigger when `$QA_ROUND_COUNT ≤ 1` AND `$TASK_TYPE` in [`feat`, `fix`, `chore`, `docs`]. Narrow tasks don't need types/implementations/open-questions boilerplate.
+- **FULL mode** — otherwise.
+
+Print: `✓ Compose mode: <minimal|full>` so the dev knows which format is coming.
+
+### 9.1 — Apply category filter
 
 ```
 if $CATEGORY == "code":
@@ -364,18 +400,142 @@ if $CATEGORY == "content":
           Configuration/Pipeline, Steps/Runbook, Dependencies & Prerequisites
 ```
 
-Fill **frontmatter**: `spec_version: "1.0"`, `project: "$PROJECT_NAME"`, `component: "$SLUG"`, `language: "$STACK"`, `task_type: "$TASK_TYPE"`, `category: "$CATEGORY"`, `status: "draft"`.
+In **MINIMAL mode**, further collapse the rendered set to:
+- `Overview` (Goal, Context one sentence each, Requirements, Out of Scope)
+- ONE category-specific anchor section: code → `Affected Files` table only; ops → `Steps/Runbook` only; content → `Deliverables` only
+- `Acceptance Criteria` (Per-Requirement table)
 
-Fill **Requirements** as `[REQ-01]`, `[REQ-02]`, ... derived from Q&A + input.
+Skip Types/Data Models, Interfaces/APIs, Design Decisions, Open Questions, Constraints, and any template examples.
 
-Fill **Out of Scope** from explicit decisions in Q&A.
+### 9.2 — Fill from template
 
-Fill category-specific sections:
+**Frontmatter** (all modes): `spec_version: "1.0"`, `project: "$PROJECT_NAME"`, `component: "$SLUG"`, `language: "$STACK"`, `task_type: "$TASK_TYPE"`, `category: "$CATEGORY"`, `status: "draft"`.
+
+**Requirements**: `[REQ-01]`, `[REQ-02]`, ... derived from Q&A + input.
+
+**Out of Scope**: from explicit decisions in Q&A.
+
+**Category-specific sections** (FULL mode):
 - **code** — identify types/APIs/functions from Q&A; list affected files from Research
 - **ops** — list config + runbook steps + rollback per step
 - **content** — outline + deliverables table + style rules
 
-Fill **Acceptance Criteria** as runnable commands (code), health checks (ops), or checklist items (content).
+**Acceptance Criteria**: runnable commands (code), health checks (ops), or checklist items (content).
+
+### 9.3 — DESIGN-SPEC template (inline)
+
+Use the skeleton below. Render only the sections allowed by Step 9.1 filter. Frontmatter is identical across variants.
+
+````markdown
+---
+spec_version: "1.0"
+project: "<project name>"
+component: "<component/module — snake_case>"
+language: "<typescript | rust | python | go | ... | N/A for pure content>"
+task_type: "<feat | fix | refactor | perf | test | docs | ci | infra | design | chore | deploy>"
+category: "<code | ops | content>"
+status: "draft"
+---
+
+## Overview
+
+[<task_type>]: <Short title — 5-10 words>
+
+### Goal
+<One sentence: what the end state looks like.>
+
+### Context
+<Current state, why this is needed. 2-4 sentences. In MINIMAL mode: 1 sentence.>
+
+### Requirements
+- [REQ-01] <Specific, verifiable requirement>
+- [REQ-02] <...>
+
+### Out of Scope
+- <Things explicitly NOT in this task>
+
+---
+
+<!-- CODE variant -->
+
+## Types / Data Models
+<Language-appropriate type definitions introduced or modified. Skip in MINIMAL.>
+
+## Interfaces / APIs
+<Public signatures, REST endpoints, CLI args. Skip in MINIMAL.>
+
+## Implementations
+
+### Design Decisions
+| # | Decision | Reasoning | Type |
+|---|---|---|---|
+| 1 | <decision> | <why> | LOCKED |
+| 2 | <decision> | <why> | FLEXIBLE |
+
+LOCKED = must follow; FLEXIBLE = can vary during build. Skip table in MINIMAL.
+
+### Affected Files
+| File | Action | Description | Impact |
+|---|---|---|---|
+| `path/to/file` | CREATE / MODIFY / DELETE | <what changes> | d=1 / d=2 / N/A |
+
+Impact key: d=1 = direct caller/callee; d=2 = indirect. Keep this table in MINIMAL.
+
+<!-- OPS variant -->
+
+## Configuration / Pipeline
+<Config files, pipeline stages, env vars, secrets references (NEVER actual values).>
+
+## Steps / Runbook
+1. **<Step title>**
+   - Action: <what>
+   - Expected outcome: <verify>
+   - Rollback: <undo>
+
+Keep this section in MINIMAL for ops.
+
+## Dependencies & Prerequisites
+- <What must exist before starting>
+
+<!-- CONTENT variant -->
+
+## Structure / Outline
+<Sections / pages / components with purpose each.>
+
+## Deliverables
+| Deliverable | Format | Location | Description |
+|---|---|---|---|
+| <name> | .md / .html / .yml | path/to/file | <contents> |
+
+Keep this table in MINIMAL for content.
+
+## Style & Guidelines
+- **Audience**: <end-user / internal / stakeholder>
+- **Tone**: <formal / friendly / technical>
+- **Length**: <1 page / 5 pages / as long as needed>
+
+<!-- ALL variants (FULL mode only) -->
+
+---
+
+## Open Questions
+- <Unresolved items needing PO/dev answer before build. Skip in MINIMAL.>
+
+## Constraints
+- <Performance, security, compatibility, deadline. Skip in MINIMAL.>
+
+---
+
+## Acceptance Criteria
+
+### Per-Requirement
+| Req | Verification | Expected Result |
+|---|---|---|
+| REQ-01 | <command or checklist item> | <pass condition> |
+
+### Overall Success
+<What "done" looks like. 1-2 sentences + verification sequence. Skip "Overall Success" in MINIMAL.>
+````
 
 Write to `$SESSION_DIR/DESIGN-SPEC.md`.
 
@@ -383,9 +543,13 @@ Write to `$SESSION_DIR/DESIGN-SPEC.md`.
 
 ## Step 10 — Compose TEST-SPEC.md
 
-Read `core/templates/test-spec-template.md`. Apply category filter.
+### 10.0 — Strategy selection
 
-For **code**: ask strategy via AskUserQuestion:
+In **MINIMAL mode** (from Step 9.0): skip strategy question entirely. Use `strategy: "checklist"` in frontmatter and render acceptance as a `Deliverable Checklist` only (even for code tasks). Rationale: a 1-Q task does not warrant test-strategy deliberation.
+
+In **FULL mode**:
+
+For **code** — ask strategy via AskUserQuestion:
 ```json
 {"questions": [{"question": "Test strategy?", "header": "Strategy", "multiSelect": false, "options": [
   {"label": "Unit-heavy", "description": "Fast, mock deps, good isolation"},
@@ -394,11 +558,110 @@ For **code**: ask strategy via AskUserQuestion:
 ]}]}
 ```
 
-For **ops**: ask validation approach (smoke / full / dry-run).
+For **ops** — ask validation approach (smoke / full / dry-run).
 
-For **content**: skip strategy, go to checklist.
+For **content** — skip strategy, go straight to checklist.
+
+### 10.1 — Compose
 
 For every `[REQ-xx]` in DESIGN-SPEC, ensure ≥1 test references it via `**Covers**: [REQ-xx]`. Every test has a runnable command or concrete check step.
+
+### 10.2 — TEST-SPEC template (inline)
+
+Use the skeleton below. Render only sections that fit `$CATEGORY` + current mode.
+
+````markdown
+---
+tests_version: "1.0"
+spec_ref: "<component>-spec-v1.0"
+component: "<MUST MATCH DESIGN-SPEC component field>"
+category: "<code | ops | content>"
+strategy: "<unit | integration | mixed | smoke | full | dry-run | checklist>"
+language: "<same as DESIGN-SPEC>"
+---
+
+<!-- CODE variant (FULL mode) -->
+
+## Unit Tests
+
+### Test: <descriptive_name_snake_case>
+- **Covers**: [REQ-01]
+- **Input**: <concrete values>
+- **Setup**: <mocks/fixtures>
+- **Expected**: <exact output>
+- **Verify**: `<runnable command returning exit 0 on pass>`
+
+## Integration Tests
+
+### Test: <descriptive_name>
+- **Covers**: [REQ-02]
+- **Setup**: <environment, fixtures, external services>
+- **Steps**:
+  1. <step>
+  2. <step>
+- **Expected**: <outcome>
+- **Verify**: `<runnable command>`
+
+## Edge Cases
+| Case | Input | Expected behavior | Covers |
+|---|---|---|---|
+| Empty input | `""` | Return default / throw ValidationError | REQ-01 |
+| Boundary: max | `10000` | Accept | REQ-02 |
+| Boundary: over max | `10001` | Reject | REQ-02 |
+
+## Test Data / Fixtures
+<Mock data, factories, sample inputs.>
+
+## Coverage Target
+- Target: **≥ 80%** line coverage on changed files
+- Critical paths: **100%**
+
+<!-- OPS variant (FULL mode) -->
+
+## Pre-flight Checks
+- [ ] <prerequisite command>
+- [ ] <env file or secret present>
+
+## Integration Tests
+<Smoke + health checks. Named "Integration Tests" for validator uniformity.>
+
+### Check: <descriptive_name>
+- **Covers**: [REQ-01]
+- **Command**: `<runnable command>`
+- **Expected**: exit 0, output contains `<string>`, or status = running
+- **Timeout**: <seconds>
+
+## Rollback Verification
+
+### Rollback: <scenario>
+- **Trigger**: <what goes wrong>
+- **Steps**: <rollback commands>
+- **Verify**: `<confirm command>`
+
+## Edge Cases
+| Scenario | How to simulate | Expected behavior | Covers |
+|---|---|---|---|
+
+<!-- CONTENT variant + MINIMAL mode (all categories) -->
+
+## Deliverable Checklist
+
+### [REQ-01] <deliverable name>
+- [ ] File exists at: `<path>`
+- [ ] Covers required topics: <list>
+- [ ] Follows style guide / formatting rules
+
+## Review Criteria
+| Criterion | How to verify | Covers |
+|---|---|---|
+| Accuracy | Cross-check with source | REQ-01 |
+| Completeness | All outline sections present | REQ-02 |
+
+## Content Quality Gates
+- [ ] Spell-check passes
+- [ ] Internal links resolve
+- [ ] Code blocks run as documented (if any)
+````
 
 Write to `$SESSION_DIR/TEST-SPEC.md`.
 
