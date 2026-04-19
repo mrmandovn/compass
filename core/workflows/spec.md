@@ -184,7 +184,7 @@ en:
 
 vi: translate labels.
 
-Map `$TASK_TYPE` → `$CATEGORY` using `core/shared/spec-adaptive.md`:
+Map `$TASK_TYPE` → `$CATEGORY`:
 - feat / fix / refactor / perf / test → code
 - ci / infra / chore / deploy → ops
 - docs / design → content

@@ -1,6 +1,6 @@
 {
   "name": "@compass-m/cli-darwin-arm64",
-  "version": "1.0.24",
+  "version": "1.0.25",
   "description": "darwin-arm64 binary for compass-m",
   "os": [
     "darwin"

@@ -159,18 +159,34 @@ for WAVE_ID in $(seq $START_WAVE $TOTAL_WAVES); do
     CONTEXT_BUNDLE="$CONTEXT_BUNDLE\n\n--- Task $TASK_ID context ---\n$PACK"
   done
 
-  # --- Step 5.A2: Load worker rules ---
+  # --- Step 5.A2: Load worker rules (base + tech-stack + framework + test-framework addons) ---
   # Base rules (project override takes priority)
   if [ -f "$PROJECT_ROOT/.compass/worker-rules.md" ]; then
     WORKER_RULES=$(cat "$PROJECT_ROOT/.compass/worker-rules.md")
   else
     WORKER_RULES=$(cat "$HOME/.compass/core/worker-rules/base.md")
   fi
-  # Append matched framework addons based on config.tech_stack
-  TECH_STACK=$(echo "$CONFIG" | jq -r '.tech_stack // [] | .[]' 2>/dev/null)
-  for STACK in $TECH_STACK; do
-    ADDON="$HOME/.compass/core/worker-rules/addons/$STACK.md"
-    [ -f "$ADDON" ] && WORKER_RULES="$WORKER_RULES\n---\n$(sed '1,/^---$/d' "$ADDON")"
+
+  # Dedup tracker — avoid loading the same addon twice if listed in multiple fields
+  LOADED_ADDONS=""
+  _load_addon() {
+    local name="$1"
+    [ -z "$name" ] && return
+    echo " $LOADED_ADDONS " | grep -qw "$name" && return
+    # Project override wins over global
+    local addon="$PROJECT_ROOT/.compass/worker-rules/addons/$name.md"
+    [ ! -f "$addon" ] && addon="$HOME/.compass/core/worker-rules/addons/$name.md"
+    [ ! -f "$addon" ] && return
+    WORKER_RULES="$WORKER_RULES"$'\n---\n'"$(sed '1,/^---$/d' "$addon")"
+    LOADED_ADDONS="$LOADED_ADDONS $name"
+  }
+
+  TECH_STACK=$(echo "$CONFIG" | jq -r '.tech_stack // [] | .[]?' 2>/dev/null)
+  FRAMEWORKS=$(echo "$CONFIG" | jq -r '.frameworks // [] | .[]?' 2>/dev/null)
+  TEST_FRAMEWORKS=$(echo "$CONFIG" | jq -r '.test_frameworks // [] | .[]?' 2>/dev/null)
+
+  for NAME in $TECH_STACK $FRAMEWORKS $TEST_FRAMEWORKS; do
+    _load_addon "$NAME"
   done
 
   # --- Step 5.B: Build sub-agent prompt ---
@@ -282,7 +298,18 @@ JSON
 done
 ```
 
-**Review gate per wave**:
+### Step 5.F — Wave review gate
+
+**Mandatory**: After each wave's bash block executes (status updated, progress saved), the orchestrator invokes an AskUserQuestion BEFORE starting the next wave. Do NOT batch waves silently — the dev needs a control point between waves.
+
+Skip this gate only when `--auto` mode is active (set via `/compass:cook --auto` or inherited from upstream auto-chain). In auto mode, treat "Continue" as the implicit answer and print `⚡ Auto: Continue to next wave` instead of asking.
+
+Print the wave summary first (1-2 lines):
+```
+✓ Wave $WAVE_ID done — N tasks completed, M files changed, R retries used
+```
+
+Then:
 
 en:
 ```json
@@ -296,9 +323,11 @@ en:
 
 vi: translate.
 
-On "Retry this wave" → `git reset --hard HEAD~1`, remove wave from state, loop back to same wave.
-On "Pause" → status=paused in state, print resume hint, stop.
-On "Abort" → status=paused, stop.
+**Branch**:
+- **Continue** → proceed to next wave
+- **Retry this wave** → `git reset --hard HEAD~1`, remove wave from state, loop back to same wave
+- **Pause build** → status=paused in state, print resume hint, stop
+- **Abort build** → status=paused, stop
 
 ---
 

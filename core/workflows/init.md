@@ -115,22 +115,51 @@ vi:
 
 **IMPORTANT:** Replace every `<placeholder>` with actual detected values BEFORE calling AskUserQuestion.
 
-### Step 1-DEV.b — Stack detection
+### Step 1-DEV.b — Stack + framework detection
 
-Auto-detect tech stack from manifest files:
+Auto-detect tech stack, frameworks, and test frameworks from manifest files. Frameworks and test frameworks are separate from `tech_stack` — they unlock framework-specific worker-rule addons during `/compass:cook`.
 
 ```bash
 TARGET=$(pwd)
 DETECTED_STACKS=""
+DETECTED_FRAMEWORKS=""
+DETECTED_TEST_FRAMEWORKS=""
+
+# Tech stack (manifest-based)
 [ -f "$TARGET/package.json" ] && DETECTED_STACKS="$DETECTED_STACKS typescript"
 [ -f "$TARGET/tsconfig.json" ] && DETECTED_STACKS="$DETECTED_STACKS typescript"
 [ -f "$TARGET/Cargo.toml" ] && DETECTED_STACKS="$DETECTED_STACKS rust"
 [ -f "$TARGET/pyproject.toml" ] || [ -f "$TARGET/requirements.txt" ] && DETECTED_STACKS="$DETECTED_STACKS python"
 [ -f "$TARGET/go.mod" ] && DETECTED_STACKS="$DETECTED_STACKS go"
 [ -f "$TARGET/pom.xml" ] || [ -f "$TARGET/build.gradle" ] && DETECTED_STACKS="$DETECTED_STACKS java"
+
+# Frameworks (JS/TS ecosystem — package.json dependencies)
+if [ -f "$TARGET/package.json" ] && command -v jq >/dev/null 2>&1; then
+  DEPS=$(jq -r '[.dependencies // {}, .devDependencies // {}] | add | keys[]?' "$TARGET/package.json" 2>/dev/null)
+  echo "$DEPS" | grep -qx "react"          && DETECTED_FRAMEWORKS="$DETECTED_FRAMEWORKS react"
+  echo "$DEPS" | grep -qx "next"           && DETECTED_FRAMEWORKS="$DETECTED_FRAMEWORKS nextjs"
+  echo "$DEPS" | grep -qx "@nestjs/core"   && DETECTED_FRAMEWORKS="$DETECTED_FRAMEWORKS nestjs"
+  echo "$DEPS" | grep -qx "vue"            && DETECTED_FRAMEWORKS="$DETECTED_FRAMEWORKS vue"
+  echo "$DEPS" | grep -qx "@angular/core"  && DETECTED_FRAMEWORKS="$DETECTED_FRAMEWORKS angular"
+  echo "$DEPS" | grep -qx "svelte"         && DETECTED_FRAMEWORKS="$DETECTED_FRAMEWORKS svelte"
+  echo "$DEPS" | grep -qx "express"        && DETECTED_FRAMEWORKS="$DETECTED_FRAMEWORKS expressjs"
+
+  # Test frameworks
+  echo "$DEPS" | grep -qx "jest"              && DETECTED_TEST_FRAMEWORKS="$DETECTED_TEST_FRAMEWORKS jest"
+  echo "$DEPS" | grep -qx "vitest"            && DETECTED_TEST_FRAMEWORKS="$DETECTED_TEST_FRAMEWORKS vitest"
+  echo "$DEPS" | grep -q  "@testing-library"  && DETECTED_TEST_FRAMEWORKS="$DETECTED_TEST_FRAMEWORKS testing-library"
+  echo "$DEPS" | grep -qx "mocha"             && DETECTED_TEST_FRAMEWORKS="$DETECTED_TEST_FRAMEWORKS mocha"
+fi
+
 DETECTED_STACKS=$(echo "$DETECTED_STACKS" | tr ' ' '\n' | sort -u | tr '\n' ' ' | xargs)
+DETECTED_FRAMEWORKS=$(echo "$DETECTED_FRAMEWORKS" | tr ' ' '\n' | sort -u | tr '\n' ' ' | xargs)
+DETECTED_TEST_FRAMEWORKS=$(echo "$DETECTED_TEST_FRAMEWORKS" | tr ' ' '\n' | sort -u | tr '\n' ' ' | xargs)
 echo "DETECTED_STACKS=$DETECTED_STACKS"
+echo "DETECTED_FRAMEWORKS=$DETECTED_FRAMEWORKS"
+echo "DETECTED_TEST_FRAMEWORKS=$DETECTED_TEST_FRAMEWORKS"
 ```
+
+Framework detection is best-effort — it only covers the JS/TS ecosystem today (Rust/Python/Go frameworks fall back to tech_stack addons). Non-JS projects should see empty `DETECTED_FRAMEWORKS` and still work correctly.
 
 Branch on detection result:
 
@@ -244,6 +273,8 @@ cat > "$TARGET/.compass/.state/config.json" <<JSON
     "prefix": "<from Step 1-DEV.a>"
   },
   "tech_stack": [<detected/confirmed stacks as quoted strings>],
+  "frameworks": [<detected frameworks as quoted strings, or []>],
+  "test_frameworks": [<detected test frameworks as quoted strings, or []>],
   "mode": "standalone",
   "created_at": "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 }
@@ -317,9 +348,15 @@ echo "$CONFIG" | jq '.persona = "dev"' > "$TMP" && mv "$TMP" "$CONFIG_PATH"
 echo "PERSONA_UPDATED=dev"
 ```
 
-### 2-DEV.c — Stack detection (if missing)
+### 2-DEV.c — Stack + framework detection (if missing)
 
-If `tech_stack` is empty or missing in the current config, run stack detection (same logic as Step 1-DEV.b). If stacks are already present, skip this step.
+Run Step 1-DEV.b detection logic. Then merge into config:
+
+- If `tech_stack` is empty or missing → overwrite with `DETECTED_STACKS`. If already present, skip.
+- If `frameworks` is missing from config (existing projects pre-dating this field) → add `DETECTED_FRAMEWORKS` (or `[]` if none detected).
+- If `test_frameworks` is missing → add `DETECTED_TEST_FRAMEWORKS` (or `[]`).
+
+Write back via `jq` atomic update. Never clobber existing non-empty arrays.
 
 ### 2-DEV.d — GitNexus setup (if missing)
 

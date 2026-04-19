@@ -17,7 +17,7 @@ Read and execute the workflow at `~/.compass/core/workflows/prepare.md`.
 - If `$ARGUMENTS` contains "--auto", enable auto-recommend mode for this run. When any AskUserQuestion has an option with "(Recommended)" in the label, auto-select it without asking. Print the auto-selected choice as `⚡ Auto: <selected label>`. Strip "--auto" from `$ARGUMENTS` before passing to workflow.
 - Follow the workflow Steps in order.
 - Bash blocks are commands for you to run; AskUserQuestion blocks are user choices. Never synthesize menus from bash/CLI command listings.
-- Apply shared snippets inline (`resolve-project.md`, `spec-adaptive.md`).
+- Apply shared snippets inline (`resolve-project.md`).
 - Wave grouping rules are enforced — respect the 1-4 tasks/wave cap and file-conflict rule.
 - Run `compass-cli dag check` + `compass-cli validate plan` best-effort; fall back to inline validation if CLI schema rejects dev extras.
 

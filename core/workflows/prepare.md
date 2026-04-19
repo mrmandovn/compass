@@ -100,7 +100,7 @@ Sanity: every `REQ-XX` appears in ≥1 test. Print warning for any REQ with no t
 
 ## Step 3 — Decompose into atomic tasks
 
-Apply category-specific decomposition rules from `core/shared/spec-adaptive.md`:
+Apply category-specific decomposition rules:
 
 **code category**:
 - 1 task ≈ 1 file modification OR 1 interface implementation OR 1 test addition
