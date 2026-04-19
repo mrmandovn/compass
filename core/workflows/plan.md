@@ -232,8 +232,9 @@ Stage 4 (depends_on Stage 3):
   [C-06] Reviewer → depends_on: C-03, C-04, C-05 → output: review-<slug>.md
 ```
 
-Use AskUserQuestion to ask for approval or changes:
+Use AskUserQuestion to ask for approval or changes. Pick the block matching `$LANG`:
 
+en:
 ```json
 {
   "questions": [
@@ -253,8 +254,25 @@ Use AskUserQuestion to ask for approval or changes:
 }
 ```
 
-**Vietnamese prompt example:**
-> "DAG plan đã sẵn sàng! Bạn muốn duyệt plan này không, hay cần điều chỉnh thêm Colleague hoặc depends_on?"
+vi:
+```json
+{
+  "questions": [
+    {
+      "question": "DAG plan có đúng không?",
+      "header": "Review execution plan",
+      "multiSelect": false,
+      "options": [
+        { "label": "Duyệt — lưu và tiếp tục", "description": "Lưu plan.json, sẵn sàng chạy /compass:run" },
+        { "label": "Thêm Colleague", "description": "Thêm Colleague type khác vào plan" },
+        { "label": "Bỏ Colleague", "description": "Bỏ một Colleague hiện tại khỏi DAG" },
+        { "label": "Đổi dependency", "description": "Điều chỉnh Colleague nào depends_on Colleague nào" },
+        { "label": "Điều chỉnh scope/complexity", "description": "Đổi complexity hoặc budget cho 1 Colleague cụ thể" }
+      ]
+    }
+  ]
+}
+```
 
 If PO requests changes:
 - **Add Colleague**: prompt for type → insert into manifest lookup → recalculate depends_on and stages → re-validate DAG → show updated plan

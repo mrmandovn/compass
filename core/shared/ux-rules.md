@@ -13,11 +13,17 @@ This module defines the universal UX rules for all Compass workflows. Every work
 > 4. **Be warm and concise.** One short sentence to introduce each question. No walls of text.
 > 5. **Language**: ALL user-facing chat text MUST be in `lang` from `$PROJECT_ROOT/.compass/.state/config.json` (resolved per `core/shared/resolve-project.md`). Artifact/file content uses `spec_lang`. They can differ (e.g. chat in Vietnamese, PRD in English).
 > 6. **NEVER use "Open text" or empty options.** Every AskUserQuestion MUST have ≥2 meaningful, context-aware suggestions. Scan the project (existing PRDs, stories, research, config) to generate smart defaults. The built-in "Type your own answer" already handles free input — your job is to SUGGEST, not to ask blank questions.
-> 7. **AskUserQuestion format**: when this workflow says "Use AskUserQuestion", call the tool with this EXACT JSON structure. Do NOT invent your own format:
+> 7. **AskUserQuestion format**: when this workflow says "Use AskUserQuestion", call the tool with this EXACT JSON **structure** — field names, nesting, required fields must match literally:
 > ```json
 > {"questions": [{"question": "...", "header": "...", "multiSelect": false, "options": [{"label": "...", "description": "..."}, ...]}]}
 > ```
 > Every call MUST have: `questions` (array), each with `question` (string), `header` (string), `multiSelect` (boolean), `options` (array of `{label, description}` objects). Missing any of these fields will cause "invalid arguments" errors.
+>
+> 7b. **Content language (question, header, labels, descriptions)**: must match `lang` from config.
+>  - When the workflow provides **paired `en:` / `vi:` blocks**, pick the block matching `lang` and use it verbatim. Do not mix blocks.
+>  - When the workflow provides a **single-language template** (typically English) and `lang=vi`, you MUST translate ALL user-visible text — question + header + EVERY label + EVERY description — to Vietnamese with full diacritics (dấu). Consistent direction: either fully EN or fully VI. Do NOT half-translate (e.g. English labels + Vietnamese descriptions); that creates a "mixed-language menu" bug.
+>  - **Keep in original form**: domain terms (`Colleague`, `DAG`, `plan.json`), command names (`/compass:<name>`), file paths, CLI flags (`--auto`), stack/framework names (`typescript`, `react`). Translate only action verbs, connectors, and explanatory text.
+>  - Structure (JSON field names, schema) is always literal — NEVER translate field names like `question`, `header`, `label`.
 
 ---
 
