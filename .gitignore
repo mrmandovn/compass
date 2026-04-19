@@ -20,3 +20,7 @@ Thumbs.db
 
 # Platform binaries — built by CI, not committed
 npm/cli-*/compass-cli
+
+# Local — never commit
+cli/src/gdrive_client.rs
+.gdrive-token.json

@@ -1,5 +1,6 @@
 mod cmd;
 mod helpers;
+mod gdrive_client;
 
 fn main() {
     let args: Vec<String> = std::env::args().collect();
@@ -24,6 +25,8 @@ fn main() {
         "progress" => cmd::progress::run(&args[2..]),
         "migrate" => cmd::migrate::run(&args[2..]),
         "project" => cmd::project::run(&args[2..]),
+        "gdrive" => cmd::gdrive::run(&args[2..]),
+        "sheet" => cmd::sheet::run(&args[2..]),
         _ => {
             print_usage();
             std::process::exit(1);
@@ -72,4 +75,6 @@ fn print_usage() {
     eprintln!("  progress save|load|clear <dir>   Progress persistence");
     eprintln!("  migrate <project_root>           Migrate v0.x state to v1.0 (idempotent)");
     eprintln!("  project resolve|list|use|add|remove|global-config  Project registry + active-project switching");
+    eprintln!("  gdrive auth|status|download <id_or_url>  Google Drive OAuth + download (PKCE)");
+    eprintln!("  sheet list|parse <xlsx> [name]   Parse sprint sheet from xlsx");
 }
