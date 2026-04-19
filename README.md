@@ -14,9 +14,8 @@
 
 | Role | Flow | Output |
 |---|---|---|
-| **Product Manager** | `brief → plan → run → check` | PRDs, User Stories, Epics, Roadmap |
+| **Product Manager / Product Owner** | `brief → plan → run → check` | PRDs, User Stories, Epics, Roadmap |
 | **Developer** | `spec → prepare → cook → test → commit` | DESIGN-SPEC → wave plan → code + tests + commit |
-| **Quick Fix** | `fix` | Cross-layer root-cause trace → minimal hotfix |
 
 Each task runs in a **fresh AI context** with strict file scope — no context rot, no scope creep.
 
