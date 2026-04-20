@@ -238,7 +238,9 @@ Tick after each question is answered. Final summary in Step 8.
 
 ### Question A: Title (PRD_LINKED mode)
 
-When PRD_LINKED mode is active, replace the blank title prompt with a REQ picker. Parse the linked PRD for `[REQ-01]`, `[REQ-02]`, ... lines in its Requirements section. Filter out REQs already covered by existing stories.
+When PRD_LINKED mode is active, replace the blank title prompt with a REQ picker. **Use the PRD already read in Step 2** — do NOT re-read from disk. Parse `[REQ-01]`, `[REQ-02]`, ... lines from its Requirements section. Filter out REQs already covered by existing stories.
+
+When iterating (Step 2 user picked "all stories"), Step 4.0 runs once per iteration — each iteration's REQ picker shows the REQs still uncovered after prior iterations' stories were written.
 
 **Existing-story scan path depends on EPIC_MODE** (resolved in Step 3):
 - `EPIC_MODE == "under_epic"` → scan `epics/{EPIC}/user-stories/*.md`
