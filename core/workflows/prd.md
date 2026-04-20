@@ -246,6 +246,24 @@ Construct the type + targets proposal and confirm via AskUserQuestion:
 - "Actually enhancement of different sections" → show multi-select picker with all 6 sections (A-F), PO picks targets
 - "Let me explain" → free-text → AI re-analyzes → re-propose
 
+**Guard: enhancement requires a source to inherit from**
+
+If `PRD_TYPE = enhancement` AND `PRIOR_PRD_SECTIONS = null` (source was "new idea" or no readable prior PRD), sections C/D/E/F not in `PRD_TARGETS` have nothing to inherit from — Step 6 compose would produce a PRD with empty inherited sections. Resolve before Step 4:
+
+AskUserQuestion:
+```json
+{"questions": [{"question": "Enhancement without a source PRD to inherit from. Pick one:", "header": "Source missing", "multiSelect": false, "options": [
+  {"label": "Provide source PRD path now", "description": "Read an existing PRD to inherit non-targeted sections from"},
+  {"label": "Treat as new-feature (full PRD)", "description": "Render all 6 sections since no inheritance source"},
+  {"label": "Expand PRD_TARGETS to cover everything", "description": "Render all targeted sections myself — no inheritance needed"}
+]}]}
+```
+
+Based on answer:
+- "Provide source path" → loop back to Step 3b to read source
+- "Treat as new-feature" → override `PRD_TYPE = new-feature`, `PRD_TARGETS = [A, B, C, D, E, F]`
+- "Expand targets" → override `PRD_TARGETS = [A, B, C, D, E, F]` (keep type=enhancement but render everything)
+
 ### 3d. Resolve which sections to render in Step 4
 
 Based on `PRD_TYPE` + `PRD_TARGETS`:
@@ -296,20 +314,32 @@ After each section's batched AskUserQuestion answer is received, tick that line 
 >
 > Smart-depth sections (E, F) may batch 2–4 questions depending on complexity.
 
-**MINIMAL PRD mode** (adaptive depth for simple tasks):
+**MINIMAL PRD mode** (adaptive depth for truly trivial tasks):
 
-Trigger when ALL of the following hold (judged at Step 4 entry, before rendering any section):
-- `source == "A new idea"` (Step 3a answer) — not an update, not from IDEA file, not a brief
-- `$ARGUMENTS` is narrow — word count < 15
-- User didn't explicitly expand scope in Step 3c (picked Confirm rather than "Actually new-feature" override)
+Word count alone is a poor trigger — "add 2FA login for enterprise tier" is 9 words but needs a full PRD (Users, Metrics, Flow all matter). Trigger MINIMAL only when the task is OBVIOUSLY trivial based on semantic judgment, not length.
+
+Judge MINIMAL by evaluating 3 signals. ALL must hold:
+
+1. **Trivial verb + narrow object** — input matches patterns like:
+   - "add <simple UI element>" (button, tooltip, icon, label, placeholder, link)
+   - "fix/update/change <copy/wording/text>" (error message, button label, tooltip, doc text)
+   - "rename X to Y" (single identifier change)
+   - "remove <deprecated feature>" (clear deletion, no new scope)
+   - Counter-examples: "add 2FA", "add payment", "add authentication" — these are features, not trivial
+2. **No actor/persona implications** — input doesn't mention user segments, tiers, or roles (no "enterprise", "admin", "guest", etc.)
+3. **No measurable goal implied** — input doesn't mention metrics, conversion, retention, KPIs
+
+If all 3 hold AND `source == "A new idea"` AND user picked Confirm (didn't override to "Actually new-feature") → MINIMAL fires.
+
+AI should lean **strict** — when in doubt, skip MINIMAL and run full flow. MINIMAL is for 1-line PRDs, not "small features."
 
 In MINIMAL mode, override `PRD_TARGETS` to `[A, B]` (force narrow scope regardless of proposal):
 - Merge A + B into a single 2-question batch (feature name + problem statement)
 - Skip Sections C/D/E/F interview entirely
 - Step 6 composes a 1-page PRD format (Overview only + AC)
-- Use for quick-spec features where a full PRD is overkill — e.g. "add logout button", "fix tooltip wording"
+- Good fits: "add logout button to settings", "fix typo in error toast", "rename Settings page to Preferences"
 
-Print `✓ MINIMAL PRD mode — 1-page format (task is narrow; full PRD would be overkill)` at start.
+Print `✓ MINIMAL PRD mode — 1-page format (task is trivial; full PRD would be overkill)` at start.
 
 PO can opt out by picking "Actually new-feature" at Step 3c, which forces `PRD_TARGETS = [A, B, C, D, E, F]` and disables MINIMAL.
 

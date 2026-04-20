@@ -157,7 +157,7 @@ Store both. Depth drives section count, word budget, and YoY compare inclusion.
 
 #### 2a-custom — only when user picks "Custom date range + depth"
 
-Ask depth as a second question (custom range is asked in Step 2b):
+Ask depth as a second question (custom range is asked in Step 2b). Map the picked label to `$REPORT_DEPTH`:
 
 ```json
 {"questions": [{"question": "Depth for the custom period?", "header": "Depth", "multiSelect": false, "options": [
@@ -168,28 +168,44 @@ Ask depth as a second question (custom range is asked in Step 2b):
 ]}]}
 ```
 
+Mapping: Lite → `$REPORT_DEPTH=lite`, Standard → `standard`, Extensive → `extensive`, Full → `full`. Set `$PERIOD_TYPE=custom`; the range itself will be collected in Step 2b-custom.
+
 ### Step 2b — Choose the concrete period
 
 Branch by `$PERIOD_TYPE`.
 
 #### 2b-month — `$PERIOD_TYPE = month`
 
+Compute month labels first (bash, before AskUserQuestion):
+
+```bash
+# This month
+THIS_MONTH_LABEL=$(date -u +'%B %Y')       # e.g. "March 2026"
+THIS_MONTH_SUFFIX=$(date -u +'%Y-%m')      # e.g. "2026-03"
+
+# Last month (handle year rollover for January)
+PREV_MONTH_LABEL=$(date -u -v-1m +'%B %Y' 2>/dev/null || date -u -d "last month" +'%B %Y')
+PREV_MONTH_SUFFIX=$(date -u -v-1m +'%Y-%m' 2>/dev/null || date -u -d "last month" +'%Y-%m')
+```
+
+Resolve placeholders before the AskUserQuestion — don't pass raw `<prev_month_label>` to the user.
+
 en:
 ```json
 {"questions": [{"question": "Which month?", "header": "Month", "multiSelect": false, "options": [
-  {"label": "Last month (<prev_month_label>)", "description": "Most recent completed month"},
-  {"label": "Current month (<this_month_label>, partial)", "description": "Month-to-date — may have incomplete data"},
+  {"label": "Last month (<PREV_MONTH_LABEL>)", "description": "Most recent completed month"},
+  {"label": "Current month (<THIS_MONTH_LABEL>, partial)", "description": "Month-to-date — may have incomplete data"},
   {"label": "Other", "description": "Type YYYY-MM manually (e.g. 2026-03)"}
 ]}]}
 ```
 
 vi: translate labels (`Tháng trước`, `Tháng hiện tại (đến nay)`, `Khác`).
 
-Derive:
+Derive final variables from the picked month:
 - `$PERIOD_START = YYYY-MM-01`
-- `$PERIOD_END = last day of YYYY-MM` (28/30/31 based on month)
-- `$PERIOD_LABEL = "<Month name> <YEAR>"` (e.g. `March 2026`)
-- `$PERIOD_SUFFIX = "<YYYY-MM>"` (e.g. `2026-03`)
+- `$PERIOD_END = last day of YYYY-MM` — compute via `date -v+1m -v1d -v-1d` (macOS) or equivalent
+- `$PERIOD_LABEL = PREV_MONTH_LABEL` or `THIS_MONTH_LABEL` as picked
+- `$PERIOD_SUFFIX = PREV_MONTH_SUFFIX` or `THIS_MONTH_SUFFIX`
 
 #### 2b-quarter — `$PERIOD_TYPE = quarter`
 

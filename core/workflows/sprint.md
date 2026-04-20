@@ -147,16 +147,25 @@ Use AskUserQuestion for sprint duration:
 
 **When `$AVG_VELOCITY` is non-empty** (prior sprints exist):
 
+Compute the 3 derived values as integers BEFORE building the AskUserQuestion — resolve all placeholders:
+
+```bash
+CONSERVATIVE=$(awk -v v="$AVG_VELOCITY" 'BEGIN{ printf "%d", int(v*0.8+0.5) }')
+STRETCH=$(awk -v v="$AVG_VELOCITY" 'BEGIN{ printf "%d", int(v*1.2+0.5) }')
+```
+
+Then build the options with literal integers, not `<AVG_VELOCITY * 0.8>` expressions:
+
 ```json
 {"questions": [{"question": "Team capacity for this sprint?\n(Tiếng Việt: Năng lực của nhóm sprint này?)", "header": "Team capacity", "multiSelect": false, "options": [
   {"label": "<AVG_VELOCITY>pt — last 3 sprints' avg (Recommended)", "description": "Matches recent velocity — safe baseline / Khớp velocity gần đây"},
-  {"label": "<AVG_VELOCITY * 0.8>pt — conservative (80%)", "description": "Leave buffer for unknowns / Để buffer cho rủi ro"},
-  {"label": "<AVG_VELOCITY * 1.2>pt — stretch (120%)", "description": "Sprint with confidence / Sprint tự tin hơn"},
+  {"label": "<CONSERVATIVE>pt — conservative (80%)", "description": "Leave buffer for unknowns / Để buffer cho rủi ro"},
+  {"label": "<STRETCH>pt — stretch (120%)", "description": "Sprint with confidence / Sprint tự tin hơn"},
   {"label": "Custom — I'll specify points / days / stories", "description": "Override manually / Tự chỉ định"}
 ]}]}
 ```
 
-Compute `<AVG_VELOCITY * 0.8>` and `<AVG_VELOCITY * 1.2>` as integers (round) before putting in labels — resolve placeholders.
+Substitute `<AVG_VELOCITY>`, `<CONSERVATIVE>`, `<STRETCH>` with the computed integer values before calling the tool.
 
 **When `$AVG_VELOCITY` is empty** (first sprint — no prior data):
 

@@ -97,28 +97,39 @@ fi
 # Find most recent release for version increment suggestion
 RECENT_RELEASE=$(ls -t "$PROJECT_ROOT"/release-notes/*.md 2>/dev/null | head -1)
 if [ -n "$RECENT_RELEASE" ]; then
-  LAST_VERSION=$(grep -m1 '^version:' "$RECENT_RELEASE" | sed 's/^version: *//;s/ *$//')
+  LAST_VERSION=$(grep -m1 '^version:' "$RECENT_RELEASE" | sed 's/^version: *//;s/ *"//;s/"//;s/ *$//')
 fi
+
+# Compute semver increments. Default to 1.0.0 if no prior release.
+: "${LAST_VERSION:=1.0.0}"
+# Strip leading 'v' if present
+CLEAN_VERSION="${LAST_VERSION#v}"
+MAJOR=$(echo "$CLEAN_VERSION" | cut -d. -f1)
+MINOR=$(echo "$CLEAN_VERSION" | cut -d. -f2)
+PATCH=$(echo "$CLEAN_VERSION" | cut -d. -f3)
+: "${MAJOR:=1}"; : "${MINOR:=0}"; : "${PATCH:=0}"
+
+PATCH_INC="${MAJOR}.${MINOR}.$((PATCH + 1))"
+MINOR_INC="${MAJOR}.$((MINOR + 1)).0"
+MAJOR_INC="$((MAJOR + 1)).0.0"
 ```
 
-From scan results, derive 3 proposals:
-- `period_label = "<SPRINT_NAME> (<SPRINT_START> → <SPRINT_END>)"` if sprint found
-- `version_proposals` — patch/minor increments of `LAST_VERSION` (e.g. `1.0.3` → `{1.0.4, 1.1.0, 2.0.0}`)
+Derived so far: `SPRINT_NAME`, `SPRINT_START`, `SPRINT_END`, `LAST_VERSION`, `PATCH_INC`, `MINOR_INC`, `MAJOR_INC`.
+
+Build `PERIOD_LABEL = "<SPRINT_NAME> (<SPRINT_START> → <SPRINT_END>)"`.
 
 ### 2b. Ask period + version (pre-filled from scan)
 
-**When a recent sprint was found** — propose its period as Recommended:
+**When a recent sprint was found** — propose its period as Recommended. Substitute all placeholders (PERIOD_LABEL, PATCH_INC, MINOR_INC, MAJOR_INC) with the computed values before calling the tool — do NOT pass literal `<PERIOD_LABEL>` strings to AskUserQuestion:
 
 ```json
 {"questions": [{"question": "Release period + version?", "header": "Period & version", "multiSelect": false, "options": [
-  {"label": "<period_label> — v<patch_inc> (Recommended)", "description": "Bug fixes + stories done in this sprint / Từ sprint này"},
-  {"label": "<period_label> — v<minor_inc>", "description": "New features added this sprint"},
-  {"label": "<period_label> — v<major_inc>", "description": "Breaking changes this sprint"},
+  {"label": "<PERIOD_LABEL> — v<PATCH_INC> (Recommended)", "description": "Bug fixes + stories done in this sprint"},
+  {"label": "<PERIOD_LABEL> — v<MINOR_INC>", "description": "New features added this sprint"},
+  {"label": "<PERIOD_LABEL> — v<MAJOR_INC>", "description": "Breaking changes this sprint"},
   {"label": "Custom period + version", "description": "I'll specify date range and version string manually"}
 ]}]}
 ```
-
-Substitute placeholders with computed values — no literal `<...>` in the final AskUserQuestion.
 
 **When no recent sprint found** — fall back to manual version picker (existing behavior):
 
