@@ -202,7 +202,7 @@ Options labels must be RESOLVED — no placeholders. Descriptions explain why th
 
 Generate options in `lang`. If `lang=vi`, Vietnamese labels/descriptions with full diacritics.
 
-```
+---
 
 ## Step 4: Parallel research agents
 

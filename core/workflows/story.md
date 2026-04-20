@@ -238,7 +238,16 @@ Tick after each question is answered. Final summary in Step 8.
 
 ### Question A: Title (PRD_LINKED mode)
 
-When PRD_LINKED mode is active, replace the blank title prompt with a REQ picker. Parse the linked PRD for `[REQ-01]`, `[REQ-02]`, ... lines in its Requirements section. Filter out REQs already covered by existing stories (check `epics/{EPIC}/user-stories/*.md` frontmatter for `covers: [REQ-xx]`).
+When PRD_LINKED mode is active, replace the blank title prompt with a REQ picker. Parse the linked PRD for `[REQ-01]`, `[REQ-02]`, ... lines in its Requirements section. Filter out REQs already covered by existing stories.
+
+**Existing-story scan path depends on EPIC_MODE** (resolved in Step 3):
+- `EPIC_MODE == "under_epic"` → scan `epics/{EPIC}/user-stories/*.md`
+- `EPIC_MODE == "standalone"` (Silver Tiger without epic OR standalone project) → scan `.compass/Stories/*.md`
+- Silver Tiger with no epic picked yet → scan both paths to be safe
+
+Parse each story's frontmatter for `covers: [REQ-xx]` (array) and mark those REQs covered. Skip files that fail to parse (malformed frontmatter is not a story-linked coverage source).
+
+If REQ parsing from PRD yields zero requirements (e.g. PRD uses a non-standard format) → fall back to STANDALONE mode silently and continue with the blank title prompt. Do NOT force a broken REQ picker.
 
 Generate options — one per uncovered REQ + a "custom title" fallback:
 

@@ -120,16 +120,17 @@ Sprint planning produces a free-form sprint plan file — no template is needed 
 Before asking capacity, scan recent sprint files to pre-compute defaults:
 
 ```bash
-# Glob existing sprint plan files and parse their capacity
+# Glob existing sprint plan files and parse committed points (the velocity basis).
+# Per sprint.md Step 5 schema, each sprint file has `committed: <N> points` in frontmatter.
 PRIOR_SPRINTS=$(ls -t "$PROJECT_ROOT"/sprints/SPRINT-*.md 2>/dev/null | head -5)
 VELOCITIES=""
 for f in $PRIOR_SPRINTS; do
-  # Parse total points from frontmatter or "Selected (X pts)" section header
-  pts=$(grep -oE 'Selected \([0-9]+/[0-9]+ pts\)' "$f" | head -1 | grep -oE '[0-9]+' | head -1)
+  # Parse committed from frontmatter: `committed: 25 points` → 25
+  pts=$(grep -m1 '^committed:' "$f" | grep -oE '[0-9]+' | head -1)
   [ -n "$pts" ] && VELOCITIES="$VELOCITIES $pts"
 done
-# Average last 3 (or fewer if <3 prior sprints)
-AVG_VELOCITY=$(echo $VELOCITIES | awk '{s=0;n=0; for(i=1;i<=NF;i++){s+=$i;n++} if(n>0) printf "%d", s/n}')
+# Average the last 3 (or fewer if <3 prior sprints). Integer result for UI.
+AVG_VELOCITY=$(echo $VELOCITIES | awk '{s=0;n=0; for(i=1;i<=NF && i<=3;i++){s+=$i;n++} if(n>0) printf "%d", s/n}')
 ```
 
 If `$AVG_VELOCITY` is empty (no prior sprints or parse failed), skip the auto-detect options — fall back to the manual capacity picker.

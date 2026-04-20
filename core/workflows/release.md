@@ -89,9 +89,9 @@ Before asking, scan recent sprint/release artifacts to pre-compute proposals:
 RECENT_SPRINT=$(ls -t "$PROJECT_ROOT"/sprints/SPRINT-*.md 2>/dev/null | head -1)
 if [ -n "$RECENT_SPRINT" ]; then
   SPRINT_NAME=$(basename "$RECENT_SPRINT" .md)
-  # Parse frontmatter start_date / end_date if present
-  SPRINT_START=$(grep -m1 '^start_date:' "$RECENT_SPRINT" | sed 's/^start_date: *//;s/ *$//')
-  SPRINT_END=$(grep -m1 '^end_date:' "$RECENT_SPRINT" | sed 's/^end_date: *//;s/ *$//')
+  # Parse frontmatter `start` and `end` fields (per sprint.md Step 5 schema)
+  SPRINT_START=$(grep -m1 '^start:' "$RECENT_SPRINT" | sed 's/^start: *//;s/ *$//')
+  SPRINT_END=$(grep -m1 '^end:' "$RECENT_SPRINT" | sed 's/^end: *//;s/ *$//')
 fi
 
 # Find most recent release for version increment suggestion

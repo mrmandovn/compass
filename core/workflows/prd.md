@@ -298,12 +298,20 @@ After each section's batched AskUserQuestion answer is received, tick that line 
 
 **MINIMAL PRD mode** (adaptive depth for simple tasks):
 
-If source = "A new idea" AND `$ARGUMENTS` is narrow (< 15 words) AND `PRD_TARGETS = [A, B]` only → enter MINIMAL mode:
-- Merge A + B into a single 2-question batch (feature name + problem statement)
-- Skip to Step 6 compose with a 1-page PRD format (Overview only, no Sections C-F)
-- Use for quick-spec features where a full PRD is overkill
+Trigger when ALL of the following hold (judged at Step 4 entry, before rendering any section):
+- `source == "A new idea"` (Step 3a answer) — not an update, not from IDEA file, not a brief
+- `$ARGUMENTS` is narrow — word count < 15
+- User didn't explicitly expand scope in Step 3c (picked Confirm rather than "Actually new-feature" override)
 
-Print `✓ MINIMAL PRD mode — 1-page format` at start.
+In MINIMAL mode, override `PRD_TARGETS` to `[A, B]` (force narrow scope regardless of proposal):
+- Merge A + B into a single 2-question batch (feature name + problem statement)
+- Skip Sections C/D/E/F interview entirely
+- Step 6 composes a 1-page PRD format (Overview only + AC)
+- Use for quick-spec features where a full PRD is overkill — e.g. "add logout button", "fix tooltip wording"
+
+Print `✓ MINIMAL PRD mode — 1-page format (task is narrow; full PRD would be overkill)` at start.
+
+PO can opt out by picking "Actually new-feature" at Step 3c, which forces `PRD_TARGETS = [A, B, C, D, E, F]` and disables MINIMAL.
 
 ### Section A: Identity (1 turn, 1 batched call)
 

@@ -172,6 +172,25 @@ Ask depth as a second question (custom range is asked in Step 2b):
 
 Branch by `$PERIOD_TYPE`.
 
+#### 2b-month — `$PERIOD_TYPE = month`
+
+en:
+```json
+{"questions": [{"question": "Which month?", "header": "Month", "multiSelect": false, "options": [
+  {"label": "Last month (<prev_month_label>)", "description": "Most recent completed month"},
+  {"label": "Current month (<this_month_label>, partial)", "description": "Month-to-date — may have incomplete data"},
+  {"label": "Other", "description": "Type YYYY-MM manually (e.g. 2026-03)"}
+]}]}
+```
+
+vi: translate labels (`Tháng trước`, `Tháng hiện tại (đến nay)`, `Khác`).
+
+Derive:
+- `$PERIOD_START = YYYY-MM-01`
+- `$PERIOD_END = last day of YYYY-MM` (28/30/31 based on month)
+- `$PERIOD_LABEL = "<Month name> <YEAR>"` (e.g. `March 2026`)
+- `$PERIOD_SUFFIX = "<YYYY-MM>"` (e.g. `2026-03`)
+
 #### 2b-quarter — `$PERIOD_TYPE = quarter`
 
 en:
@@ -455,6 +474,17 @@ Raw status values in the wild are not uniform. Before aggregating, map each valu
 ### Step 5.2 — Auto-draft heuristics
 
 For each section of the template, compose content in memory using Step 4b data. The PO is not asked anything here — these are AI-drafted proposals that the review gate will let them accept or override.
+
+**Depth adaptation per `$REPORT_DEPTH`** (set in Step 2a):
+
+| Depth | Target length | Section count | YoY compare | Per-product deep dives |
+|---|---|---|---|---|
+| `lite` | ~1 page (500-800 words) | Overview + top 3 bullets only | No | No (domain rollup only) |
+| `standard` | ~5 pages (2000-2500 words) | All template sections, 1-2 paragraphs each | No | One paragraph per product |
+| `extensive` | ~10 pages (4000-5000 words) | All sections + YoY table + per-product subsections | Yes | 2-3 paragraphs per product |
+| `full` | ~15+ pages (6000+ words) | All sections + YoY + per-product + strategic reflection + risks deep dive | Yes | Full subsection per product with metrics + commentary |
+
+Compose content to match the target length. `lite` reports skip the per-product subsections entirely — the domain summary IS the report. `full` reports expand every section with commentary and strategic context.
 
 **Period in 3 Bullets** (domain summary):
 1. Biggest ship — pick the release in period with the highest semver (fallback: latest `date`). Highlight line = first non-empty line after the release-note's `## What Shipped` header (fallback: first row of `## Features & Changes` table, else first non-frontmatter paragraph).
