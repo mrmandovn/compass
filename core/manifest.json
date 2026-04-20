@@ -1,12 +1,12 @@
 {
   "name": "compass",
   "version": "1.0.30",
-  "description": "Product Management productivity toolkit \u2014 repo-aware, multi-host, with integrations wizard",
+  "description": "Product Management productivity toolkit — repo-aware, multi-host, with integrations wizard",
   "language_default": "en",
   "commands": [
     {
       "name": "init",
-      "description": "Set up Compass for the current project \u2014 language, stakeholders, repo-aware mode detection, and integrations wizard (Jira, Figma, Confluence, Vercel)",
+      "description": "Set up Compass for the current project — language, stakeholders, repo-aware mode detection, and integrations wizard (Jira, Figma, Confluence, Vercel)",
       "workflow": "init.md",
       "produces": ".state/config.json",
       "tags": [
@@ -41,7 +41,7 @@
     },
     {
       "name": "prd",
-      "description": "Write a complete PRD \u2014 NO code, follows the team's template. In Silver Tiger mode, auto-discovers dependencies from the capability registry.",
+      "description": "Write a complete PRD — NO code, follows the team's template. In Silver Tiger mode, auto-discovers dependencies from the capability registry.",
       "workflow": "prd.md",
       "produces": "PRDs/PRD-<slug>.md or prd/<PREFIX>-<date>-<slug>.md",
       "tags": [
@@ -70,7 +70,7 @@
     },
     {
       "name": "research",
-      "description": "Structured research \u2014 competitive analysis, market research, user feedback, tech evaluation",
+      "description": "Structured research — competitive analysis, market research, user feedback, tech evaluation",
       "workflow": "research.md",
       "produces": "research/RESEARCH-<slug>.md",
       "tags": [
@@ -162,7 +162,7 @@
     },
     {
       "name": "sprint",
-      "description": "Sprint planning \u2014 select stories by priority and capacity",
+      "description": "Sprint planning — select stories by priority and capacity. Also supports sprint review aggregation (/compass:sprint review) and import from Google Sheets to Jira (/compass:sprint import <url>).",
       "workflow": "sprint.md",
       "produces": "sprints/SPRINT-<number>-<slug>.md",
       "tags": [
@@ -181,7 +181,7 @@
     },
     {
       "name": "undo",
-      "description": "Restore the previous version of the last modified document. Shows what will be restored, never deletes \u2014 renames instead. Confirms with PO before any action.",
+      "description": "Restore the previous version of the last modified document. Shows what will be restored, never deletes — renames instead. Confirms with PO before any action.",
       "workflow": "undo.md",
       "tags": [
         "meta",
@@ -207,7 +207,7 @@
     },
     {
       "name": "report",
-      "description": "Generate a period report (quarterly, half-year, annual, custom) from project artifacts and Jira data",
+      "description": "Generate a period report (monthly, quarterly, half-year, multi-quarter, annual, or custom date range) from project artifacts and Jira data. Depth scales with period type.",
       "workflow": "report.md",
       "produces": "reports/REPORT-<period>-<slug>.md",
       "tags": [
