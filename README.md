@@ -14,8 +14,8 @@
 
 | Role | Flow | Output |
 |---|---|---|
-| **Product Manager / Product Owner** | `brief → plan → run → check` | PRDs, User Stories, Epics, Roadmap |
-| **Developer** | `spec → prepare → cook → test → commit` | DESIGN-SPEC → wave plan → code + tests + commit |
+| **Product Manager / Product Owner** | `brief → plan → run → check` | PRD · User Stories · Epic · Research · Metrics plan · Compliance review · Roadmap · Sprint plan · Release notes |
+| **Developer** | `spec → prepare → cook → test → commit` | DESIGN-SPEC · TEST-SPEC · wave plan (DAG) · scoped code commits on feat branch · test results |
 
 Each task runs in a **fresh AI context** with strict file scope — no context rot, no scope creep.
 
@@ -175,13 +175,13 @@ Full list: `/compass:help` (PM mode) or `/compass:help dev` (dev mode).
 
 ---
 
-## AI Colleagues (PM mode)
+## AI Colleagues
 
-8 specialized workers that run in parallel waves:
+10 specialized workers composed per task needs, running in parallel waves:
 
-Research Aggregator · Market Analyst · Product Writer · Story Breaker · Backlog Prioritizer · Consistency Reviewer · UX Reviewer · Stakeholder Communicator
+Research Aggregator · Market Analyst · Data Analyst · Product Writer · Story Breaker · Backlog Prioritizer · UX Reviewer · Consistency Reviewer · Compliance Reviewer · Stakeholder Communicator
 
-Each runs in an isolated context with only the files its task needs — no shared state, no context bleed.
+Each runs in an isolated context with only the files its task needs — no shared state, no context bleed. Team is auto-derived from task complexity + domain signals; manual override available.
 
 ---
 
