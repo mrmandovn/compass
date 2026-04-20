@@ -772,20 +772,69 @@ If sync → iterate tasks:
 
 ```
 For each task in $PARSED.tasks:
-  If parent has UPDATE → jira_update_issue(task.key, fields={customfield_10016: points, priority: {name: ...}})
-  For each CREATE subtask:
-    jira_create_issue(
+
+  # --- Determine parent assignee from sheet members ---
+  # Single assignee → parent.assignee = that member (parent IS the work)
+  # Multi-assignee → parent.assignee = member with most points (leader/primary owner);
+  #                  subtasks carry per-member allocation
+  # No members → leave unassigned (skip assignee field)
+  If len(task.members) == 1:
+    parent_assignee = task.members[0].name
+  Elif len(task.members) >= 2:
+    parent_assignee = max(task.members, key=lambda m: m.points).name
+  Else:
+    parent_assignee = None
+
+  # --- CREATE PARENT for keyless tasks (task.key == null) ---
+  If task.key is null:
+    fields = {
+      customfield_10016: task.story_points,
+      priority: {name: task.priority or "Medium"}
+    }
+    If parent_assignee: fields.assignee = <resolved_display_name of parent_assignee>
+
+    created = jira_create_issue(
       project_key=$JIRA_PROJECT,
-      summary="<sheet_member> - <parent.summary>",
-      issue_type="Subtask",
-      assignee=<resolved_display_name>,
-      additional_fields={parent: task.key, customfield_10016: member.points, priority: {name: parent.priority or "Medium"}}
+      summary=task.name,
+      issue_type="Task",
+      additional_fields=fields
     )
-  For each UPDATE subtask:
+    task.key = created.key   # use for subtask parent linkage below
+
+  # --- UPDATE parent (existing task) ---
+  Elif parent has UPDATE:
+    fields = {
+      customfield_10016: task.story_points,
+      priority: {name: task.priority}
+    }
+    # Only set assignee if it differs from current Jira assignee (avoid unnecessary writes)
+    If parent_assignee and parent_assignee != current_jira_assignee:
+      fields.assignee = <resolved_display_name of parent_assignee>
+    jira_update_issue(task.key, fields)
+
+  # --- CREATE subtasks (multi-assignee tasks only) ---
+  If task.needs_subtasks:
+    For each member in task.members:
+      jira_create_issue(
+        project_key=$JIRA_PROJECT,
+        summary="<member.name> - <task.name>",
+        issue_type="Subtask",
+        assignee=<resolved_display_name of member.name>,
+        additional_fields={
+          parent: task.key,
+          customfield_10016: member.points,
+          priority: {name: task.priority or "Medium"}
+        }
+      )
+
+  # --- UPDATE subtasks (existing subtask story_points changed) ---
+  For each existing subtask in UPDATE set:
     jira_update_issue(subtask.key, fields={customfield_10016: member.points})
 ```
 
-Live progress: `✓ <task.key>` per completed task.
+**Resolve display_name to Jira account**: use `jira_get_user_profile(user_identifier=<display_name>)` or JQL `assignee in membersOf(<project>)` to verify the assignee exists before PATCH. If not found, warn and skip assignee field for that task (don't fail the whole sync).
+
+Live progress: `✓ <task.key>` per completed task (show `(new)` suffix if created, `(assigned to <name>)` if assignee changed).
 
 ---
 
