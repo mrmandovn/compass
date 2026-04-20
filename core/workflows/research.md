@@ -148,28 +148,60 @@ Use AskUserQuestion (pick version matching `lang`):
 
 Write to config. Never ask again — use saved value silently.
 
-## Step 3: Topic details
+## Step 3: Topic details (adaptive per RESEARCH_TYPE from Step 1)
 
-Derive topic suggestions dynamically by scanning existing project files. Before presenting AskUserQuestion, do the following:
+Step 1 already inferred `$RESEARCH_TYPE` and `$RESEARCH_SCOPE`. Use these to tailor Step 3 suggestions — don't fall back to generic topic suggestions when we know the angle.
 
-1. Scan `prd/` (Silver Tiger) or `.compass/PRDs/` (standalone) — extract the titles and feature names of the 3 most recently modified PRDs.
-2. Scan `research/` (Silver Tiger) or `.compass/Research/` (standalone) — identify any prior research topics NOT yet covered.
-3. Check `$CONFIG` (from Step 0) for any `focus_area`, `domain`, or `product` hints.
-4. If in Silver Tiger mode, scan `wiki/overview.md` for product domain keywords.
+### Derivation rules by type
 
-Use these scanned inputs to build 2–3 specific topic suggestions that are directly relevant to THIS project. Do not use placeholder labels like `<from latest PRD title>` — resolve them to actual names.
+**If `RESEARCH_TYPE = competitive`**:
+- Extract competitor names from `$ARGUMENTS` if mentioned (e.g. "Notion vs Obsidian" → {Notion, Obsidian})
+- Scan `research/COMPETITOR-*.md` for prior competitor coverage — de-duplicate
+- Suggest 3 competitors in the product's space based on `$CONFIG.domain`:
+  - `ard` (security) → e.g. 1Password, Bitwarden, Dashlane
+  - `platform` (identity) → Auth0, Clerk, Supabase
+  - `communication` → Slack, Teams, Discord
+  - `ai` → OpenAI, Anthropic, Gemini
+  - …
+- Each option label = competitor name; description = "Key angle to explore (pricing / feature parity / go-to-market / …)"
 
-Areas to consider when surfacing topic suggestions:
-- Feature domains mentioned in recent PRDs but not yet researched
-- Competitor categories relevant to the product's problem space
-- Technology areas the team is actively building on or evaluating
-- User segments that appear in stories/PRDs but have no dedicated user research yet
+**If `RESEARCH_TYPE = market`**:
+- Suggest market framings from project context:
+  - TAM/SAM/SOM for `<PRD domain>`
+  - Segment sizing (SMB vs Enterprise)
+  - Geographic angles (US vs APAC adoption)
+  - Adjacency markets ("What's the next vertical?")
+- Extract from `$ARGUMENTS` if specific angle requested
 
-Use AskUserQuestion with 2–3 project-specific suggestions PLUS a free-text "A different topic" option as the last choice.
+**If `RESEARCH_TYPE = user`**:
+- Suggest persona segments from PRDs:
+  - Scan `prd/` for persona names (Section C) — surface personas NOT yet researched
+  - Common angles: pain-point interviews / retention cohort / churn exit survey / new-user onboarding study
+- If no PRDs → offer "Interview <N> users of feature X" / "Analyze support ticket themes for product Y"
 
-Be smart about depth: if only 1 PRD exists, that's your primary topic candidate. If many PRDs exist, surface the most recent or highest-priority area.
+**If `RESEARCH_TYPE = tech`**:
+- Suggest tech comparisons from codebase:
+  - Scan `package.json` / `pyproject.toml` / `Cargo.toml` for current dependencies
+  - Suggest "Should we keep <current lib> vs switch to <alternative>?"
+  - Common angles: "Evaluate 3 libraries for <task>", "Migrate from <X> to <Y> — worth it?"
 
-Generate options in `lang`. If `lang=vi`, generate Vietnamese labels and descriptions — do not translate hardcoded English strings.
+### General scan (all types)
+
+In addition to type-specific suggestions, also pull:
+
+1. Scan `prd/` or `.compass/PRDs/` — 3 most recently modified PRD titles → candidate topics if they match the research type
+2. Scan `research/` — identify covered topics to avoid re-doing
+3. Check `$CONFIG.focus_area` / `domain` / `product`
+4. Silver Tiger: scan `wiki/overview.md` for domain keywords
+
+### Ask with context-aware options
+
+Use AskUserQuestion with 3–4 project-specific options derived above PLUS a free-text "A different topic" option as the last choice.
+
+Options labels must be RESOLVED — no placeholders. Descriptions explain why this angle is relevant given `RESEARCH_TYPE` + project state.
+
+Generate options in `lang`. If `lang=vi`, Vietnamese labels/descriptions with full diacritics.
+
 ```
 
 ## Step 4: Parallel research agents

@@ -145,21 +145,61 @@ Then use AskUserQuestion to confirm the list.
 
 ---
 
-## Step 3 — Pick a framework
+## Step 3 — Pick a framework (adaptive per item count)
 
-Use AskUserQuestion to pick the scoring framework.
+Use the collected item count from Step 2 to judge which framework fits — don't ask framework blindly. A 2-item list doesn't need RICE; a 20-item backlog doesn't fit MoSCoW buckets cleanly.
 
-**AskUserQuestion example (en)**:
-```json
-{"questions": [{"question": "Which scoring framework should we use?", "header": "Choose framework", "multiSelect": false, "options": [{"label": "RICE", "description": "Reach × Impact × Confidence / Effort. Best when you need numbers and have user data."}, {"label": "MoSCoW", "description": "Must / Should / Could / Won't. Best for release scoping, fewer numbers."}, {"label": "Kano", "description": "Basic / Performance / Excitement / Indifferent. Best for UX features, requires user research."}, {"label": "Mix RICE + MoSCoW", "description": "Recommended for a mixed backlog combining data and release scope."}]}]}
+### 3a. Adaptive recommendation
+
+```
+ITEM_COUNT = len(collected items)
+
+IF ITEM_COUNT < 3:
+  # Too few to formalize
+  mode = "discuss"
+  recommendation_label = "Skip scoring — discuss directly"
+  rationale = "Only <N> items — formal scoring is overkill; surface top pick by conversation"
+
+ELIF 3 <= ITEM_COUNT <= 5:
+  mode = "moscow-first"
+  recommendation_label = "MoSCoW (Recommended)"
+  rationale = "Small list — binary buckets (Must/Should/Could/Won't) give fast decision"
+
+ELIF 6 <= ITEM_COUNT <= 20:
+  mode = "rice-first"
+  recommendation_label = "RICE (Recommended)"
+  rationale = "Medium list — quantitative scoring (Reach×Impact×Confidence/Effort) justifies ranking"
+
+ELSE:
+  # >20 items: RICE + force top-5 focus to avoid analysis paralysis
+  mode = "rice-top5"
+  recommendation_label = "RICE + surface top 5 only (Recommended)"
+  rationale = "Large backlog — score all but present top 5 for decision; full table in file"
 ```
 
-**AskUserQuestion example (vi)**:
+### 3b. Ask with Recommended pre-highlighted
+
+Build AskUserQuestion putting the recommended framework as the first option with "(Recommended)" suffix. Always include other options for override.
+
+**AskUserQuestion (en)** — order determined by `mode` above:
+
 ```json
-{"questions": [{"question": "Chúng ta dùng framework chấm điểm nào?", "header": "Chọn framework", "multiSelect": false, "options": [{"label": "RICE", "description": "Reach × Impact × Confidence / Effort. Tốt khi cần con số và có dữ liệu người dùng."}, {"label": "MoSCoW", "description": "Must / Should / Could / Won't. Tốt cho việc xác định phạm vi release."}, {"label": "Kano", "description": "Basic / Performance / Excitement / Indifferent. Tốt cho tính năng UX, cần nghiên cứu người dùng."}, {"label": "Kết hợp RICE + MoSCoW", "description": "Khuyến nghị cho backlog hỗn hợp."}]}]}
+{"questions": [{"question": "Framework for <ITEM_COUNT> items?", "header": "Choose framework", "multiSelect": false, "options": [
+  {"label": "<recommendation_label>", "description": "<rationale>"},
+  {"label": "RICE", "description": "Reach × Impact × Confidence / Effort — best with user data"},
+  {"label": "MoSCoW", "description": "Must / Should / Could / Won't — best for release scoping"},
+  {"label": "Kano", "description": "Basic / Performance / Excitement / Indifferent — requires user research"},
+  {"label": "Mix RICE + MoSCoW", "description": "Combine data and release scope"}
+]}]}
 ```
 
-> If the user is unsure → recommend **RICE** for ≥5 items with data, **MoSCoW** for ≤5 items or release planning.
+De-duplicate: if `recommendation_label` already contains "RICE" or "MoSCoW", don't repeat that option below.
+
+vi: regenerate with Vietnamese labels/descriptions.
+
+### 3c. Mode = "discuss" special case
+
+When `ITEM_COUNT < 3`, first option is "Skip scoring — discuss directly". If PO picks it → short-circuit to a 1-paragraph recommendation (no full scoring file). If PO picks a framework anyway → proceed with normal flow.
 
 ---
 

@@ -84,9 +84,48 @@ Ask one clarifying question only if the source is Jira and no issues are found:
 
 ---
 
-## Step 3 — Auto-theme
+## Step 3 — Auto-theme (volume-aware, adaptive)
 
-Classify each feedback signal into one of these categories (or infer a new one if needed):
+Count the raw feedback signals collected in Step 2. Theming strategy scales by volume — a 5-item list doesn't warrant open-ended clustering, and a 50-item list will produce noise if we cluster freely without user focus.
+
+```
+FEEDBACK_COUNT = len(raw_feedback_signals)
+```
+
+### 3a. Branch by volume
+
+**If `FEEDBACK_COUNT ≤ 10`** — auto-theme silently, no user gate:
+- Classify each signal into the 6 preset categories below (or infer a new one if a signal doesn't fit cleanly)
+- Proceed directly to Step 4 report composition
+
+**If `11 ≤ FEEDBACK_COUNT ≤ 30`** — AI proposes candidate clusters, PO picks focus:
+- Analyze signals, propose 6–10 candidate clusters (may include domain-specific clusters beyond the 6 presets)
+- Ask PO which clusters to focus on via AskUserQuestion `multiSelect: true`
+- Deep-theme only the chosen clusters; other signals go into "Other" section with raw counts
+
+```json
+{"questions": [{"question": "<N> feedback signals → <M> candidate clusters detected. Which to focus on?", "header": "Focus clusters", "multiSelect": true, "options": [
+  {"label": "<Cluster 1 name>", "description": "<N> signals · example: \"<strongest quote>\""},
+  {"label": "<Cluster 2 name>", "description": "<N> signals · example: \"<quote>\""},
+  ...
+]}]}
+```
+
+vi: regenerate with Vietnamese labels.
+
+**If `FEEDBACK_COUNT > 30`** — force bucketing to avoid analysis paralysis:
+- Warn: "<N> signals is too many for open clustering — forcing max 5 buckets to keep report actionable"
+- Classify everything into the 6 preset categories below
+- If PO wants custom clusters instead, offer fallback:
+
+```json
+{"questions": [{"question": "<N> signals — use preset buckets (5 max) or custom clusters?", "header": "Bucket strategy", "multiSelect": false, "options": [
+  {"label": "Preset 5 buckets (Recommended)", "description": "UX / Performance / Feature Request / Bug / Documentation — quick, actionable"},
+  {"label": "Custom clusters (risk: arbitrary with >30 signals)", "description": "Let AI propose open clusters — warn user about analysis risk"}
+]}]}
+```
+
+### 3b. Preset categories (used when bucketing)
 
 | Category | Description |
 |----------|-------------|

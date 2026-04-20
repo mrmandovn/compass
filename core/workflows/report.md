@@ -114,33 +114,59 @@ case "$Q_CUR" in
 esac
 ```
 
-### Step 2a — Choose period type
+### Step 2a — Choose period type + depth (coupled)
 
-Ask first which kind of period the report covers:
+Period type and depth are coupled — a monthly summary doesn't need 15 pages, and an annual report can't fit in 1 page. Ask them together with period-appropriate depth as the default:
 
 en:
 ```json
-{"questions": [{"question": "What period does this report cover?", "header": "Period type", "multiSelect": false, "options": [
-  {"label": "Quarter", "description": "A single quarter (Q1/Q2/Q3/Q4)"},
-  {"label": "Half-year", "description": "H1 (Jan–Jun) or H2 (Jul–Dec)"},
-  {"label": "Multi-quarter", "description": "2–3 adjacent quarters (e.g. Q2+Q3)"},
-  {"label": "Annual", "description": "Full calendar/fiscal year (FY)"}
+{"questions": [{"question": "What period + depth does this report cover?", "header": "Period & depth", "multiSelect": false, "options": [
+  {"label": "Monthly summary (~1 page, 5 min read)", "description": "Fast snapshot of the last month — headlines only, no per-epic breakdown"},
+  {"label": "Quarterly standard (~5 pages, per-epic)", "description": "Most common — single quarter (Q1/Q2/Q3/Q4) with per-epic breakdown"},
+  {"label": "Half-year extensive (~10 pages, YoY compare)", "description": "H1 or H2 with YoY comparison, per-product deep sections"},
+  {"label": "Annual full (~15+ pages, exec summary + deep dives)", "description": "Full FY — exec summary, per-product deep dives, strategic reflection"},
+  {"label": "Multi-quarter custom (2–3 quarters)", "description": "Adjacent quarters (e.g. Q2+Q3) — depth between quarterly and half-year"},
+  {"label": "Custom date range + depth", "description": "I'll specify exact dates and choose depth manually"}
 ]}]}
 ```
 
 vi:
 ```json
-{"questions": [{"question": "Report này cover khoảng thời gian gì?", "header": "Period type", "multiSelect": false, "options": [
-  {"label": "Quarter", "description": "Một quý (Q1/Q2/Q3/Q4)"},
-  {"label": "Half-year", "description": "H1 (1–6) hoặc H2 (7–12)"},
-  {"label": "Multi-quarter", "description": "2–3 quý liền kề (vd Q2+Q3)"},
-  {"label": "Annual", "description": "Nguyên năm (FY)"}
+{"questions": [{"question": "Report khoảng thời gian + độ sâu nào?", "header": "Period & depth", "multiSelect": false, "options": [
+  {"label": "Tháng tóm tắt (~1 trang, đọc 5 phút)", "description": "Snapshot nhanh tháng trước — chỉ headlines, không breakdown per-epic"},
+  {"label": "Quý tiêu chuẩn (~5 trang, per-epic)", "description": "Phổ biến nhất — 1 quý (Q1/Q2/Q3/Q4) với breakdown theo epic"},
+  {"label": "Nửa năm mở rộng (~10 trang, YoY)", "description": "H1 hoặc H2 với so sánh YoY, deep section per-product"},
+  {"label": "Cả năm đầy đủ (~15+ trang, exec + deep dives)", "description": "Full FY — exec summary, deep dives per-product, reflection chiến lược"},
+  {"label": "Nhiều quý (2–3 quý)", "description": "Quý liền kề (vd Q2+Q3) — depth giữa quý và nửa năm"},
+  {"label": "Dải ngày tuỳ chỉnh + depth", "description": "Tự chỉ định ngày + chọn depth thủ công"}
 ]}]}
 ```
 
-Note: a 5th option — "Custom date range" — is also supported. Offer it via the automatic "Other" affordance on AskUserQuestion when none of the four presets fit; the user types the range description and the workflow infers `period_type=custom`.
+Map answers to `$PERIOD_TYPE` + `$REPORT_DEPTH`:
 
-Store the choice as `$PERIOD_TYPE` (`quarter` / `half` / `multi-quarter` / `annual` / `custom`).
+| Option | PERIOD_TYPE | REPORT_DEPTH |
+|---|---|---|
+| Monthly summary | `month` | `lite` |
+| Quarterly standard | `quarter` | `standard` |
+| Half-year extensive | `half` | `extensive` |
+| Annual full | `annual` | `full` |
+| Multi-quarter | `multi-quarter` | `standard` (override to extensive if ≥3 quarters) |
+| Custom | `custom` | ask separately (see Step 2a-custom below) |
+
+Store both. Depth drives section count, word budget, and YoY compare inclusion.
+
+#### 2a-custom — only when user picks "Custom date range + depth"
+
+Ask depth as a second question (custom range is asked in Step 2b):
+
+```json
+{"questions": [{"question": "Depth for the custom period?", "header": "Depth", "multiSelect": false, "options": [
+  {"label": "Lite (~1 page)", "description": "Headlines only"},
+  {"label": "Standard (~5 pages)", "description": "Per-epic breakdown"},
+  {"label": "Extensive (~10 pages)", "description": "Per-product + YoY if range covers last year"},
+  {"label": "Full (~15+ pages)", "description": "Exec summary + deep dives"}
+]}]}
+```
 
 ### Step 2b — Choose the concrete period
 

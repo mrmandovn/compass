@@ -78,13 +78,60 @@ Scan for: completed stories (`status: done`), completed epics, any existing `rel
 
 ---
 
-## Step 2 — Ask PO for release metadata
+## Step 2 — Ask PO for release metadata (period auto-detected)
 
-Use AskUserQuestion for version number:
+### 2a. Auto-detect period + version proposal (silent)
+
+Before asking, scan recent sprint/release artifacts to pre-compute proposals:
+
+```bash
+# Find most recent closed sprint (source of truth for "what shipped")
+RECENT_SPRINT=$(ls -t "$PROJECT_ROOT"/sprints/SPRINT-*.md 2>/dev/null | head -1)
+if [ -n "$RECENT_SPRINT" ]; then
+  SPRINT_NAME=$(basename "$RECENT_SPRINT" .md)
+  # Parse frontmatter start_date / end_date if present
+  SPRINT_START=$(grep -m1 '^start_date:' "$RECENT_SPRINT" | sed 's/^start_date: *//;s/ *$//')
+  SPRINT_END=$(grep -m1 '^end_date:' "$RECENT_SPRINT" | sed 's/^end_date: *//;s/ *$//')
+fi
+
+# Find most recent release for version increment suggestion
+RECENT_RELEASE=$(ls -t "$PROJECT_ROOT"/release-notes/*.md 2>/dev/null | head -1)
+if [ -n "$RECENT_RELEASE" ]; then
+  LAST_VERSION=$(grep -m1 '^version:' "$RECENT_RELEASE" | sed 's/^version: *//;s/ *$//')
+fi
+```
+
+From scan results, derive 3 proposals:
+- `period_label = "<SPRINT_NAME> (<SPRINT_START> → <SPRINT_END>)"` if sprint found
+- `version_proposals` — patch/minor increments of `LAST_VERSION` (e.g. `1.0.3` → `{1.0.4, 1.1.0, 2.0.0}`)
+
+### 2b. Ask period + version (pre-filled from scan)
+
+**When a recent sprint was found** — propose its period as Recommended:
 
 ```json
-{"questions": [{"question": "What is the version number for this release?\n(Tiếng Việt: Số phiên bản cho lần phát hành này là gì?)", "header": "Version number", "multiSelect": false, "options": [{"label": "Patch (e.g. 1.0.1 → 1.0.2)", "description": "Bug fixes only, no new features / Chỉ sửa lỗi, không tính năng mới"}, {"label": "Minor (e.g. 1.0.0 → 1.1.0)", "description": "New features, backward compatible / Tính năng mới, tương thích ngược"}, {"label": "Major (e.g. 1.0.0 → 2.0.0)", "description": "Breaking changes or major new product / Thay đổi breaking hoặc sản phẩm mới lớn"}, {"label": "I'll specify the exact version", "description": "Type the full version string / Nhập chuỗi phiên bản đầy đủ"}]}]}
+{"questions": [{"question": "Release period + version?", "header": "Period & version", "multiSelect": false, "options": [
+  {"label": "<period_label> — v<patch_inc> (Recommended)", "description": "Bug fixes + stories done in this sprint / Từ sprint này"},
+  {"label": "<period_label> — v<minor_inc>", "description": "New features added this sprint"},
+  {"label": "<period_label> — v<major_inc>", "description": "Breaking changes this sprint"},
+  {"label": "Custom period + version", "description": "I'll specify date range and version string manually"}
+]}]}
 ```
+
+Substitute placeholders with computed values — no literal `<...>` in the final AskUserQuestion.
+
+**When no recent sprint found** — fall back to manual version picker (existing behavior):
+
+```json
+{"questions": [{"question": "What is the version number for this release?", "header": "Version number", "multiSelect": false, "options": [
+  {"label": "Patch (e.g. 1.0.1 → 1.0.2)", "description": "Bug fixes only, no new features"},
+  {"label": "Minor (e.g. 1.0.0 → 1.1.0)", "description": "New features, backward compatible"},
+  {"label": "Major (e.g. 1.0.0 → 2.0.0)", "description": "Breaking changes or major new product"},
+  {"label": "I'll specify the exact version", "description": "Type the full version string"}
+]}]}
+```
+
+vi: regenerate both blocks in Vietnamese when `lang=vi`.
 
 Use AskUserQuestion for target audience:
 

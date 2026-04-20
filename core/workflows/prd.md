@@ -181,62 +181,129 @@ If you find yourself about to paste code, stop and rewrite in plain language. Ex
 6. List existing PRDs in `$PROJECT_ROOT/prd/` to check name collisions.
 7. List relevant IDEA files in `$PROJECT_ROOT/research/` (if the user is referring to one).
 
-## Step 3 — Identify source + PRD type (1 batched call)
+## Step 3 — Identify source, read it, then propose type (3 sub-steps)
 
-**Batch source and PRD type into a SINGLE AskUserQuestion call with 2 questions.**
+Asking PRD type BEFORE reading the source is an anti-pattern — a PO updating a login flow could legitimately be either an `enhancement` (inherit users + old flow) or a `new-feature` (redesign changes both). Picking blindly leads to Step 4 asking the wrong sections. Read the source first, THEN propose type with evidence.
 
-The `PRD type` answer controls which sections are asked and written in Step 4/6:
-
-| Type | Sections asked | Use when |
-|---|---|---|
-| `new-feature` | A, B, C, D, E, F (full) | Brand new capability — users, flow, scope all need definition |
-| `enhancement` | A, B, D, E (skip C, skip F) | Improving an existing feature — users and flow inherit from the current version's docs |
-
-Batched structure (English):
+### 3a. Ask source only
 
 ```json
-{"questions": [
-  {"question": "What is this PRD based on?", "header": "PRD Source", "multiSelect": false, "options": [{"label": "An existing IDEA file", "description": "I'll use it as the starting point — share the path"}, {"label": "A new idea (not through /compass:ideate)", "description": "Build from scratch"}, {"label": "Update / new version of an existing PRD", "description": "I'll read the old PRD and ask what's changing"}, {"label": "A brief from leadership / stakeholder", "description": "Share the brief and I'll structure it"}]},
-  {"question": "What type of PRD is this?", "header": "PRD Type", "multiSelect": false, "options": [{"label": "new-feature", "description": "Brand new capability — full PRD with users + flow"}, {"label": "enhancement", "description": "Improving existing feature — inherits users/flow from current docs (fewer questions)"}]}
-]}
+{"questions": [{"question": "What is this PRD based on?", "header": "PRD Source", "multiSelect": false, "options": [
+  {"label": "An existing IDEA file", "description": "I'll use it as the starting point — share the path"},
+  {"label": "A new idea (not through /compass:ideate)", "description": "Build from scratch"},
+  {"label": "Update / new version of an existing PRD", "description": "I'll read the old PRD and ask what's changing"},
+  {"label": "A brief from leadership / stakeholder", "description": "Share the brief and I'll structure it"}
+]}]}
 ```
 
-Vietnamese version (when `lang=vi`): regenerate the same 2-question structure with Vietnamese labels/descriptions.
+vi: regenerate with Vietnamese labels/descriptions.
 
-**Handle source answer**:
-- "An existing IDEA file" or "Update of an existing PRD" → read that file first and use as starting point.
-- "Update of an existing PRD" → read the old PRD, ask "what's changing vs. the previous version?", bump the version. Likely implies `enhancement` type.
+### 3b. Read the source (silent, unless "new idea")
 
-**Handle type answer** (store as `PRD_TYPE`):
-- `new-feature` → Section C and Section F remain part of Step 4.
-- `enhancement` → Section C and Section F are SKIPPED. Compose step reads the linked source (old PRD or IDEA) to inherit user personas and the existing happy-path flow.
+- Source = IDEA file → read the idea file, extract: problem, chosen direction, key constraints
+- Source = Update of existing PRD → ask for path, read prior PRD; extract: prior Users (Section C), prior Flow (Section F), prior Metrics, prior Out of Scope. **Store as `PRIOR_PRD_SECTIONS`** — these are the inherit-candidates.
+- Source = Brief from leadership → ask for brief content or path, read it
+- Source = New idea → no source to read, set `PRIOR_PRD_SECTIONS = null`
+
+### 3c. Propose PRD type + scope (context-aware)
+
+Analyze `$ARGUMENTS` + source content to judge:
+
+**type** — `new-feature` vs `enhancement`:
+- Source = "Update of existing PRD" → default `enhancement`
+- Source = IDEA + idea describes "net new capability" → `new-feature`
+- Source = IDEA + idea describes "improve / fix existing X" → `enhancement`
+- Source = Brief with "build X" verb → `new-feature`
+- Source = Brief with "change/improve X" verb → `enhancement`
+
+**enhancement_targets** — which existing sections does this enhancement ACTUALLY change? This is the key nuance: `enhancement` doesn't mean "skip Users and Flow always" — it means "inherit what's not touched, redefine what is."
+
+Detect target sections from `$ARGUMENTS` keywords:
+
+| Keywords in input | Target section | Why |
+|---|---|---|
+| "flow", "journey", "path", "steps", "UX", "onboarding", "funnel", "signup", "checkout" | **F (Flow)** | User is changing the flow explicitly |
+| "persona", "user type", "role", "audience", "segment", "admin", "member" | **C (Users)** | User/persona scope expanding |
+| "metric", "KPI", "target", "goal", "measurement", "activation rate", "churn" | **E (Metrics)** | Metric definition changing |
+| "goal", "non-goal", "scope in", "scope out", "out of scope" | **D (Goals)** | Goal set changing |
+| "bug", "error", "issue", "pain" + no section keyword | **B (Problem)** | Only problem framing changes, inherit everything else |
+| Multiple of above | multi-target | Render each touched section |
+
+Construct the type + targets proposal and confirm via AskUserQuestion:
+
+```json
+{"questions": [{"question": "Based on <source>, this looks like <type>. <If enhancement: target sections: <C/F/E/D>>. Confirm?", "header": "PRD type", "multiSelect": false, "options": [
+  {"label": "Confirm — <type> with targets [<sections>]", "description": "Proceed with Step 4 asking only these sections"},
+  {"label": "Actually new-feature", "description": "Full PRD — ask all 6 sections A-F"},
+  {"label": "Actually enhancement of different sections", "description": "I'll pick targets manually — show full target picker"},
+  {"label": "Let me explain the change", "description": "Free-text explanation — AI re-judges"}
+]}]}
+```
+
+**Handle confirmation**:
+- Confirm → store `PRD_TYPE = <proposed>` and `PRD_TARGETS = [proposed targets]`
+- "Actually new-feature" → `PRD_TYPE = new-feature`, `PRD_TARGETS = [A, B, C, D, E, F]`
+- "Actually enhancement of different sections" → show multi-select picker with all 6 sections (A-F), PO picks targets
+- "Let me explain" → free-text → AI re-analyzes → re-propose
+
+### 3d. Resolve which sections to render in Step 4
+
+Based on `PRD_TYPE` + `PRD_TARGETS`:
+
+| Type | Sections always rendered | Sections conditionally rendered |
+|---|---|---|
+| `new-feature` | A, B, D, E | C, F (always included) |
+| `enhancement` | A, B | C if target includes Users; D if target includes Goals; E if target includes Metrics; F if target includes Flow |
+
+Always include AC (Acceptance Criteria) regardless.
+
+Inherit the non-rendered sections from `PRIOR_PRD_SECTIONS` at compose time (Step 6).
+
+**Examples**:
+
+- Input: `"enhance the signup flow"` → `type=enhancement`, `targets=[F]` → Step 4 renders A + B + F + AC. Inherit C, D, E.
+- Input: `"add 2FA to login"` (brand new capability) → `type=new-feature`, `targets=[all]` → Step 4 renders A-F + AC.
+- Input: `"expand admin permissions for team roles"` → `type=enhancement`, `targets=[C]` → Step 4 renders A + B + C + AC. Inherit D, E, F.
+- Input: `"change primary metric from DAU to WAU"` → `type=enhancement`, `targets=[E]` → Step 4 renders A + B + E + AC. Inherit C, D, F.
+- Input: `"redesign signup flow for enterprise users"` → `type=enhancement`, `targets=[C, F]` → Step 4 renders A + B + C + F + AC. Inherit D, E.
 
 ## Step 4 — Interview to fill the PRD
 
-**Emit progress plan before starting** — apply Pattern 1 from `core/shared/progress.md`:
+**Emit progress plan before starting** — apply Pattern 1 from `core/shared/progress.md`. Dynamically list sections based on `PRD_TARGETS` from Step 3d:
 
 ```
 📋 PRD: <feature name>
-   Type: <PRD_TYPE>   Sections: <N, based on type>
-   Expected: 3-5 min
+   Type: <PRD_TYPE>   Targets: [<PRD_TARGETS>]   Sections: <N>
+   Expected: 2-5 min (scales with section count)
 
-   ⏸  Section A — Identity
-   ⏸  Section B — Problem
-   ⏸  Section C — Users          (skip if PRD_TYPE=enhancement)
-   ⏸  Section D — Goals
-   ⏸  Section E — Metrics
-   ⏸  Section F — Flow           (skip if PRD_TYPE=enhancement)
+   ⏸  Section A — Identity        (always)
+   ⏸  Section B — Problem         (always)
+   ⏸  Section C — Users           (<render if in PRD_TARGETS else "inherit from prior">)
+   ⏸  Section D — Goals           (<render if in PRD_TARGETS else "inherit from prior">)
+   ⏸  Section E — Metrics         (<render if in PRD_TARGETS else "inherit from prior">)
+   ⏸  Section F — Flow            (<render if in PRD_TARGETS else "inherit from prior">)
 ```
 
-After each section's batched AskUserQuestion answer is received, tick that line with elapsed seconds and mark the next as `🔄`.
+After each section's batched AskUserQuestion answer is received, tick that line with elapsed seconds and mark the next as `🔄`. For "inherit" sections, print `✓ Section X — inherited from <source>` and skip the interview.
 
 > **Batching rule**: walk section by section. Within each section, batch all questions into a SINGLE `AskUserQuestion` call using the `questions` array (1–4 items per call). Claude Code's tool supports this natively — do NOT make separate sequential calls for questions in the same section.
 >
-> **Section skipping by PRD_TYPE** (from Step 3):
-> - `new-feature` → ask all: A, B, C, D, E, F (6 batched calls)
-> - `enhancement` → ask only: A, B, D, E (4 batched calls — skip C users, skip F flow; inherit from source PRD/IDEA)
+> **Section rendering from `PRD_TARGETS`** (set in Step 3d):
+> - Sections A, B → always rendered
+> - Sections C, D, E, F → rendered only if in PRD_TARGETS; otherwise inherited from `PRIOR_PRD_SECTIONS` at compose time (Step 6)
+> - `new-feature` has `PRD_TARGETS = [A, B, C, D, E, F]` → all sections rendered
+> - `enhancement` has `PRD_TARGETS = [A, B, <subset>]` → only rendered subset is interviewed
 >
 > Smart-depth sections (E, F) may batch 2–4 questions depending on complexity.
+
+**MINIMAL PRD mode** (adaptive depth for simple tasks):
+
+If source = "A new idea" AND `$ARGUMENTS` is narrow (< 15 words) AND `PRD_TARGETS = [A, B]` only → enter MINIMAL mode:
+- Merge A + B into a single 2-question batch (feature name + problem statement)
+- Skip to Step 6 compose with a 1-page PRD format (Overview only, no Sections C-F)
+- Use for quick-spec features where a full PRD is overkill
+
+Print `✓ MINIMAL PRD mode — 1-page format` at start.
 
 ### Section A: Identity (1 turn, 1 batched call)
 
@@ -290,9 +357,13 @@ Areas to cover across the 3 questions: user friction, business impact, evidence 
 
 When `lang=vi`, regenerate all labels/descriptions in Vietnamese.
 
-### Section C: Users (1 turn, 1 batched call — SKIP if PRD_TYPE = enhancement)
+### Section C: Users (1 turn, 1 batched call — conditional on PRD_TARGETS)
 
-**Skip this entire section if `PRD_TYPE = enhancement`** — inherit primary/secondary users from the linked source PRD or IDEA file. If source does not specify, ask a minimal C1-only question instead of the full batched call.
+**Skip this entire section if `C` is NOT in `PRD_TARGETS`** (from Step 3d) — inherit primary/secondary users from `PRIOR_PRD_SECTIONS.users` (the linked source PRD or IDEA file). Print `✓ Section C — inherited from <source>` and move to next section.
+
+Render this section when:
+- `PRD_TYPE = new-feature` (always rendered)
+- `PRD_TYPE = enhancement` AND the enhancement targets Users (e.g. "expand admin roles", "add guest persona")
 
 **Batch C1 (primary user), C2 (secondary users), C3 (out-of-scope users) into a SINGLE AskUserQuestion call with 3 questions.**
 
@@ -315,7 +386,11 @@ Batched structure (English):
 
 When `lang=vi`, regenerate all labels/descriptions in Vietnamese.
 
-### Section D: Goals and Non-goals (1 turn, 1 batched call)
+### Section D: Goals and Non-goals (1 turn, 1 batched call — conditional on PRD_TARGETS)
+
+**Skip this section if `D` is NOT in `PRD_TARGETS`** (enhancement not targeting goals) — inherit goals/non-goals from `PRIOR_PRD_SECTIONS.goals`. Print `✓ Section D — inherited from <source>`.
+
+Render when: `PRD_TYPE = new-feature` OR `PRD_TYPE = enhancement` with `D` in targets (e.g. "change success goal", "add non-goal to scope").
 
 **Batch D1 (goals) and D2 (non-goals) into a SINGLE AskUserQuestion call with 2 questions, both `multiSelect: true`.**
 
@@ -339,7 +414,11 @@ When `lang=vi`, regenerate all labels/descriptions in Vietnamese.
 
 **Validation after user answers**: check that no item appears in both D1 and D2 — if overlap, ask user to clarify.
 
-### Section E: Success metrics (1 turn, 1 batched call — smart depth)
+### Section E: Success metrics (1 turn, 1 batched call — smart depth, conditional on PRD_TARGETS)
+
+**Skip this section if `E` is NOT in `PRD_TARGETS`** — inherit metrics from `PRIOR_PRD_SECTIONS.metrics`. Print `✓ Section E — inherited from <source>`.
+
+Render when: `PRD_TYPE = new-feature` OR `PRD_TYPE = enhancement` with `E` in targets (e.g. "change primary metric from DAU to WAU", "add guardrail metric").
 
 **Batch E questions into a SINGLE AskUserQuestion call.** Tool supports max 4 questions per call.
 
@@ -366,9 +445,13 @@ Complex case (4 questions): same structure with E2 baseline + E3 target added be
 
 When `lang=vi`, regenerate all labels/descriptions in Vietnamese.
 
-### Section F: User flow and requirements (1 turn, 1 batched call — smart depth, SKIP if PRD_TYPE = enhancement)
+### Section F: User flow and requirements (1 turn, 1 batched call — smart depth, conditional on PRD_TARGETS)
 
-**Skip this entire section if `PRD_TYPE = enhancement`** — inherit happy path and edge cases from the linked source PRD. Only ask F questions if the source does not have a documented flow.
+**Skip this entire section if `F` is NOT in `PRD_TARGETS`** (from Step 3d) — inherit happy path and edge cases from `PRIOR_PRD_SECTIONS.flow`. Print `✓ Section F — inherited from <source>` and move to next section.
+
+Render when:
+- `PRD_TYPE = new-feature` (always rendered)
+- `PRD_TYPE = enhancement` AND the enhancement targets Flow (e.g. "redesign signup", "simplify checkout", "improve onboarding funnel")
 
 **Batch F questions into a SINGLE AskUserQuestion call.**
 

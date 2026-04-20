@@ -198,8 +198,32 @@ Vietnamese example question: "Story này thuộc đâu?"
 
 ## Step 4 — Interview to fill one story
 
-**Emit progress plan before starting** — apply Pattern 1 from `core/shared/progress.md`:
+### Step 4.0 — Adaptive mode selection
 
+Before starting the interview, check whether story can be DERIVED from a linked PRD instead of asking from scratch:
+
+- **PRD_LINKED mode** — triggered when Step 2 source answer was "A PRD" AND the PRD is readable AND has `[REQ-xx]` requirements with clearly-defined primary users (from its Section C).
+  - Read the PRD, extract list of `REQ-xx` lines not yet covered by an existing story.
+  - Ask PO **which REQ** to break into this story (Question A becomes a REQ picker, not a blank title prompt).
+  - Derive persona from PRD Section C + the chosen REQ's context — skip Question B.
+  - Derive DoD default from PRD Section D (goals) — Question C still asks size + deps but DoD has a smart default.
+  - Result: 1 batched call (Question A picker + Question C size/deps) + AC (Question D).
+
+- **STANDALONE mode** — no PRD linked, or PRD lacks REQ structure. Fall back to current 4-question flow (A, B, C, D). This is the existing behavior.
+
+Print the selected mode at top of interview progress plan:
+
+**PRD_LINKED mode** progress plan:
+```
+📋 Story from PRD: <PRD.feature_name>
+   Epic: <epic name or "standalone">   Expected: ~1 min
+
+   ⏸  Question A — Pick REQ-xx from PRD + size/deps
+   ⏸  Question D — Acceptance Criteria
+   ✓  Question B — Persona auto-derived from PRD Section C
+```
+
+**STANDALONE mode** progress plan (existing):
 ```
 📋 Story: <story title or "<slug>">
    Epic: <epic name or "standalone">   Expected: 1-2 min
@@ -212,7 +236,30 @@ Vietnamese example question: "Story này thuộc đâu?"
 
 Tick after each question is answered. Final summary in Step 8.
 
-### Question A: Title
+### Question A: Title (PRD_LINKED mode)
+
+When PRD_LINKED mode is active, replace the blank title prompt with a REQ picker. Parse the linked PRD for `[REQ-01]`, `[REQ-02]`, ... lines in its Requirements section. Filter out REQs already covered by existing stories (check `epics/{EPIC}/user-stories/*.md` frontmatter for `covers: [REQ-xx]`).
+
+Generate options — one per uncovered REQ + a "custom title" fallback:
+
+```json
+{"questions": [{"question": "Which requirement to break into this story?", "header": "PRD requirement", "multiSelect": false, "options": [
+  {"label": "[REQ-01] <REQ-01 description from PRD>", "description": "Persona: <PRD.primary_user> · Flow: <PRD.Section F summary if present>"},
+  {"label": "[REQ-02] <REQ-02 description>", "description": "Persona: <PRD.primary_user> · ..."},
+  {"label": "Custom title (not tied to a REQ)", "description": "Write a standalone title — persona auto-derived from PRD Section C"}
+]}]}
+```
+
+Derive the final title from the chosen REQ + PRD persona:
+```
+"As a <PRD.primary_user>, I want <REQ description verb-phrased>, so that <inferred benefit>"
+```
+
+The PO can edit at review if the derivation feels off.
+
+If all REQs already have stories → print `⚠ All requirements from this PRD are covered. Want to write an additional story anyway? (y/n)` and offer standalone fallback.
+
+### Question A: Title (STANDALONE mode — existing behavior)
 
 Use AskUserQuestion. Scan the PRD (if available) for feature name and user roles to generate context-aware suggestions. If no PRD is available, offer generic user story patterns.
 
@@ -225,7 +272,9 @@ Vietnamese example (used when `lang=vi`):
 {"questions": [{"question": "Tiêu đề story là gì?", "header": "Tiêu đề Story", "multiSelect": false, "options": [{"label": "Là một <vai trò>, tôi muốn <hành động>, để <lợi ích>", "description": "Định dạng user story chuẩn — thay thế placeholder bằng ngữ cảnh của bạn"}, {"label": "Là một Admin, tôi muốn quản lý thành viên nhóm, để kiểm soát quyền truy cập workspace", "description": "Ví dụ story admin — điều chỉnh theo tính năng của bạn"}, {"label": "Là một người dùng, tôi muốn tải lên file hàng loạt, để tiết kiệm thời gian cho các lần tải lên lặp lại", "description": "Ví dụ story người dùng cuối — điều chỉnh theo tính năng của bạn"}, {"label": "Nhập tiêu đề tùy chỉnh", "description": "Nhập tiêu đề hoặc phát biểu user story của bạn"}]}]}
 ```
 
-### Question B: User context
+### Question B: User context (STANDALONE mode only — skipped in PRD_LINKED mode)
+
+**Skip entirely in PRD_LINKED mode** — persona was already derived from PRD Section C + chosen REQ's context when Question A ran. Print `✓ Question B — persona inherited: <persona from PRD>`.
 
 Derive the user persona from the PRD if one is linked. If a PRD was read in Step 1 or Step 2, extract the primary and secondary user roles from its Section C — do NOT fall back to generic "Admin / End user / Guest" if the PRD has actual personas defined.
 

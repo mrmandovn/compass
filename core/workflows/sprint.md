@@ -113,7 +113,28 @@ Sprint planning produces a free-form sprint plan file — no template is needed 
 
 ---
 
-## Step 2 — Ask sprint parameters
+## Step 2 — Ask sprint parameters (adaptive — auto-detect velocity)
+
+### 2a. Scan prior sprints for velocity (silent)
+
+Before asking capacity, scan recent sprint files to pre-compute defaults:
+
+```bash
+# Glob existing sprint plan files and parse their capacity
+PRIOR_SPRINTS=$(ls -t "$PROJECT_ROOT"/sprints/SPRINT-*.md 2>/dev/null | head -5)
+VELOCITIES=""
+for f in $PRIOR_SPRINTS; do
+  # Parse total points from frontmatter or "Selected (X pts)" section header
+  pts=$(grep -oE 'Selected \([0-9]+/[0-9]+ pts\)' "$f" | head -1 | grep -oE '[0-9]+' | head -1)
+  [ -n "$pts" ] && VELOCITIES="$VELOCITIES $pts"
+done
+# Average last 3 (or fewer if <3 prior sprints)
+AVG_VELOCITY=$(echo $VELOCITIES | awk '{s=0;n=0; for(i=1;i<=NF;i++){s+=$i;n++} if(n>0) printf "%d", s/n}')
+```
+
+If `$AVG_VELOCITY` is empty (no prior sprints or parse failed), skip the auto-detect options — fall back to the manual capacity picker.
+
+### 2b. Ask sprint duration
 
 Use AskUserQuestion for sprint duration:
 
@@ -121,11 +142,32 @@ Use AskUserQuestion for sprint duration:
 {"questions": [{"question": "How long is this sprint?\n(Tiếng Việt: Sprint này kéo dài bao lâu?)", "header": "Sprint duration", "multiSelect": false, "options": [{"label": "1 week", "description": "7 calendar days / 7 ngày lịch"}, {"label": "2 weeks (standard)", "description": "14 calendar days — most common / 14 ngày lịch — phổ biến nhất"}, {"label": "3 weeks", "description": "21 calendar days / 21 ngày lịch"}, {"label": "Custom — I'll specify", "description": "Tell me the exact start and end dates / Tôi sẽ chỉ định ngày bắt đầu và kết thúc"}]}]}
 ```
 
-Use AskUserQuestion for team capacity:
+### 2c. Ask team capacity (Recommended option pre-filled from velocity)
+
+**When `$AVG_VELOCITY` is non-empty** (prior sprints exist):
 
 ```json
-{"questions": [{"question": "What is the team's capacity for this sprint?\n(Tiếng Việt: Năng lực của nhóm trong sprint này là bao nhiêu?)", "header": "Team capacity", "multiSelect": false, "options": [{"label": "Story points — I'll give you the total", "description": "e.g. 40 points for a team of 3 / ví dụ 40 điểm cho nhóm 3 người"}, {"label": "Days — I'll give you available person-days", "description": "e.g. 18 person-days / ví dụ 18 ngày-người"}, {"label": "Stories — I'll give you a max count", "description": "e.g. max 6 stories this sprint / ví dụ tối đa 6 stories sprint này"}, {"label": "Use last sprint's velocity", "description": "Repeat the same capacity as last sprint / Lặp lại năng lực sprint trước"}]}]}
+{"questions": [{"question": "Team capacity for this sprint?\n(Tiếng Việt: Năng lực của nhóm sprint này?)", "header": "Team capacity", "multiSelect": false, "options": [
+  {"label": "<AVG_VELOCITY>pt — last 3 sprints' avg (Recommended)", "description": "Matches recent velocity — safe baseline / Khớp velocity gần đây"},
+  {"label": "<AVG_VELOCITY * 0.8>pt — conservative (80%)", "description": "Leave buffer for unknowns / Để buffer cho rủi ro"},
+  {"label": "<AVG_VELOCITY * 1.2>pt — stretch (120%)", "description": "Sprint with confidence / Sprint tự tin hơn"},
+  {"label": "Custom — I'll specify points / days / stories", "description": "Override manually / Tự chỉ định"}
+]}]}
 ```
+
+Compute `<AVG_VELOCITY * 0.8>` and `<AVG_VELOCITY * 1.2>` as integers (round) before putting in labels — resolve placeholders.
+
+**When `$AVG_VELOCITY` is empty** (first sprint — no prior data):
+
+```json
+{"questions": [{"question": "Team capacity for this sprint?", "header": "Team capacity", "multiSelect": false, "options": [
+  {"label": "Story points — I'll give you the total", "description": "e.g. 40 points for a team of 3"},
+  {"label": "Days — I'll give you available person-days", "description": "e.g. 18 person-days"},
+  {"label": "Stories — I'll give you a max count", "description": "e.g. max 6 stories this sprint"}
+]}]}
+```
+
+vi: regenerate with Vietnamese labels/descriptions for either block.
 
 Use AskUserQuestion for sprint goal:
 
