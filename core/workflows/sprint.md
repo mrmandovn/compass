@@ -687,7 +687,25 @@ Collect for summary:
 
 ### I7.a — Print summary (plain text, stdout)
 
-Print this block as plain text output to the conversation, OUTSIDE any tool call. It must appear in main chat for the user to read BEFORE the confirm question.
+**CRITICAL**: do NOT re-compute totals or per-member sums yourself. Use the `summary` field returned by `compass-cli sheet parse` verbatim. AI summing from the `tasks` array leads to hallucination (phantom subtasks, inflated totals).
+
+The parser returns:
+```json
+{
+  "summary": {
+    "total_story_points": <number>,
+    "task_count": <int>,
+    "keyed_count": <int>,
+    "keyless_count": <int>,
+    "keyless_points": <number>,
+    "per_member": {"<Name>": {"points": <num>, "allocations": <int>}, ...},
+    "mismatch_warnings": [{"key": "...", "parent_points": N, "member_sum": M}, ...]
+  },
+  "tasks": [...]
+}
+```
+
+Render this block from those fields — NEVER add or sum:
 
 ```
 ═══════════════════════════════════════════════════════════════
@@ -697,36 +715,36 @@ Jira:   <PROJECT_KEY> (<jira_host>)
 ═══════════════════════════════════════════════════════════════
 
 SPRINT TOTALS
-  Total story points:  <sum>
-  Tasks:               <count>
-  Working days:        <from sheet row B4 if present>
+  Total story points:  {summary.total_story_points}
+  Tasks:               {summary.task_count}
+  Tasks with Jira key: {summary.keyed_count}
+  Tasks without key:   {summary.keyless_count} (will create new, {summary.keyless_points}pt)
 
 POINTS PER MEMBER
-  <Member1>  <Npt>  (<X subtasks>)
-  <Member2>  <Npt>  (<X subtasks>)
-  ...
+  (for each entry in summary.per_member in the order returned)
+  <Name>  <points>pt  (<allocations> allocations)
   ─────────────────────────
-  Total     <sum>pt
+  Total   {summary.total_story_points}pt
 
-CHANGES TO APPLY
-  Parent tasks updated:   <N>
-  Subtasks created:       <N>
-  Subtasks updated:       <N>
-  New Jira tickets:       <N>   (tasks in sheet without Key column)
-  Already synced:         <N>
-  Skipped (no data):      <N>
-  Conflicts resolved:     <N>
+CHANGES TO APPLY (not executed in dry-run)
+  Parent tasks updated:   {summary.keyed_count}   (or diff from Jira fetch)
+  Subtasks created:       {count from Step I6}
+  Subtasks updated:       {count from Step I6}
+  New Jira tickets:       {summary.keyless_count}
+  Already synced:         {count from Step I6}
 
-NEW TICKETS (sheet tasks without Jira key — will create if user approves)
-  <pt>pt  <task name>  → assignee: <member>
-  <pt>pt  <task name>  → assignee: <member1, member2>
+NEW TICKETS (keyless tasks from sheet — list tasks where key == null)
+  {story_points}pt  {name}  → assignees: <member names from members[] array>
   ...
 
 WARNINGS
-  ⚠ Points mismatch in <N> tasks (member sum ≠ parent total)
-  ⚠ <other warnings>
+  (render one line per entry in summary.mismatch_warnings)
+  ⚠ {key}: parent={parent_points} ≠ member_sum={member_sum}
+  (plus any additional warnings from Step I6 conflict resolution)
 ═══════════════════════════════════════════════════════════════
 ```
+
+**Sanity check before printing**: verify `sum(per_member[*].points)` == `total_story_points`. If they differ, the parser has an internal bug — report it as a warning and halt import.
 
 **Keyless task handling**: tasks parsed with `key: null` represent work items not yet ticketed in Jira. Include them in the SPRINT TOTALS sum (so total matches the spreadsheet), list them under NEW TICKETS section with assignee + points, and during sync create fresh Jira tickets for each before assigning points/subtasks.
 

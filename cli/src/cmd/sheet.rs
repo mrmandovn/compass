@@ -203,11 +203,83 @@ fn parse_sheet(path: &str, sheet_name: Option<&str>) -> Result<String, String> {
         }));
     }
 
+    // Deterministic summary — computed here so the workflow doesn't re-sum (and hallucinate).
+    let mut total_points: f64 = 0.0;
+    let mut keyed_count: usize = 0;
+    let mut keyless_count: usize = 0;
+    let mut keyless_points: f64 = 0.0;
+    let mut per_member: std::collections::BTreeMap<String, (f64, usize)> =
+        std::collections::BTreeMap::new();
+    let mut mismatch_warnings: Vec<Value> = Vec::new();
+
+    for t in &tasks {
+        let sp = t.get("story_points").and_then(|v| v.as_f64()).unwrap_or(0.0);
+        total_points += sp;
+        if t.get("key").map(|v| v.is_null()).unwrap_or(true) {
+            keyless_count += 1;
+            keyless_points += sp;
+        } else {
+            keyed_count += 1;
+        }
+        let mut member_sum: f64 = 0.0;
+        if let Some(members) = t.get("members").and_then(|v| v.as_array()) {
+            for m in members {
+                let name = m
+                    .get("name")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("")
+                    .to_string();
+                let pts = m.get("points").and_then(|v| v.as_f64()).unwrap_or(0.0);
+                member_sum += pts;
+                let entry = per_member.entry(name).or_insert((0.0, 0));
+                entry.0 += pts;
+                entry.1 += 1;
+            }
+        }
+        if sp > 0.0 && member_sum > 0.0 && (sp - member_sum).abs() > 0.001 {
+            let key_display = t
+                .get("key")
+                .and_then(|v| v.as_str())
+                .unwrap_or("(no key)")
+                .to_string();
+            mismatch_warnings.push(json!({
+                "key": key_display,
+                "name": t.get("name").and_then(|v| v.as_str()).unwrap_or(""),
+                "parent_points": sp,
+                "member_sum": member_sum,
+            }));
+        }
+    }
+
+    let per_member_json: Value = Value::Object(
+        per_member
+            .into_iter()
+            .map(|(name, (pts, allocs))| {
+                (
+                    name,
+                    json!({
+                        "points": pts,
+                        "allocations": allocs,
+                    }),
+                )
+            })
+            .collect(),
+    );
+
     Ok(json!({
         "sheet": name,
         "header_row": header_idx + 1,
         "member_columns": member_cols.iter().map(|(_, n)| n.clone()).collect::<Vec<_>>(),
         "task_count": tasks.len(),
+        "summary": {
+            "total_story_points": total_points,
+            "task_count": tasks.len(),
+            "keyed_count": keyed_count,
+            "keyless_count": keyless_count,
+            "keyless_points": keyless_points,
+            "per_member": per_member_json,
+            "mismatch_warnings": mismatch_warnings,
+        },
         "tasks": tasks,
     })
     .to_string())
