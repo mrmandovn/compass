@@ -712,15 +712,23 @@ CHANGES TO APPLY
   Parent tasks updated:   <N>
   Subtasks created:       <N>
   Subtasks updated:       <N>
+  New Jira tickets:       <N>   (tasks in sheet without Key column)
   Already synced:         <N>
   Skipped (no data):      <N>
   Conflicts resolved:     <N>
+
+NEW TICKETS (sheet tasks without Jira key — will create if user approves)
+  <pt>pt  <task name>  → assignee: <member>
+  <pt>pt  <task name>  → assignee: <member1, member2>
+  ...
 
 WARNINGS
   ⚠ Points mismatch in <N> tasks (member sum ≠ parent total)
   ⚠ <other warnings>
 ═══════════════════════════════════════════════════════════════
 ```
+
+**Keyless task handling**: tasks parsed with `key: null` represent work items not yet ticketed in Jira. Include them in the SPRINT TOTALS sum (so total matches the spreadsheet), list them under NEW TICKETS section with assignee + points, and during sync create fresh Jira tickets for each before assigning points/subtasks.
 
 ### I7.b — Confirm (AskUserQuestion)
 

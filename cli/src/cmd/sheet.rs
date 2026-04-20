@@ -148,10 +148,13 @@ fn parse_sheet(path: &str, sheet_name: Option<&str>) -> Result<String, String> {
             continue;
         }
         let key = cell_to_string(&row.get(key_idx).cloned().unwrap_or(Data::Empty));
-        if key.is_empty() {
-            continue; // skip blank rows
-        }
         let task_name = cell_to_string(&row.get(task_idx).cloned().unwrap_or(Data::Empty));
+        // Skip only truly empty rows (no key AND no task name). Rows with task name
+        // but no Jira key are valid — they represent work items not yet ticketed.
+        // The sync workflow can surface them as "create new Jira ticket" candidates.
+        if key.is_empty() && task_name.is_empty() {
+            continue;
+        }
         if task_name.is_empty() {
             continue;
         }
@@ -181,9 +184,16 @@ fn parse_sheet(path: &str, sheet_name: Option<&str>) -> Result<String, String> {
         };
 
         let needs_subtasks = members.len() >= 2;
+        // Keyless rows represent tasks that need Jira tickets created before sync.
+        // Emit `key: null` so the sync workflow can surface them explicitly.
+        let key_value: Value = if key.is_empty() {
+            Value::Null
+        } else {
+            Value::String(key)
+        };
 
         tasks.push(json!({
-            "key": key,
+            "key": key_value,
             "name": task_name,
             "story_points": story_point,
             "priority": priority,
