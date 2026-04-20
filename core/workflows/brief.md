@@ -181,12 +181,17 @@ vi:
    - Vague: *"redesign signup"* (entire flow? landing only?)
    - Clear: *"only the email verification step"*
 
+5. **Deliverable intent?** — what ARTIFACTS should the pipeline produce?
+   - Vague: no deliverable hint in input
+   - Clear: *"PRD only"*, *"PRD + Roadmap 2-3 quý"*, *"Research + PRD"*, *"Stories for sprint 21"*
+   - Common patterns: `PRD only` / `PRD + Stories` / `PRD + Roadmap` / `Research + PRD` / `Full package`
+
 **Depth scaling based on ambiguity score** (not word count):
 
-- 4/4 clear → 0 Qs, proceed immediately to Step 2
-- 3/4 clear → 1 Q targeting the gap
-- 2/4 clear → 2-3 Qs
-- ≤ 1/4 clear → 3-5 Qs, ask one angle at a time (not batched)
+- 5/5 clear → 0 Qs, proceed immediately to Step 2
+- 4/5 clear → 1 Q targeting the gap
+- 3/5 clear → 2-3 Qs
+- ≤ 2/5 clear → 3-5 Qs, ask one angle at a time (not batched)
 
 **Question angles** — AI picks only what's unclear:
 
@@ -196,13 +201,14 @@ vi:
 | Actor ambiguous | "Who uses this + in what moment?" |
 | Behavior ambiguous | "What happens step-by-step when triggered?" |
 | Scope ambiguous | "What's explicitly NOT in this task?" |
+| Deliverable ambiguous | "What should this pipeline produce? (PRD only / PRD+Stories / PRD+Roadmap / Research+PRD / Full package)" |
 | Optional | "Any hard constraint? (compliance / platform / deadline)" |
 
 Each question uses AskUserQuestion with 3-5 derived options (based on project context, similar features, common patterns) + "Type your own answer" affordance. Do not ask open-ended without suggestions.
 
 **Stop as soon as core intent is clear** — questions past that point become interrogation. Trust colleagues to fill secondary details.
 
-**Save output**: After deep-dive, write `$SESSION_DIR/CONTEXT.md` with structured Q&A (will be created in Step 4, this step just collects answers into memory):
+**Save output**: After deep-dive, write `$SESSION_DIR/CONTEXT.md` with structured Q&A (will be created in Step 4, this step just collects answers into memory). Store `DELIVERABLE` value from question 5 for use in Step 2b team derivation:
 
 ```markdown
 # Context — <TASK_DESCRIPTION short title>
@@ -216,6 +222,7 @@ Each question uses AskUserQuestion with 3-5 derived options (based on project co
 **Actor + trigger**: <who uses it + when>
 **Core behavior**: <step-by-step flow>
 **Out of scope**: <what's NOT in this task>
+**Deliverable**: <PRD only | PRD + Stories | PRD + Roadmap | Research + PRD | Full package>
 **Constraints**: <if any were mentioned>
 
 ## Discussion log
@@ -245,29 +252,40 @@ Classify task as `small` / `medium` / `large` / `strategic`:
 
 ### 2b. Colleague team derivation
 
-Start from base, add based on judged needs:
+Start from base, then apply rules. **Deliverable intent from Step 1b question 5 is the primary driver** — complexity scales the team size, but deliverable determines which artifact-producing colleagues are needed. Do NOT add Story Breaker for a PRD-only deliverable just because complexity is strategic.
 
 | Condition | Add colleagues |
 |---|---|
 | base (always) | Product Writer + Consistency Reviewer |
+| `DELIVERABLE` includes `Stories` (i.e. `PRD + Stories` or `Full package`) | +Story Breaker |
+| `DELIVERABLE` includes `Roadmap` (i.e. `PRD + Roadmap` or `Full package`) | +Prioritizer (for sequencing epics across quarters) |
+| `DELIVERABLE` includes `Research` (i.e. `Research + PRD` or `Full package`) | +Research Aggregator + Market Analyst |
 | complexity ∈ {`medium`, `large`, `strategic`} | +UX Reviewer |
-| complexity ∈ {`large`, `strategic`} | +Story Breaker |
-| complexity = `strategic` | +Research Aggregator + Market Analyst + Prioritizer |
-| Task clearly mentions executive / board / leadership audience | +Stakeholder Communicator |
-| Task explicitly asks for competitive / market context | +Research Aggregator + Market Analyst (if not already added) |
-| Task explicitly asks for prioritization / scoring | +Prioritizer (if not already added) |
+| complexity = `strategic` AND `DELIVERABLE != "PRD only"` | +Research Aggregator + Market Analyst (strategic tasks benefit from context even without explicit Research deliverable) |
+| Task clearly mentions executive / board / leadership / enterprise 1000+ audience | +Stakeholder Communicator |
 | Task is metric-driven / analytics-heavy (mentions conversion, KPIs, dashboards, A/B tests, baselines) | +Data Analyst |
 | Project `domain` ∈ {`ard`, `access`} OR task touches PII / auth / encryption / audit logs / third-party data flow | +Compliance Reviewer |
 
 Deduplicate. Canonical display order: Research Aggregator, Market Analyst, Data Analyst, Product Writer, Story Breaker, Prioritizer, UX Reviewer, Consistency Reviewer, Compliance Reviewer, Stakeholder Communicator.
 
-### 2c. Deliverable inference
+**Examples**:
 
-Derive the `goal` field based on complexity + team:
+- `DELIVERABLE = "PRD only"`, complexity=small → Product Writer + Consistency Reviewer (2 colleagues). Minimal team, matching minimal deliverable.
+- `DELIVERABLE = "PRD + Roadmap"`, complexity=strategic, domain=ard → Research + Market + Writer + Prioritizer + UX + Consistency + Compliance + Stakeholder (8). **No Story Breaker** — no stories in deliverable. Prioritizer included for roadmap sequencing.
+- `DELIVERABLE = "Full package"`, complexity=strategic → all 10 colleagues (possibly).
+- `DELIVERABLE = "PRD + Stories"`, complexity=medium → Writer + Story Breaker + Consistency + UX (4).
 
-- `small` + base 2 → `goal = "Draft a focused PRD for <title>"`
-- `medium/large` with Story Breaker → `goal = "PRD + user stories for <title>"`
-- `strategic` with Research + Market + Prioritizer → `goal = "Full package (research, PRD, stories, prioritization) for <title>"`
+### 2c. Goal derivation from DELIVERABLE
+
+Build the `goal` field directly from `DELIVERABLE` + title:
+
+- `DELIVERABLE = "PRD only"` → `goal = "Draft a focused PRD for <title>"`
+- `DELIVERABLE = "PRD + Stories"` → `goal = "PRD + user stories for <title>"`
+- `DELIVERABLE = "PRD + Roadmap"` → `goal = "Strategic PRD + 2-3 quarter roadmap for <title>"`
+- `DELIVERABLE = "Research + PRD"` → `goal = "Research-backed PRD for <title>"`
+- `DELIVERABLE = "Full package"` → `goal = "Full package (research, PRD, stories, roadmap) for <title>"`
+
+This preserves PO's stated intent — no downstream rewriting.
 
 ### 2d. Persist complexity to project-memory (best-effort)
 
