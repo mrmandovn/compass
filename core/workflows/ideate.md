@@ -52,6 +52,15 @@ Extract `interaction_level` from config (default: "standard" if missing):
 - `standard`: current behavior — ask key questions, show options, confirm decisions.
 - `detailed`: extra questions — deeper exploration, more options, explicit confirmation at every step.
 
+### From-brief handoff detection
+
+If `$ARGUMENTS` contains the marker `--from-brief`, this ideate was invoked from `/compass:brief` Step 2e complexity gate. Apply two rules for this invocation:
+
+1. **Strip the marker** — set `$ARGUMENTS = "$ARGUMENTS" with "--from-brief" removed and whitespace trimmed`. Downstream steps should see only the task description, not the flag.
+2. **Force auto-derive for Step 2 Q1 (trigger) and Q2 (description)** — brief already gathered the task context; do not re-ask. Behave as if `interaction_level=quick` for these two questions regardless of actual config setting. Still ask Q3 (constraints) if constraints weren't mentioned in the task description.
+
+Set `$FROM_BRIEF=true` so Step 7 hand-off can surface the "return to brief" suggestion (instead of the standalone prioritize/prd hand-off).
+
 ---
 
 ### Auto mode (interaction_level = quick)

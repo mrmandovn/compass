@@ -249,6 +249,22 @@ Parse each story's frontmatter for `covers: [REQ-xx]` (array) and mark those REQ
 
 If REQ parsing from PRD yields zero requirements (e.g. PRD uses a non-standard format) → fall back to STANDALONE mode silently and continue with the blank title prompt. Do NOT force a broken REQ picker.
 
+If the PRD has REQs but **all are already covered by existing stories** (fully mapped 1:1), ask explicitly rather than a y/n prompt:
+
+```json
+{"questions": [{"question": "All requirements from <PRD path> are covered by existing stories. What next?", "header": "All covered", "multiSelect": false, "options": [
+  {"label": "Write an additional story for one of the covered REQs (e.g. split too-large story)", "description": "Show REQ picker again; new story will co-cover the picked REQ alongside the existing one"},
+  {"label": "Write a standalone story not tied to any REQ", "description": "Drop PRD linkage for this story — STANDALONE mode flow"},
+  {"label": "Cancel — no new story needed", "description": "Exit; PRD is already fully broken into stories"}
+]}]}
+```
+
+vi: translate.
+
+- Pick 1 → loop back to Question A REQ picker (all REQs shown, not just uncovered) — new story co-covers chosen REQ
+- Pick 2 → set mode = STANDALONE, skip Question A PRD_LINKED version, fall through to blank title prompt
+- Pick 3 → exit workflow gracefully
+
 Generate options — one per uncovered REQ + a "custom title" fallback:
 
 ```json

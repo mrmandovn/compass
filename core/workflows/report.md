@@ -176,19 +176,26 @@ Branch by `$PERIOD_TYPE`.
 
 #### 2b-month — `$PERIOD_TYPE = month`
 
-Compute month labels first (bash, before AskUserQuestion):
+Compute month labels first (bash, before AskUserQuestion). Detect GNU vs BSD `date` — the two flavors use different flags for "last month":
 
 ```bash
-# This month
+# This month (identical syntax across GNU and BSD)
 THIS_MONTH_LABEL=$(date -u +'%B %Y')       # e.g. "March 2026"
 THIS_MONTH_SUFFIX=$(date -u +'%Y-%m')      # e.g. "2026-03"
 
-# Last month (handle year rollover for January)
-PREV_MONTH_LABEL=$(date -u -v-1m +'%B %Y' 2>/dev/null || date -u -d "last month" +'%B %Y')
-PREV_MONTH_SUFFIX=$(date -u -v-1m +'%Y-%m' 2>/dev/null || date -u -d "last month" +'%Y-%m')
+# Last month — GNU date uses -d, BSD (macOS) uses -v. Detect via --version.
+if date --version >/dev/null 2>&1; then
+  # GNU date (Linux, WSL, most CI)
+  PREV_MONTH_LABEL=$(date -u -d "$(date -u +%Y-%m-01) -1 month" +'%B %Y')
+  PREV_MONTH_SUFFIX=$(date -u -d "$(date -u +%Y-%m-01) -1 month" +'%Y-%m')
+else
+  # BSD date (macOS default)
+  PREV_MONTH_LABEL=$(date -u -v-1m +'%B %Y')
+  PREV_MONTH_SUFFIX=$(date -u -v-1m +'%Y-%m')
+fi
 ```
 
-Resolve placeholders before the AskUserQuestion — don't pass raw `<prev_month_label>` to the user.
+Resolve placeholders before the AskUserQuestion — don't pass raw `<PREV_MONTH_LABEL>` to the user.
 
 en:
 ```json
