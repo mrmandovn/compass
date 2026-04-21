@@ -38,6 +38,9 @@ Required fields:
 - `output_paths` — where to write artifacts
 - `naming` — filename patterns (read `naming.story` for Silver Tiger, `naming.story_standalone` for standalone)
 
+Optional fields (read once, used in Question C):
+- `story.default_dod` — team's standard Definition of Done string. When present, DoD sub-Q is skipped in Question C (teams use consistent DoD across all stories — asking per-story is repetition). When absent, Question C asks DoD once and offers to save the pick as project default.
+
 **Error handling**:
 - If `config.json` does not exist → tell the user: "Config not found. Please run `/compass:init` to set up your workspace first." Stop.
 - If `config.json` exists but cannot be parsed (corrupt/invalid JSON) → tell the user: "Config file appears to be corrupt or contains invalid JSON. Please run `/compass:init` to regenerate it." Stop.
@@ -319,13 +322,26 @@ Ask one question at a time. Adapt depth to what the PO has told you so far.
 
 Generate options in `lang`. If `lang=vi`, generate Vietnamese labels and descriptions from context — do not translate hardcoded English strings.
 
-### Question C: Story scope (1 batched call with size + dependencies + DoD)
+### Question C: Story scope (adaptive — 2 or 3 sub-Qs based on config)
 
-**Batch size, dependencies, and Definition of Done into a SINGLE AskUserQuestion call with 3 questions.** The Claude Code tool supports up to 4 questions per call — use it to collapse 3 sequential round trips into 1.
+**Read `config.story.default_dod` from `$CONFIG`** (parsed in Step 0). This determines batched size:
+- `default_dod` present → batch **2 sub-Qs** (size + dependencies). Apply `default_dod` at compose, skip the DoD sub-Q. Print inline: `→ Using project DoD: "<default_dod>"` (user can override by editing the generated file).
+- `default_dod` absent → batch **3 sub-Qs** (size + dependencies + DoD) as before. After PO picks DoD, offer to save it as project default (see "Save-as-default prompt" below).
+
+**Rationale**: Teams have consistent DoD across all stories. Asking per-story repeats a project-level convention. First run asks + saves; subsequent runs inherit silently.
 
 Before calling, scan existing stories in the same epic to derive dependency candidates (if the project has an auth story, surface it; otherwise drop that option).
 
-Batched structure (English):
+**Two-sub-Q path (English)** — when `default_dod` exists:
+
+```json
+{"questions": [
+  {"question": "How big is this story?", "header": "Size Estimate", "multiSelect": false, "options": [{"label": "XS", "description": "Tiny, a few hours"}, {"label": "S", "description": "Small, less than a day"}, {"label": "M", "description": "Medium, 1–2 days"}, {"label": "L", "description": "Large — consider splitting"}]},
+  {"question": "Does this story depend on any other stories that must finish first?", "header": "Dependencies", "multiSelect": false, "options": [{"label": "None — independent", "description": "Can be picked up without waiting"}, {"label": "<derived candidate 1 from scan>", "description": "..."}, {"label": "<derived candidate 2 from scan>", "description": "..."}, {"label": "Other — I'll name it", "description": "Type the story ID"}]}
+]}
+```
+
+**Three-sub-Q path (English)** — when `default_dod` absent (first time):
 
 ```json
 {"questions": [
@@ -336,6 +352,23 @@ Batched structure (English):
 ```
 
 When `lang=vi`, regenerate all labels/descriptions in Vietnamese — do NOT make two separate calls.
+
+**Save-as-default prompt** (fires only in three-sub-Q path, after PO picks DoD):
+
+```json
+{"questions": [{"question": "Save this DoD as project default? Future stories won't ask again.", "header": "Save DoD default", "multiSelect": false, "options": [{"label": "Yes — save to config.story.default_dod", "description": "All future stories in this project inherit this DoD silently"}, {"label": "No — one-time only", "description": "Use for this story, keep asking per-story"}]}]}
+```
+
+vi: regenerate with Vietnamese labels.
+
+**On Yes** — persist to config:
+```bash
+TMP=$(mktemp)
+jq --arg dod "<picked DoD string>" '.story.default_dod = $dod' "$PROJECT_ROOT/.compass/.state/config.json" > "$TMP" && mv "$TMP" "$PROJECT_ROOT/.compass/.state/config.json"
+```
+Print `✓ DoD saved as project default. Future stories will inherit silently.`
+
+**On No** — use for this story only, no config change.
 
 **XL special case**: if the user picks size "XL" (too large), stop and propose 2–4 sub-stories before continuing to Question D.
 

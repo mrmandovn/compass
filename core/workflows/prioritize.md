@@ -55,7 +55,7 @@ Extract `interaction_level` from config (default: "standard" if missing):
 ### Auto mode (interaction_level = quick)
 
 If interaction_level is "quick":
-1. Auto-detect items from the project (scan Ideas, PRDs, Stories) — skip the Step 1 "auto-load" confirmation question.
+1. Auto-detect items from the project (scan Ideas, PRDs, Stories). Step 1 is already silent — no Q to skip. Also auto-pick the richest source (Ideas > PRDs > Stories by count) for Step 2 instead of asking.
 2. Auto-pick framework: use RICE for ≥5 items, MoSCoW for <5 items — skip Step 3 framework selection question.
 3. Score all items immediately using best-effort estimates from context — skip per-item confirmation questions.
 4. Show the complete scored backlog for one final review: "OK? / Edit"
@@ -87,30 +87,25 @@ After Step 0a returns:
 
 ---
 
-## Step 1 — Read context
+## Step 1 — Read context (silent)
+
+Gather context without asking — the source picker in Step 2 handles all branching.
 
 1. Re-read `$PROJECT_ROOT/.compass/.state/config.json` (already loaded in Step 0 as `$CONFIG`).
 2. List items that could be scored:
    - Silver Tiger: scan `research/IDEA-*.md`, `prd/*.md`, `epics/*/user-stories/*.md`
    - Standalone: scan `.compass/Ideas/`, `.compass/PRDs/`, `.compass/Stories/`
 3. **Silver Tiger mode only — capability-registry awareness**: Read `$PROJECT_ROOT/.compass/.state/capability-registry.yaml` if it exists. Use it to understand which capabilities already exist across products so that scoring can account for cross-product duplication, reuse opportunities, and strategic gaps. If the file is missing, proceed without it (non-blocking).
-4. Ask the user whether to auto-load discovered items.
 
-**AskUserQuestion example (en)**:
-```json
-{"questions": [{"question": "I found some items that could be scored. Would you like to auto-load them?", "header": "Load backlog items", "multiSelect": false, "options": [{"label": "Yes, auto-load all", "description": "Pull in all discovered ideas, PRDs, and stories"}, {"label": "No, I'll paste the list manually", "description": "You type or paste the items to score"}]}]}
-```
+The scan result (counts per source) is shown inline at the top of Step 2's source picker (e.g. `"Auto-load from Ideas (12 found)"`) so the PO sees what's available without a separate gate.
 
-**AskUserQuestion example (vi)**:
-```json
-{"questions": [{"question": "Tôi tìm thấy một số hạng mục có thể chấm điểm. Bạn muốn tự động tải chúng không?", "header": "Tải danh sách backlog", "multiSelect": false, "options": [{"label": "Có, tự động tải tất cả", "description": "Lấy toàn bộ ý tưởng, PRD và user story đã tìm thấy"}, {"label": "Không, tôi sẽ dán danh sách thủ công", "description": "Bạn tự nhập hoặc dán các hạng mục cần chấm điểm"}]}]}
-```
+**Removed**: the old "Auto-load discovered items? Yes/No" question was redundant with Step 2's "Paste manually" option — Step 2 already covers the No-paste path. Deleting the gate saves 1 Q per run without losing any choice.
 
 ---
 
 ## Step 2 — Pick the input
 
-Use AskUserQuestion to ask where the items come from.
+Use AskUserQuestion to ask where the items come from. Include the scan counts from Step 1 in option descriptions so the PO sees available volume per source.
 
 **AskUserQuestion example (en)**:
 ```json
