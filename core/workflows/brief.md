@@ -163,7 +163,7 @@ vi:
 
 **Mission**: Ensure the task's core intent is clear enough that colleagues (Product Writer, Story Breaker, etc.) can produce accurate artifacts without fabricating assumptions.
 
-**Analyze ambiguity** — NOT word count. Evaluate 4 elements of the task:
+**Analyze ambiguity** — NOT word count. Evaluate 4 CONTENT elements of the task (metadata like deliverable is derived silently in Step 2a.5, never asked here):
 
 1. **Concrete subject?** — specific noun vs generic?
    - Vague: *"stealth mode"*, *"dashboard"*, *"better UX"*
@@ -181,17 +181,12 @@ vi:
    - Vague: *"redesign signup"* (entire flow? landing only?)
    - Clear: *"only the email verification step"*
 
-5. **Deliverable intent?** — what ARTIFACTS should the pipeline produce?
-   - Vague: no deliverable hint in input
-   - Clear: *"PRD only"*, *"PRD + Roadmap 2-3 quý"*, *"Research + PRD"*, *"Stories for sprint 21"*
-   - Common patterns: `PRD only` / `PRD + Stories` / `PRD + Roadmap` / `Research + PRD` / `Full package`
-
 **Depth scaling based on ambiguity score** (not word count):
 
-- 5/5 clear → 0 Qs, proceed immediately to Step 2
-- 4/5 clear → 1 Q targeting the gap
-- 3/5 clear → 2-3 Qs
-- ≤ 2/5 clear → 3-5 Qs, ask one angle at a time (not batched)
+- 4/4 clear → 0 Qs, proceed immediately to Step 2
+- 3/4 clear → 1 Q targeting the gap
+- 2/4 clear → 2 Qs
+- ≤ 1/4 clear → 3 Qs (hard cap — batch where possible, never interrogate past 3)
 
 **Question angles** — AI picks only what's unclear:
 
@@ -201,14 +196,13 @@ vi:
 | Actor ambiguous | "Who uses this + in what moment?" |
 | Behavior ambiguous | "What happens step-by-step when triggered?" |
 | Scope ambiguous | "What's explicitly NOT in this task?" |
-| Deliverable ambiguous | "What should this pipeline produce? (PRD only / PRD+Stories / PRD+Roadmap / Research+PRD / Full package)" |
 | Optional | "Any hard constraint? (compliance / platform / deadline)" |
 
 Each question uses AskUserQuestion with 3-5 derived options (based on project context, similar features, common patterns) + "Type your own answer" affordance. Do not ask open-ended without suggestions.
 
 **Stop as soon as core intent is clear** — questions past that point become interrogation. Trust colleagues to fill secondary details.
 
-**Save output**: After deep-dive, write `$SESSION_DIR/CONTEXT.md` with structured Q&A (will be created in Step 4, this step just collects answers into memory). Store `DELIVERABLE` value from question 5 for use in Step 2b team derivation:
+**Save output**: After deep-dive, write `$SESSION_DIR/CONTEXT.md` with structured Q&A (will be created in Step 4, this step just collects answers into memory). `DELIVERABLE` is derived silently in Step 2a.5 — never asked here (that would violate Principle line 9: "Colleagues derive from content needs, not from a deliverable dropdown").
 
 ```markdown
 # Context — <TASK_DESCRIPTION short title>
@@ -222,7 +216,7 @@ Each question uses AskUserQuestion with 3-5 derived options (based on project co
 **Actor + trigger**: <who uses it + when>
 **Core behavior**: <step-by-step flow>
 **Out of scope**: <what's NOT in this task>
-**Deliverable**: <PRD only | PRD + Stories | PRD + Roadmap | Research + PRD | Full package>
+**Deliverable (derived in Step 2a.5)**: <filled after derivation — leave placeholder here>
 **Constraints**: <if any were mentioned>
 
 ## Discussion log
@@ -250,9 +244,45 @@ Classify task as `small` / `medium` / `large` / `strategic`:
 - **large**: cross-feature, multi-component, affects 3+ areas (e.g. "redesign signup flow")
 - **strategic**: new product direction, needs research, affects company-level positioning (e.g. "launch new payment provider")
 
+### 2a.5. Derive DELIVERABLE silently
+
+Analyze `TASK_DESCRIPTION` verbs + clarified scope (Step 1b) + project-scan hits to derive `DELIVERABLE` without asking the PO. This implements Principle line 9 — colleagues derive from content, not from a dropdown.
+
+**Detection rules** (pick first matching row):
+
+| Signal in task / scope | DELIVERABLE |
+|---|---|
+| Verb ∈ {research, explore, evaluate, competitive, market scan} OR explicit "research + PRD" in args | `Research + PRD` |
+| Verb ∈ {plan, roadmap, sequence} AND timeframe mentioned ("Q2", "2 quarters", "next year") | `PRD + Roadmap` |
+| Brand-new strategic direction (complexity=`strategic` AND unknown space — no sibling PRDs in project-scan) | `Full package` |
+| Verb ∈ {add, build, launch, implement, develop, ship} | `PRD + Stories` |
+| Single-feature brief with no explicit shape hint | `PRD only` |
+| No clear signal matches | `PRD only` (default) |
+
+**Confidence judgment**:
+- HIGH (≥60% semantic match) → silent set `DELIVERABLE`, skip fallback question
+- LOW (<60% match, ambiguous signals) → ask the fallback AskUserQuestion below
+
+**Fallback AskUserQuestion** (only fires when confidence is LOW):
+
+en:
+```json
+{"questions": [{"question": "Task shape is ambiguous — what should the pipeline produce?", "header": "Deliverable", "multiSelect": false, "options": [
+  {"label": "PRD only", "description": "Just the PRD spec"},
+  {"label": "PRD + Stories", "description": "PRD + user stories ready for sprint"},
+  {"label": "PRD + Roadmap", "description": "Strategic PRD + multi-quarter roadmap"},
+  {"label": "Research + PRD", "description": "Research-backed PRD for unknown space"},
+  {"label": "Full package", "description": "Research + PRD + stories + roadmap"}
+]}]}
+```
+
+vi: regenerate with Vietnamese labels.
+
+**Store outcome**: After derivation or fallback, write `DELIVERABLE` to session memory for use in Step 2b + 2c. Also append to `CONTEXT.md` a single line: `**Deliverable (derived)**: <value>` — user sees it was derived, not asked.
+
 ### 2b. Colleague team derivation
 
-Start from base, then apply rules. **Deliverable intent from Step 1b question 5 is the primary driver** — complexity scales the team size, but deliverable determines which artifact-producing colleagues are needed. Do NOT add Story Breaker for a PRD-only deliverable just because complexity is strategic.
+Start from base, then apply rules. **`DELIVERABLE` derived in Step 2a.5 is the primary driver** — complexity scales the team size, but deliverable determines which artifact-producing colleagues are needed. Do NOT add Story Breaker for a PRD-only deliverable just because complexity is strategic.
 
 | Condition | Add colleagues |
 |---|---|

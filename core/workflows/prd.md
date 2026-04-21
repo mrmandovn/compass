@@ -129,7 +129,7 @@ This step does NOT ask the user anything. It only builds an `AUTOFILL` hint map 
    - `AUTOFILL.stakeholders = config.team.stakeholders` (used in Section G / Open Questions)
    - `AUTOFILL.po = config.team.po`
    - `AUTOFILL.prefix = config.prefix` (Silver Tiger only)
-   - `AUTOFILL.A3 = "Draft"` (sensible default for PRD status)
+   - (A3 status is hard-coded `"Draft"` at compose — not asked, not in AUTOFILL)
 
 3. **Active pipeline context** (from Step 0a) — if `pipeline_mode = true`:
    - Read `$PROJECT_ROOT/.compass/.state/sessions/<slug>/context.json` → extract `title`, `problem`, `users`.
@@ -229,7 +229,25 @@ Detect target sections from `$ARGUMENTS` keywords:
 | "bug", "error", "issue", "pain" + no section keyword | **B (Problem)** | Only problem framing changes, inherit everything else |
 | Multiple of above | multi-target | Render each touched section |
 
-Construct the type + targets proposal and confirm via AskUserQuestion:
+**Compute detection confidence** (before calling AskUserQuestion):
+
+| Scenario | Signal | Confidence |
+|---|---|---|
+| `new-feature` case | Source ∈ {IDEA file, Update of existing PRD, Brief from leadership} AND type is unambiguously new-feature (net-new capability signal, no "change/improve/fix existing X" language) | **HIGH** |
+| `enhancement` case | Source = `Update of existing PRD` (only source that populates `PRIOR_PRD_SECTIONS` for inheritance) AND keyword detection matches exactly 1 target section AND enhancement type clear | **HIGH** |
+| Multi-target enhancement | Source = Update AND keywords match 2+ sections | **MEDIUM** |
+| Enhancement without inherit-source | `PRD_TYPE=enhancement` proposed but source ∈ {IDEA, Brief, new idea} (no `PRIOR_PRD_SECTIONS` to inherit from) — ask confirm so guard can resolve inline | **LOW** |
+| Any other | Type signal conflicts OR no keyword match for enhancement | **LOW** |
+
+**On HIGH confidence** — skip the AskUserQuestion (silent set):
+
+- Silent set `PRD_TYPE = <proposed>` and `PRD_TARGETS = [proposed targets]`
+- Print inline confirmation so PO sees what was derived:
+  - en: `→ Detected: <type> targeting [<sections>] (from <source>). Proceeding with Step 4. Review at Step 6.5 before write — you can edit any auto-derived section there.`
+  - vi: `→ Đã detect: <type> targeting [<sections>] (từ <source>). Tiếp tục Step 4. Review ở Step 6.5 trước khi ghi file — sửa được section auto-derive ở đó.`
+- Proceed directly to Step 3d. Skip the AskUserQuestion below.
+
+**On MEDIUM or LOW confidence** — confirm via AskUserQuestion:
 
 ```json
 {"questions": [{"question": "Based on <source>, this looks like <type>. <If enhancement: target sections: <C/F/E/D>>. Confirm?", "header": "PRD type", "multiSelect": false, "options": [
@@ -285,34 +303,77 @@ Inherit the non-rendered sections from `PRIOR_PRD_SECTIONS` at compose time (Ste
 - Input: `"change primary metric from DAU to WAU"` → `type=enhancement`, `targets=[E]` → Step 4 renders A + B + E + AC. Inherit C, D, F.
 - Input: `"redesign signup flow for enterprise users"` → `type=enhancement`, `targets=[C, F]` → Step 4 renders A + B + C + F + AC. Inherit D, E.
 
+## Step 3.5 — Content clarity scan (silent)
+
+Before Step 4 interview, score each section in `PRD_TARGETS` on whether SOURCE (IDEA / brief / prior PRD) + `$ARGUMENTS` already provides enough content to draft without asking. This scales interview depth to actual content gaps, not to a templated question list.
+
+**For each section in `PRD_TARGETS`** (except A, which always asks A1 for feature name):
+
+| Section | CLEAR (skip interview) | PARTIAL (1 focused Q) | UNCLEAR (batched flow) |
+|---|---|---|---|
+| **B Problem** | Source has explicit problem statement (≥1 sentence) | `$ARGUMENTS` has problem verb ("fix", "improve", "solve", "reduce friction") but no specifics | No problem signal in source or args |
+| **C Users** | Source names a concrete persona (e.g. "enterprise admin", "guest reviewer") with role + context | `$ARGUMENTS` has tier keyword ("enterprise", "pro-tier") OR role keyword ("admin", "guest") alone (not both) — persona is suggestive but not fully specified | No persona signal in source or args |
+| **D Goals** | Source has measurable goals, OR `$ARGUMENTS` has explicit outcome ("increase X by N%", "reduce Y") | `$ARGUMENTS` has goal verb but no measurement | No goal signal |
+| **E Metrics** | Source has metrics/KPIs named | `$ARGUMENTS` has measurable outcome hint | No metric signal |
+| **F Flow** | Source has flow/journey steps described | `$ARGUMENTS` has flow pattern keyword ("signup", "checkout", "onboarding", "upload") | No flow signal (most new features) |
+
+Store result as `SECTION_CLARITY` map: `{B: "CLEAR", C: "PARTIAL", D: "UNCLEAR", E: "UNCLEAR", F: "UNCLEAR"}` — used in Step 4 to decide per-section depth.
+
+**Judgment rule**: Lean UNCLEAR when uncertain. CLEAR requires explicit source content — not inference from feature name alone. When in doubt, downgrade one level.
+
+**Example**:
+
+Input: `"add 2FA login for enterprise tier"` + IDEA file with `problem: "Account takeover attacks up 40% Q4"` + `goal: "Reduce successful takeovers by 80%"`
+
+Scan result:
+- B: CLEAR (IDEA has problem statement)
+- C: PARTIAL (`enterprise tier` = tier keyword alone, no concrete role — needs 1 Q to pick admin/end-user/both)
+- D: CLEAR (IDEA has measurable goal)
+- E: UNCLEAR (no metric named; goal "reduce by 80%" is not a primary metric)
+- F: UNCLEAR (2FA has multiple patterns — TOTP / SMS / push / hardware key — PO must pick)
+
+Result: Step 4 asks **6-9 Qs total** — A1 (1) + B CLEAR (0) + C PARTIAL (1) + D CLEAR (0) + E UNCLEAR smart-depth (2-4 depending on complexity judgment) + F UNCLEAR smart-depth (2-3). Contrast: full batched mode = 12-15 Qs. Major reduction for well-sourced PRDs; no savings for truly unsourced ones (as expected — you can't derive what isn't there).
+
+**MINIMAL mode interaction**: MINIMAL (evaluated in Step 4) forces `PRD_TARGETS = [A, B]`. When active, Step 3.5 still runs but only scans B — likely UNCLEAR for trivial tasks ("add logout button" has no source). If B is CLEAR (trivial + source somehow provides it), interview skips entirely and compose drafts from source.
+
 ## Step 4 — Interview to fill the PRD
 
-**Emit progress plan before starting** — apply Pattern 1 from `core/shared/progress.md`. Dynamically list sections based on `PRD_TARGETS` from Step 3d:
+**Emit progress plan before starting** — apply Pattern 1 from `core/shared/progress.md`. Dynamically list sections based on `PRD_TARGETS` from Step 3d AND `SECTION_CLARITY` from Step 3.5:
 
 ```
 📋 PRD: <feature name>
    Type: <PRD_TYPE>   Targets: [<PRD_TARGETS>]   Sections: <N>
-   Expected: 2-5 min (scales with section count)
+   Expected: 1-5 min (scales with clarity — clearer source = fewer questions)
 
-   ⏸  Section A — Identity        (always)
-   ⏸  Section B — Problem         (always)
-   ⏸  Section C — Users           (<render if in PRD_TARGETS else "inherit from prior">)
-   ⏸  Section D — Goals           (<render if in PRD_TARGETS else "inherit from prior">)
-   ⏸  Section E — Metrics         (<render if in PRD_TARGETS else "inherit from prior">)
-   ⏸  Section F — Flow            (<render if in PRD_TARGETS else "inherit from prior">)
+   ⏸  Section A — Identity        (<1 Q default | 2 Qs detailed mode>)
+   ⏸  Section B — Problem         (<clarity-based label>)
+   ⏸  Section C — Users           (<clarity or "inherit">)
+   ⏸  Section D — Goals           (<clarity or "inherit">)
+   ⏸  Section E — Metrics         (<clarity or "inherit">)
+   ⏸  Section F — Flow            (<clarity or "inherit">)
 ```
 
-After each section's batched AskUserQuestion answer is received, tick that line with elapsed seconds and mark the next as `🔄`. For "inherit" sections, print `✓ Section X — inherited from <source>` and skip the interview.
+Section A label depends on `interaction_level` + pipeline state — render `1 Q` if A1-only, `2 Qs` if A1+A2 (detailed mode or pipeline needs sprint).
 
-> **Batching rule**: walk section by section. Within each section, batch all questions into a SINGLE `AskUserQuestion` call using the `questions` array (1–4 items per call). Claude Code's tool supports this natively — do NOT make separate sequential calls for questions in the same section.
+**Clarity-based label** (per section, from `SECTION_CLARITY`):
+- `CLEAR` → `🤖 derived from source — 0 Qs`
+- `PARTIAL` → `🟡 1 focused Q`
+- `UNCLEAR` → `🔴 batched 2-3 Qs`
+- Not in `PRD_TARGETS` → `✓ inherit from <source>`
+
+After each section completes, tick with elapsed seconds. For "inherit" or "derived" sections, print `✓ Section X — <inherited|derived> from <source>` and skip to the next immediately.
+
+> **Batching rule**: walk section by section. Within each section, batch questions into a SINGLE `AskUserQuestion` call using the `questions` array (1–4 items per call). Claude Code's tool supports this natively — do NOT make separate sequential calls for questions in the same section.
 >
-> **Section rendering from `PRD_TARGETS`** (set in Step 3d):
-> - Sections A, B → always rendered
-> - Sections C, D, E, F → rendered only if in PRD_TARGETS; otherwise inherited from `PRIOR_PRD_SECTIONS` at compose time (Step 6)
-> - `new-feature` has `PRD_TARGETS = [A, B, C, D, E, F]` → all sections rendered
-> - `enhancement` has `PRD_TARGETS = [A, B, <subset>]` → only rendered subset is interviewed
->
-> Smart-depth sections (E, F) may batch 2–4 questions depending on complexity.
+> **Section rendering from `PRD_TARGETS` + `SECTION_CLARITY`**:
+> - Section A → always asks A1 (feature name); A2/A3 per Section A rules above
+> - Sections B/C/D/E/F:
+>   - Not in `PRD_TARGETS` → inherit from `PRIOR_PRD_SECTIONS` at compose (Step 6), skip interview
+>   - In `PRD_TARGETS` + `SECTION_CLARITY = CLEAR` → skip interview, AI drafts at compose from source, PO reviews at Step 6.5
+>   - In `PRD_TARGETS` + `SECTION_CLARITY = PARTIAL` → 1 focused Q (see per-section partial-path below)
+>   - In `PRD_TARGETS` + `SECTION_CLARITY = UNCLEAR` → batched interview (current behavior)
+> - `new-feature` starts with `PRD_TARGETS = [A, B, C, D, E, F]` then Step 3.5 classifies each
+> - `enhancement` starts with `PRD_TARGETS = [A, B, <subset>]` — non-targets are inherited, targets are classified
 
 **MINIMAL PRD mode** (adaptive depth for truly trivial tasks):
 
@@ -339,33 +400,72 @@ In MINIMAL mode, override `PRD_TARGETS` to `[A, B]` (force narrow scope regardle
 - Step 6 composes a 1-page PRD format (Overview only + AC)
 - Good fits: "add logout button to settings", "fix typo in error toast", "rename Settings page to Preferences"
 
+**MINIMAL bypasses SECTION_CLARITY** — MINIMAL is a hard override that takes precedence over clarity-based depth. Ignore `SECTION_CLARITY` map, use MINIMAL's fixed 2-question batch. Also skip Step 6.5 draft review (1-page format is trivial, no derived content to confirm).
+
 Print `✓ MINIMAL PRD mode — 1-page format (task is trivial; full PRD would be overkill)` at start.
 
 PO can opt out by picking "Actually new-feature" at Step 3c, which forces `PRD_TARGETS = [A, B, C, D, E, F]` and disables MINIMAL.
 
-### Section A: Identity (1 turn, 1 batched call)
+### Section A: Identity (1 Q default, adaptive)
 
-**Batch all three identity fields (A1 feature name, A2 sprint/quarter, A3 status) into a SINGLE AskUserQuestion call with a `questions` array of 3 items.** Claude Code supports up to 4 questions per call — use it to collapse 3 sequential round trips into 1.
+**Rule**: Only A1 (feature name) is content. A2 (sprint/quarter) is metadata; A3 (status) is always `"Draft"` at write time. Don't ask metadata that can be auto-derived — that's bureaucracy, not adaptive.
 
-**Context awareness**: before asking, scan:
+**A3 (PRD status) is NEVER asked**. Hard-code `status = "Draft"` at compose (Step 6). The status lifecycle (Draft → Review → Approved) happens AFTER write via external review — not a write-time decision.
+
+**A2 (Sprint / Quarter) is conditional** — evaluate in priority order, first matching rule wins:
+
+1. `pipeline_mode = true` AND pipeline context has `sprint`/`quarter` field → **inherit silently** from pipeline, skip question (pipeline is authoritative for the active initiative).
+2. `interaction_level = detailed` → **ask A2** (PO explicitly opted into extra questions — honor the detailed contract even if pipeline exists without sprint).
+3. `pipeline_mode = true` but pipeline has no sprint/quarter field → **ask A2** (pipeline exists but sprint not yet decided — PO is at the planning point where this matters).
+4. Otherwise (`quick` / `standard` standalone, no pipeline) → **skip A2**, default to `"TBD"` at compose (PO can fill during post-write review).
+
+**A1 (Feature name) is ALWAYS asked**, with `$ARGUMENTS`-derived suggestion when available.
+
+**Context awareness for A1**: before asking, scan:
 - `$ARGUMENTS` — if a feature name is obvious, put it as `options[0]` of A1 with label `Auto-detected: <name>` (user accepts with 1 click)
 - Existing PRDs in project — if names follow a pattern, offer the pattern variant as an option
 
-Generate all labels and descriptions in `lang` (do not translate hardcoded strings — regenerate in Vietnamese when `lang=vi`).
+Generate all labels and descriptions in `lang` (regenerate in Vietnamese when `lang=vi`).
 
-Batched structure (English example):
+**Option assembly for A1** (same logic for default + detailed paths):
+- If `AUTOFILL.A1` has a value → options[0] = `{"label": "<AUTOFILL.A1>", "description": "Accept detected name"}`
+- If `AUTOFILL.A1` is empty → options[0] = `{"label": "Bulk file upload", "description": "Example — adapt to your feature"}` (generic placeholder so user has ≥2 options)
+- options[last] = `{"label": "Type your own name", "description": "Enter a short, action-oriented title"}` (always present)
+
+**Default path (1 question, English)** — most common case (auto-detect present):
 
 ```json
 {"questions": [
-  {"question": "What is the feature or initiative name?", "header": "Feature Name", "multiSelect": false, "options": [{"label": "<auto-detected from $ARGUMENTS>", "description": "Accept detected name"}, {"label": "Bulk file upload", "description": "Example — adapt to your feature"}, {"label": "Type your own name", "description": "Enter a short, action-oriented title"}]},
-  {"question": "Which sprint or quarter is this PRD targeting?", "header": "Sprint / Quarter", "multiSelect": false, "options": [{"label": "Current sprint", "description": "Ongoing sprint"}, {"label": "Next sprint", "description": "Upcoming sprint"}, {"label": "This quarter", "description": "Current quarter"}, {"label": "Next quarter", "description": "Planning ahead"}]},
-  {"question": "What is the current status of this PRD?", "header": "PRD Status", "multiSelect": false, "options": [{"label": "Draft", "description": "Still being written"}, {"label": "Review", "description": "Ready for stakeholder feedback"}, {"label": "Approved", "description": "Signed off for sprint planning"}]}
+  {"question": "What is the feature or initiative name?", "header": "Feature Name", "multiSelect": false, "options": [{"label": "<AUTOFILL.A1 value>", "description": "Accept detected name"}, {"label": "Type your own name", "description": "Enter a short, action-oriented title"}]}
 ]}
 ```
 
-When `lang=vi`, generate the same structure with Vietnamese labels/descriptions. Do NOT make two separate calls for English and Vietnamese — pick one based on `lang`.
+**Detailed path (2 questions, English)** — only when `interaction_level=detailed` OR pipeline needs sprint clarification:
 
-### Section B: Problem (1 turn, 1 batched call)
+```json
+{"questions": [
+  {"question": "What is the feature or initiative name?", "header": "Feature Name", "multiSelect": false, "options": [{"label": "<AUTOFILL.A1 value or generic example>", "description": "Accept detected name / Example — adapt to your feature"}, {"label": "Type your own name", "description": "Enter a short, action-oriented title"}]},
+  {"question": "Which sprint or quarter is this PRD targeting?", "header": "Sprint / Quarter", "multiSelect": false, "options": [{"label": "Current sprint", "description": "Ongoing sprint"}, {"label": "Next sprint", "description": "Upcoming sprint"}, {"label": "This quarter", "description": "Current quarter"}, {"label": "Next quarter", "description": "Planning ahead"}, {"label": "TBD", "description": "Decide later — leave blank"}]}
+]}
+```
+
+When `lang=vi`, regenerate the chosen structure with Vietnamese labels/descriptions.
+
+**Compose note for Step 6**: Always write `status: Draft`. For A2, use asked answer / pipeline-inherited value / `"TBD"` in that precedence.
+
+### Section B: Problem (adaptive per SECTION_CLARITY)
+
+**Content clarity check** — consult `SECTION_CLARITY["B"]` from Step 3.5:
+- `CLEAR` → skip interview. AI drafts B1/B2/B3 at compose (Step 6) from source. Print `✓ Section B — derived from source (CLEAR)`. PO reviews at Step 6.5.
+- `PARTIAL` → ask 1 focused Q (B1 only). B2/B3 auto-derived at compose from B1 answer + `$ARGUMENTS`. PO reviews at Step 6.5.
+- `UNCLEAR` → run the batched 3-question flow below.
+
+**Partial-path structure (1 Q, English)**:
+```json
+{"questions": [{"question": "What specific problem does this feature solve?", "header": "Problem", "multiSelect": false, "options": [{"label": "<derived from $ARGUMENTS>", "description": "Accept derived problem statement"}, {"label": "Other — I'll describe", "description": "Type your own problem statement"}]}]}
+```
+
+**Unclear-path (batched 3 questions)**:
 
 **Batch B1 (problem), B2 (evidence), B3 (consequence) into a SINGLE AskUserQuestion call with 3 questions.**
 
@@ -395,13 +495,25 @@ Areas to cover across the 3 questions: user friction, business impact, evidence 
 
 When `lang=vi`, regenerate all labels/descriptions in Vietnamese.
 
-### Section C: Users (1 turn, 1 batched call — conditional on PRD_TARGETS)
+### Section C: Users (adaptive per SECTION_CLARITY, conditional on PRD_TARGETS)
 
 **Skip this entire section if `C` is NOT in `PRD_TARGETS`** (from Step 3d) — inherit primary/secondary users from `PRIOR_PRD_SECTIONS.users` (the linked source PRD or IDEA file). Print `✓ Section C — inherited from <source>` and move to next section.
+
+**Content clarity check** (when C is in PRD_TARGETS) — consult `SECTION_CLARITY["C"]`:
+- `CLEAR` → skip interview. AI drafts C1/C2/C3 at compose from source + args keywords. Print `✓ Section C — derived from source (CLEAR)`. PO reviews at Step 6.5.
+- `PARTIAL` → ask 1 focused Q (C1 only). C2 defaults to "None — single-persona feature", C3 defaults to "All users in scope" — both overridable at Step 6.5.
+- `UNCLEAR` → run the batched 3-question flow below.
 
 Render this section when:
 - `PRD_TYPE = new-feature` (always rendered)
 - `PRD_TYPE = enhancement` AND the enhancement targets Users (e.g. "expand admin roles", "add guest persona")
+
+**Partial-path structure (1 Q, English)**:
+```json
+{"questions": [{"question": "Who is the primary user of this feature?", "header": "Primary User", "multiSelect": false, "options": [{"label": "<persona 1 derived from args/source>", "description": "..."}, {"label": "<persona 2 derived>", "description": "..."}, {"label": "Other — I'll describe", "description": "Type the primary persona"}]}]}
+```
+
+**Unclear-path (batched 3 questions)**:
 
 **Batch C1 (primary user), C2 (secondary users), C3 (out-of-scope users) into a SINGLE AskUserQuestion call with 3 questions.**
 
@@ -424,11 +536,23 @@ Batched structure (English):
 
 When `lang=vi`, regenerate all labels/descriptions in Vietnamese.
 
-### Section D: Goals and Non-goals (1 turn, 1 batched call — conditional on PRD_TARGETS)
+### Section D: Goals and Non-goals (adaptive per SECTION_CLARITY, conditional on PRD_TARGETS)
 
 **Skip this section if `D` is NOT in `PRD_TARGETS`** (enhancement not targeting goals) — inherit goals/non-goals from `PRIOR_PRD_SECTIONS.goals`. Print `✓ Section D — inherited from <source>`.
 
+**Content clarity check** (when D is in PRD_TARGETS) — consult `SECTION_CLARITY["D"]`:
+- `CLEAR` → skip interview. AI drafts goals + non-goals from source at compose. Print `✓ Section D — derived from source (CLEAR)`. PO reviews at Step 6.5.
+- `PARTIAL` → ask 1 focused Q (D1 only, multi-select goals). D2 non-goals AI-derived from D1 + product constraints.
+- `UNCLEAR` → run the batched 2-question flow below.
+
 Render when: `PRD_TYPE = new-feature` OR `PRD_TYPE = enhancement` with `D` in targets (e.g. "change success goal", "add non-goal to scope").
+
+**Partial-path structure (1 Q, English)**:
+```json
+{"questions": [{"question": "Goals — pick 2–4 measurable goals for this feature", "header": "Goals", "multiSelect": true, "options": [{"label": "<goal 1 derived>", "description": "..."}, {"label": "<goal 2 derived>", "description": "..."}, {"label": "<goal 3 derived>", "description": "..."}, {"label": "Other — I'll describe", "description": "Type additional goals"}]}]}
+```
+
+**Unclear-path (batched 2 questions)**:
 
 **Batch D1 (goals) and D2 (non-goals) into a SINGLE AskUserQuestion call with 2 questions, both `multiSelect: true`.**
 
@@ -452,11 +576,23 @@ When `lang=vi`, regenerate all labels/descriptions in Vietnamese.
 
 **Validation after user answers**: check that no item appears in both D1 and D2 — if overlap, ask user to clarify.
 
-### Section E: Success metrics (1 turn, 1 batched call — smart depth, conditional on PRD_TARGETS)
+### Section E: Success metrics (adaptive per SECTION_CLARITY, conditional on PRD_TARGETS)
 
 **Skip this section if `E` is NOT in `PRD_TARGETS`** — inherit metrics from `PRIOR_PRD_SECTIONS.metrics`. Print `✓ Section E — inherited from <source>`.
 
+**Content clarity check** (when E is in PRD_TARGETS) — consult `SECTION_CLARITY["E"]`:
+- `CLEAR` → skip interview. AI drafts E1 primary + E4 guardrail from source at compose. Print `✓ Section E — derived from source (CLEAR)`. PO reviews at Step 6.5.
+- `PARTIAL` → ask 1 focused Q (E1 primary metric). E2/E3 auto-defaulted, E4 AI-derived from feature surface.
+- `UNCLEAR` → run the smart-depth flow below (2 or 4 questions based on complexity).
+
 Render when: `PRD_TYPE = new-feature` OR `PRD_TYPE = enhancement` with `E` in targets (e.g. "change primary metric from DAU to WAU", "add guardrail metric").
+
+**Partial-path structure (1 Q, English)**:
+```json
+{"questions": [{"question": "Primary metric to judge success?", "header": "Primary Metric", "multiSelect": false, "options": [{"label": "<E1 option 1 derived from D1 goals>", "description": "..."}, {"label": "<E1 option 2 derived>", "description": "..."}, {"label": "Other — I'll describe", "description": "Type your metric"}]}]}
+```
+
+**Unclear-path (smart-depth batched)**:
 
 **Batch E questions into a SINGLE AskUserQuestion call.** Tool supports max 4 questions per call.
 
@@ -483,13 +619,25 @@ Complex case (4 questions): same structure with E2 baseline + E3 target added be
 
 When `lang=vi`, regenerate all labels/descriptions in Vietnamese.
 
-### Section F: User flow and requirements (1 turn, 1 batched call — smart depth, conditional on PRD_TARGETS)
+### Section F: User flow and requirements (adaptive per SECTION_CLARITY, conditional on PRD_TARGETS)
 
 **Skip this entire section if `F` is NOT in `PRD_TARGETS`** (from Step 3d) — inherit happy path and edge cases from `PRIOR_PRD_SECTIONS.flow`. Print `✓ Section F — inherited from <source>` and move to next section.
+
+**Content clarity check** (when F is in PRD_TARGETS) — consult `SECTION_CLARITY["F"]`:
+- `CLEAR` → skip interview. AI drafts flow steps + edge cases from source at compose. Print `✓ Section F — derived from source (CLEAR)`. PO reviews at Step 6.5.
+- `PARTIAL` → ask 1 focused Q (F1 flow pattern). F2 edge cases auto-derived from feature's technical surface.
+- `UNCLEAR` → run the smart-depth flow below (2 or 3 questions based on complexity).
 
 Render when:
 - `PRD_TYPE = new-feature` (always rendered)
 - `PRD_TYPE = enhancement` AND the enhancement targets Flow (e.g. "redesign signup", "simplify checkout", "improve onboarding funnel")
+
+**Partial-path structure (1 Q, English)**:
+```json
+{"questions": [{"question": "Which flow pattern fits the happy path?", "header": "Flow Pattern", "multiSelect": false, "options": [{"label": "<F1 pattern 1 derived from feature type>", "description": "..."}, {"label": "<F1 pattern 2 derived>", "description": "..."}, {"label": "Walk me through in your own words", "description": "Describe the steps"}]}]}
+```
+
+**Unclear-path (smart-depth batched)**:
 
 **Batch F questions into a SINGLE AskUserQuestion call.**
 
@@ -636,6 +784,49 @@ After writing, **re-read the entire PRD** and check:
 - Success metrics are measurable, with baseline and target
 - The user flow is readable on paper (after reading the happy path, you understand what the feature does)
 - If `config.domain` is set, the PRD reflects the domain conventions already described in `CLAUDE.md` and in `<shared_path>/domain-rules/<domain>.md` (per Silver Tiger). Spot-check: section names and writer constraints typical for that domain are visible in the draft.
+
+## Step 6.5 — Draft review (conditional)
+
+**Only fires if ≥1 section was auto-derived via SECTION_CLARITY=CLEAR OR via PARTIAL-path compose-fill.** If every rendered section came from UNCLEAR → full batched interview (100% user answers), skip this step and go directly to Step 7.
+
+**Rationale**: When AI drafts content from source instead of asking, PO must confirm the interpretation before the file is written. This catches misreads without adding questions to the happy path.
+
+Print a compact PRD summary (section bullets, NOT the full doc — that would scroll past the user):
+
+```
+📋 PRD draft ready. Review derived content:
+
+  A — Identity:  <feature name>
+  B — Problem:   <1-line problem statement>   <🤖 if derived>
+  C — Users:     <primary persona>             <🤖 if derived>
+  D — Goals:     <top 2 bullets>               <🤖 if derived>
+  E — Metrics:   <primary metric>              <🤖 if derived>
+  F — Flow:      <N-step happy path>           <🤖 if derived>
+
+  <X> section(s) auto-derived (🤖). Review before writing?
+```
+
+**AskUserQuestion** — dynamic options list includes only sections that are:
+- In `PRD_TARGETS` (skip inherited sections)
+- Auto-derived (CLEAR) or partial-filled (PARTIAL)
+
+```json
+{"questions": [{"question": "Draft look good? Pick a section to edit or approve all.", "header": "Review", "multiSelect": false, "options": [
+  {"label": "All good — write file", "description": "Proceed to Step 7"},
+  {"label": "Edit Section B — Problem", "description": "Re-run B interview in UNCLEAR mode"},
+  {"label": "Edit Section C — Users", "description": "Re-run C interview in UNCLEAR mode"},
+  {"label": "Edit Section D — Goals", "description": "Re-run D interview in UNCLEAR mode"},
+  {"label": "Edit Section E — Metrics", "description": "Re-run E interview in UNCLEAR mode"},
+  {"label": "Edit Section F — Flow", "description": "Re-run F interview in UNCLEAR mode"}
+]}]}
+```
+
+vi: regenerate with Vietnamese labels.
+
+**Only list sections that are both in `PRD_TARGETS` AND were derived (CLEAR) or partial-filled (PARTIAL)** — don't offer edit options for inherited or fully-interviewed sections.
+
+**On "All good"** → proceed to Step 7.
+**On "Edit Section X"** → force `SECTION_CLARITY[X] = "UNCLEAR"`, re-run that section's batched interview, re-compose the PRD (just that section), re-show this review. **Cap at 3 edit loops** to avoid infinite refinement — after 3, force "All good" and write file with a note "`⚠ Max edit loops reached — review after write`".
 
 ## Step 7 — Write the file
 
