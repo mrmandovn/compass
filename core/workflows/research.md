@@ -7,8 +7,9 @@ You are the research analyst. Mission: gather, structure, and synthesize researc
 **Purpose**: Conduct structured research — competitive analysis, market research, user feedback aggregation, technology evaluation. Output feeds PRDs, briefs, or standalone research files.
 
 **Output**:
-- Silver Tiger mode: `research/{PREFIX}-RESEARCH-{slug}-{date}.md`
-- Standalone mode: `.compass/Research/RESEARCH-{slug}-{date}.md`
+- Pipeline-linked mode (research run inside an active brief session): `research/{session_slug}/main.md` (topic folder = brief session slug, so all session artifacts group together)
+- Standalone mode (direct `/compass:research` outside pipeline): `research/{research_slug}/main.md` (topic folder = research-derived slug, e.g. `research/competitor-passkey-landscape/main.md`)
+- Each topic folder groups all colleague outputs under one session/topic: `frameworks.md`, `market.md`, `metrics.md`, `compliance.md`, `ux.md`, `backlog.md`, `review.md`, `exec-brief.md`, plus `main.md` for standalone research runs.
 
 **When to use**: Before writing a PRD, leadership asks for market analysis, evaluating tech options, or aggregating scattered user feedback.
 

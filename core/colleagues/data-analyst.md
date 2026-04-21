@@ -40,7 +40,7 @@
 - Record cross-reference to output file
 
 ## Output
-- File: `research/METRICS-{PREFIX}-{slug}.md` (Silver Tiger) or `.compass/Analytics/METRICS-{slug}.md` (standalone)
+- File: `research/{slug}/metrics.md` (topic-grouped folder)
 - Structure:
   ```markdown
   ---

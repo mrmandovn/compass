@@ -40,7 +40,7 @@
 - Record cross-references to output file
 
 ## Output
-- File: N/A (report returned as inline output to orchestrator)
+- File: `research/{slug}/review.md` (topic-grouped folder; also returned inline to orchestrator for the session's final summary)
 - Template: N/A
 
 ## Acceptance Criteria

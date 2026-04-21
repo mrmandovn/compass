@@ -39,7 +39,7 @@
 - Record cross-references to output file
 
 ## Output
-- File: N/A (report returned as inline output to orchestrator)
+- File: `research/{slug}/ux.md` (topic-grouped folder)
 - Template: N/A
 
 ## Acceptance Criteria

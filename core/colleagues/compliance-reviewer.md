@@ -45,7 +45,7 @@ For each dimension, record:
 - Record cross-reference to output file
 
 ## Output
-- File: `research/COMPLIANCE-{PREFIX}-{slug}.md` (Silver Tiger) or `.compass/Compliance/COMPLIANCE-{slug}.md` (standalone)
+- File: `research/{slug}/compliance.md` (topic-grouped folder)
 - Structure:
   ```markdown
   ---

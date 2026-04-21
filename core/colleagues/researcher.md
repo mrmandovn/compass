@@ -39,7 +39,7 @@
 - Record cross-references to output file
 
 ## Output
-- File: `research/{slug}-research.md`
+- File: `research/{slug}/frameworks.md` (topic-grouped folder; `{slug}` = session slug from brief or standalone research topic)
 - Template: N/A
 
 ## Acceptance Criteria

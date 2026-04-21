@@ -1,7 +1,7 @@
 # Colleague: Stakeholder Communicator
 
 **Role**: writer
-**Purpose**: Compose a concise executive summary and release notes for leadership from session outputs.
+**Purpose**: Compose a concise executive summary (pre-ship, internal strategic comm) for leadership from session outputs. Does NOT produce release notes — `/compass:release` is the dedicated workflow for post-ship release notes, and `release-notes/` belongs exclusively to that workflow.
 
 ---
 
@@ -43,8 +43,10 @@
 - Record cross-references to output file
 
 ## Output
-- File: `comms/{slug}-executive-summary.md`
+- File: `research/{slug}/exec-brief.md` (topic-grouped folder — consolidates all session artifacts under one topic folder)
 - Template: N/A
+
+**NEVER** write to `release-notes/` — that folder is owned by `/compass:release` for post-ship versioned release notes. Executive briefs for pre-ship planning are strategic internal comms, not user-facing release notes.
 
 ## Acceptance Criteria
 - Output is 1 page or less (400–600 words)

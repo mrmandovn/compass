@@ -38,7 +38,7 @@
 - Record cross-references to output file
 
 ## Output
-- File: `backlog/{slug}-prioritized-backlog.md`
+- File: `research/{slug}/backlog.md` (topic-grouped folder — aligns with other colleague outputs)
 - Template: N/A
 
 ## Acceptance Criteria

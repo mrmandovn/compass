@@ -35,7 +35,7 @@
 - Record cross-references to output file
 
 ## Output
-- File: `research/{slug}-market-analysis.md`
+- File: `research/{slug}/market.md`
 - Template: N/A
 
 ## Acceptance Criteria

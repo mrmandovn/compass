@@ -9,7 +9,7 @@
         8000,
         20000
       ],
-      "output_pattern": "research/{PREFIX}-{slug}.md",
+      "output_pattern": "research/{slug}/frameworks.md",
       "requires_integration": [],
       "can_depend_on": [],
       "workflow": "researcher.md"
@@ -22,7 +22,7 @@
         10000,
         25000
       ],
-      "output_pattern": "research/MARKET-{PREFIX}-{slug}.md",
+      "output_pattern": "research/{slug}/market.md",
       "requires_integration": [],
       "can_depend_on": [],
       "workflow": "market-analyst.md"
@@ -66,7 +66,7 @@
         8000,
         15000
       ],
-      "output_pattern": "research/BACKLOG-{naming.backlog}",
+      "output_pattern": "research/{slug}/backlog.md",
       "requires_integration": [],
       "can_depend_on": [
         "story-breaker",
@@ -82,7 +82,7 @@
         5000,
         12000
       ],
-      "output_pattern": null,
+      "output_pattern": "research/{slug}/review.md",
       "requires_integration": [],
       "can_depend_on": [
         "writer",
@@ -99,7 +99,7 @@
         8000,
         15000
       ],
-      "output_pattern": null,
+      "output_pattern": "research/{slug}/ux.md",
       "requires_integration": [
         "figma"
       ],
@@ -116,7 +116,7 @@
         5000,
         12000
       ],
-      "output_pattern": "release-notes/{PREFIX}-{slug}.md",
+      "output_pattern": "research/{slug}/exec-brief.md",
       "requires_integration": [],
       "can_depend_on": [
         "writer",
@@ -133,7 +133,7 @@
         7000,
         18000
       ],
-      "output_pattern": "research/METRICS-{PREFIX}-{slug}.md",
+      "output_pattern": "research/{slug}/metrics.md",
       "requires_integration": [],
       "can_depend_on": [
         "researcher",
@@ -149,7 +149,7 @@
         8000,
         20000
       ],
-      "output_pattern": "research/COMPLIANCE-{PREFIX}-{slug}.md",
+      "output_pattern": "research/{slug}/compliance.md",
       "requires_integration": [],
       "can_depend_on": [
         "writer",
