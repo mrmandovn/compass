@@ -10,7 +10,15 @@
 ## Step 0a — Resolve
 
 ```bash
-RESOLVE=$(compass-cli project resolve)
+# Real timeout — compass-cli crash or hang must not wedge the workflow
+RESOLVE=$(timeout 10s compass-cli project resolve 2>/dev/null)
+if [ -z "$RESOLVE" ]; then
+  echo "✗ compass-cli project resolve failed or timed out. Try:" >&2
+  echo "    compass-cli project list   # verify registry" >&2
+  echo "    /compass:init              # if no project registered" >&2
+  exit 1
+fi
+
 STATUS=$(echo "$RESOLVE" | jq -r '.status')   # ok | ambiguous | none
 PROJECT_ROOT=$(echo "$RESOLVE" | jq -r '.project_root')
 PROJECT_NAME=$(echo "$RESOLVE" | jq -r '.name')

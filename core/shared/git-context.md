@@ -60,9 +60,29 @@ Branch on current state:
 
 vi: translate labels (`Stash, tạo branch`, `Commit trước rồi tạo branch`, `Cancel`).
 
-- "Stash" → `git stash push -m "compass-$SESSION_SLUG"` then create/checkout `$FEAT_BRANCH`.
-- "Commit first" → print `ℹ Commit your changes, then re-run /compass:<workflow-name>.` Stop.
-- "Cancel" → stop.
+**Handler — execute ONLY the branch matching the user's selection**:
+
+```bash
+case "$DIRTY_CHOICE" in
+  stash)
+    git -C "$PROJECT_ROOT" stash push -m "compass-$SESSION_SLUG" || {
+      echo "✗ Stash failed — working tree may have conflicts. Aborting."; exit 1;
+    }
+    git -C "$PROJECT_ROOT" checkout -b "$FEAT_BRANCH" || {
+      echo "✗ Branch create failed. Stash preserved — 'git stash pop' to recover."; exit 1;
+    }
+    echo "✓ Stashed as 'compass-$SESSION_SLUG' and created $FEAT_BRANCH."
+    ;;
+  commit_first)
+    echo "ℹ Commit your changes, then re-run /compass:<workflow-name>."
+    exit 0
+    ;;
+  cancel)
+    echo "✗ Cancelled."
+    exit 0
+    ;;
+esac
+```
 
 ### AskUserQuestion — Option B (on unrelated branch)
 
@@ -74,9 +94,35 @@ vi: translate labels (`Stash, tạo branch`, `Commit trước rồi tạo branch
 ]}]}
 ```
 
-- "Switch + create" → stash if dirty (name `compass-<slug>-premigrate`) → `git checkout $BASE_BRANCH` → `git checkout -b $FEAT_BRANCH`.
-- "Continue" → just proceed. Dev takes responsibility.
-- "Cancel" → stop.
+**Handler — execute ONLY the branch matching the user's selection**:
+
+```bash
+case "$MISMATCH_CHOICE" in
+  switch_and_create)
+    if [ "$DIRTY" = "yes" ]; then
+      git -C "$PROJECT_ROOT" stash push -m "compass-$SESSION_SLUG-premigrate" || {
+        echo "✗ Stash failed. Aborting."; exit 1;
+      }
+      echo "✓ Stashed WIP as 'compass-$SESSION_SLUG-premigrate'."
+    fi
+    git -C "$PROJECT_ROOT" checkout "$BASE_BRANCH" || {
+      echo "✗ Checkout to $BASE_BRANCH failed. Resolve manually."; exit 1;
+    }
+    git -C "$PROJECT_ROOT" checkout -b "$FEAT_BRANCH" || {
+      echo "✗ Branch create failed."; exit 1;
+    }
+    echo "✓ Switched to $BASE_BRANCH and created $FEAT_BRANCH."
+    ;;
+  continue_here)
+    echo "⚠ Continuing on $CURRENT_BRANCH. Commits will land here."
+    FEAT_BRANCH="$CURRENT_BRANCH"
+    ;;
+  cancel)
+    echo "✗ Cancelled."
+    exit 0
+    ;;
+esac
+```
 
 ### AskUserQuestion — Option C (hotfix on clean base — explicit confirm)
 
@@ -93,9 +139,26 @@ en:
 
 vi: translate (`Tạo branch (Khuyến nghị)`, `Ở lại $BASE_BRANCH`, `Huỷ`).
 
-- "Create branch" → `compass-cli git branch "$FEAT_BRANCH"` or `git checkout -b "$FEAT_BRANCH"`. Print `✓ Created $FEAT_BRANCH from $BASE_BRANCH.`
-- "Stay on base" → proceed without creating a branch. Set `FEAT_BRANCH=$BASE_BRANCH` for downstream steps. Print `⚠ Applying hotfix directly on $BASE_BRANCH.`
-- "Cancel" → stop.
+**Handler — execute ONLY the branch matching the user's selection**:
+
+```bash
+case "$HOTFIX_CHOICE" in
+  create_branch)
+    compass-cli git branch "$FEAT_BRANCH" 2>/dev/null \
+      || git -C "$PROJECT_ROOT" checkout -b "$FEAT_BRANCH" \
+      || { echo "✗ Branch create failed."; exit 1; }
+    echo "✓ Created $FEAT_BRANCH from $BASE_BRANCH."
+    ;;
+  stay_on_base)
+    FEAT_BRANCH="$BASE_BRANCH"
+    echo "⚠ Applying hotfix directly on $BASE_BRANCH."
+    ;;
+  cancel)
+    echo "✗ Cancelled."
+    exit 0
+    ;;
+esac
+```
 
 ---
 

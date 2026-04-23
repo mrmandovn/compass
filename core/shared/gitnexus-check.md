@@ -10,13 +10,43 @@
 ## Check index status
 
 ```bash
+GITNEXUS_STATUS="GITNEXUS_UNAVAILABLE"
+
 if [ ! -d ".gitnexus" ]; then
-  echo "GITNEXUS_MISSING"
-elif [ -f ".gitnexus/.outdated" ] && [ "$(cat .gitnexus/.outdated 2>/dev/null | python3 -c 'import sys,json; d=json.load(sys.stdin); print(len(d.get("changed_files",[])))' 2>/dev/null)" != "0" ]; then
-  echo "GITNEXUS_OUTDATED"
+  GITNEXUS_STATUS="GITNEXUS_MISSING"
+elif [ -f ".gitnexus/.outdated" ]; then
+  # Validate JSON + count changed_files with a real timeout.
+  # Any failure (bad JSON, missing key, python hang) falls through to AVAILABLE
+  # rather than silently misreporting OUTDATED.
+  CHANGED=$(timeout 5s python3 -c '
+import sys, json
+try:
+  d = json.load(sys.stdin)
+  if not isinstance(d, dict):
+    print("PARSE_ERROR"); sys.exit(0)
+  cf = d.get("changed_files", [])
+  print(len(cf) if isinstance(cf, list) else "PARSE_ERROR")
+except Exception:
+  print("PARSE_ERROR")
+' < .gitnexus/.outdated 2>/dev/null)
+
+  case "$CHANGED" in
+    PARSE_ERROR|"")
+      echo "⚠ .gitnexus/.outdated is corrupt or unreadable — treating as available; run 'npx gitnexus analyze' to refresh if this is wrong." >&2
+      GITNEXUS_STATUS="GITNEXUS_AVAILABLE"
+      ;;
+    0)
+      GITNEXUS_STATUS="GITNEXUS_AVAILABLE"
+      ;;
+    *)
+      GITNEXUS_STATUS="GITNEXUS_OUTDATED"
+      ;;
+  esac
 else
-  echo "GITNEXUS_AVAILABLE"
+  GITNEXUS_STATUS="GITNEXUS_AVAILABLE"
 fi
+
+echo "$GITNEXUS_STATUS"
 ```
 
 Store as `$GITNEXUS_STATUS`.
@@ -24,8 +54,19 @@ Store as `$GITNEXUS_STATUS`.
 ## Resolve repo name (when available)
 
 ```bash
-GITNEXUS_REPO=$(cat .gitnexus/meta.json 2>/dev/null | python3 -c 'import sys,json,os; m=json.load(sys.stdin); print(os.path.basename(m.get("repoPath","")))' 2>/dev/null || basename "$(pwd)")
-[[ "$GITNEXUS_REPO" =~ ^[a-zA-Z0-9_-]+$ ]] || GITNEXUS_REPO=$(basename "$(pwd)")
+GITNEXUS_REPO=$(timeout 5s python3 -c '
+import sys, json, os
+try:
+  m = json.load(sys.stdin)
+  print(os.path.basename(m.get("repoPath", "")))
+except Exception:
+  pass
+' < .gitnexus/meta.json 2>/dev/null)
+
+# Sanitize — if parsing failed or yields invalid chars, fall back to cwd basename
+if ! [[ "$GITNEXUS_REPO" =~ ^[a-zA-Z0-9_-]+$ ]]; then
+  GITNEXUS_REPO=$(basename "$(pwd)")
+fi
 ```
 
 ## Branch

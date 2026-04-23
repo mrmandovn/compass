@@ -151,6 +151,8 @@ If `$GITNEXUS_STATUS` = `GITNEXUS_AVAILABLE` (preferred):
 - If task A modifies a symbol called by task B's symbol → B `depends_on` A
 - Run `gitnexus_impact({target: "<symbol>", direction: "upstream"})` on modified symbols → HIGH/CRITICAL risk → flag in plan + consider splitting
 
+**Per-call budget**: each `gitnexus_context` / `gitnexus_impact` invocation MUST complete within 30 seconds. If a call hangs or exceeds the budget (GitNexus server unresponsive, huge call graph), abort that single call — do NOT block the whole prepare workflow. Record as `⚠ GitNexus timeout on <symbol>` in the plan note and fall back to Grep-based inference for that symbol. Cap total GitNexus calls per prepare run at 50 symbols; if `files_affected` has more, sample the first 50 and note `⚠ GitNexus inference sampled — 50/N symbols analyzed`.
+
 Fallback (Grep-based):
 - If task A's `files_affected` is imported by task B's `files_affected` → B `depends_on` A
 - If task A creates a file that task B modifies → B `depends_on` A

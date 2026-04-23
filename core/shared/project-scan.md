@@ -34,8 +34,11 @@ This returns matches with scores, paths, types, and titles — much faster than 
 
 If `compass-cli` is not available (e.g. on OpenCode without Rust binary), fall back to scanning file names directly:
 ```bash
-# Fallback: quick filename-only scan (no content reading)
-find prd/ epics/ research/ technical/ wiki/ -name "*.md" -not -name "README.md" 2>/dev/null | head -20
+# Fallback: quick filename-only scan (no content reading).
+# Real timeout so a deep/slow filesystem can't wedge the scan.
+timeout 15s find prd/ epics/ research/ technical/ wiki/ \
+  -type d \( -name node_modules -o -name .git -o -name dist -o -name build \) -prune \
+  -o -type f -name "*.md" -not -name "README.md" -print 2>/dev/null | head -20
 ```
 Then grep filenames for the provided keywords.
 

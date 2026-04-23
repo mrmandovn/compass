@@ -114,15 +114,34 @@ For each wave W in plan.waves (sequential, wave N+1 only starts after wave N don
   │       / abort                                                │
   └──────────────────────────────────────────────────────────────┘
 
-  ┌─ STEP E: Main-agent verification ────────────────────────────┐
-  │ Re-run all W.tasks[*].acceptance.criteria commands in bash.  │
-  │ Capture exit codes.                                          │
-  │ If pass → proceed to Step F.                                 │
-  │ If fail → treat same as "needs_human" in Step D (Step D's    │
-  │   retry loop applies).                                       │
+  ┌─ STEP E: Main-agent verification (preview + run) ────────────┐
+  │ 1. Collect W.tasks[*].acceptance.criteria into $VERIFY_CMDS. │
+  │ 2. Preview commands to the dev (do NOT blind-run):           │
+  │      echo "🧪 About to run $VERIFY_COUNT verify cmd(s):"      │
+  │      for each cmd: echo "  N. <cmd>"                         │
+  │      Flag destructive patterns — if any cmd matches          │
+  │      rm / rm - / > / >> / dd / mkfs / deploy / publish /     │
+  │      git push / npm publish / yarn publish / curl / wget /   │
+  │      sudo / chmod -R / chown -R / :(){ → add banner:         │
+  │      "⚠ One or more cmds look destructive or network-facing."│
+  │ 3. AskUserQuestion:                                          │
+  │      Run all (Recommended) / Run one-by-one /                │
+  │      Skip verify (flags VERIFY_FAILED=-1, requires explicit  │
+  │      'Commit anyway' later) / Edit (pause, dev edits         │
+  │      TEST-SPEC, reply 'done', re-enter Step E).              │
+  │ 4. Run per choice under 'timeout 300s bash -c "cd $ROOT &&   │
+  │    <cmd>"'. Capture exit codes.                              │
+  │ 5. VERIFY_FAILED=0 pass | =1 any failed | =-1 user skipped.  │
   │                                                              │
-  │ Sanity: sub-agent might report "success" even if a test      │
-  │ fails (LLM confabulation). Main-agent re-run catches this.   │
+  │ Outcome:                                                     │
+  │   VERIFY_FAILED=0  → proceed to Step F.                      │
+  │   VERIFY_FAILED=1  → treat same as "needs_human" in Step D;  │
+  │                     do NOT commit.                            │
+  │   VERIFY_FAILED=-1 → Step F must gate commit behind an       │
+  │                     explicit "Commit anyway?" confirmation.  │
+  │                                                              │
+  │ Sanity: sub-agent may report "success" even if a test fails  │
+  │ (LLM confabulation). This step catches the lie — NEVER skip. │
   └──────────────────────────────────────────────────────────────┘
 
   ┌─ STEP F: Commit wave ────────────────────────────────────────┐

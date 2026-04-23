@@ -91,7 +91,20 @@ else
 fi
 ```
 
-**If a runner is detected** → run it via Bash (working directory = `$PROJECT_ROOT`), show full output, then proceed to **Step 4**.
+**If a runner is detected** → run it via Bash with a real `timeout` wrapper so a hung test cannot block the workflow:
+
+```bash
+# 10-min cap per test suite — reasonable default for most projects.
+# Override per project by setting TEST_TIMEOUT env var.
+TIMEOUT_BUDGET="${TEST_TIMEOUT:-600s}"
+timeout "$TIMEOUT_BUDGET" bash -c "cd \"$PROJECT_ROOT\" && $RUNNER"
+EXIT_CODE=$?
+if [ "$EXIT_CODE" = "124" ]; then
+  echo "⚠ Test runner exceeded $TIMEOUT_BUDGET — aborted. This is a stuck-test warning, not a pass/fail signal."
+fi
+```
+
+Show full output, then proceed to **Step 4**.
 
 **If no runner is detected** → AskUserQuestion:
 

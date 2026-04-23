@@ -243,36 +243,42 @@ If switch → print `ℹ Run: /compass:fix "$INPUT_TEXT"` and stop this workflow
 ```bash
 SLUG=$(echo "$INPUT_TITLE" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9]/-/g' | sed 's/--*/-/g; s/^-//; s/-$//' | cut -c1-50)
 SESSION_DIR="$PROJECT_ROOT/.compass/.state/sessions/$SLUG"
+PROCEED_MKDIR=1
 
-# Collision handling
+# Collision handling — must run BEFORE mkdir so cancel doesn't leave orphans
 if [ -d "$SESSION_DIR" ]; then
   # AskUserQuestion: resume / new-with-suffix / cancel
-  # On "resume" → load existing state, skip to Step 7
-  # On "new-with-suffix" → SLUG="$SLUG-v2", mkdir
+  # On "resume"         → load existing state, skip Step 7.  PROCEED_MKDIR=0 (dir exists, no-op)
+  # On "new-with-suffix"→ SLUG="$SLUG-v2"; SESSION_DIR updated; PROCEED_MKDIR=1
+  # On "cancel"         → print "✗ Cancelled." and STOP. Do NOT mkdir. PROCEED_MKDIR=0
+  :
 fi
 
-mkdir -p "$SESSION_DIR"
+# Only create the directory if the branch above resolved to "new-with-suffix"
+# or there was no collision at all. Cancel and resume both skip this.
+if [ "$PROCEED_MKDIR" = "1" ]; then
+  mkdir -p "$SESSION_DIR"
+fi
 ```
 
-Initialize state.json:
+Initialize state.json (use `jq -n` to build JSON safely — avoids quote/backslash/newline injection from $INPUT_TITLE derivatives):
 
 ```bash
-compass-cli state update "$SESSION_DIR" "$(cat <<JSON
-{
-  "session_id": "$SLUG",
-  "type": "dev",
-  "task_type": "$TASK_TYPE",
-  "category": "$CATEGORY",
-  "stack": "$STACK",
-  "language": "$LANG",
-  "spec_lang": "$SPEC_LANG",
-  "status": "spec",
-  "is_hotfix": false,
-  "created_at": "$(date -u +%FT%TZ)",
-  "interaction_level": "standard"
-}
-JSON
-)"
+STATE_JSON=$(jq -n \
+  --arg id   "$SLUG" \
+  --arg typ  "dev" \
+  --arg tsk  "$TASK_TYPE" \
+  --arg cat  "$CATEGORY" \
+  --arg stk  "${STACK:-}" \
+  --arg lng  "$LANG" \
+  --arg slng "$SPEC_LANG" \
+  --arg st   "spec" \
+  --arg at   "$(date -u +%FT%TZ)" \
+  '{session_id:$id, type:$typ, task_type:$tsk, category:$cat, stack:$stk,
+    language:$lng, spec_lang:$slng, status:$st, is_hotfix:false,
+    created_at:$at, interaction_level:"standard"}')
+
+compass-cli state update "$SESSION_DIR" "$STATE_JSON"
 ```
 
 Now apply git-context Part C — create `feat/$SLUG` branch if currently on `$BASE_BRANCH` + clean. Persist `git` subobject to state.json.
@@ -345,17 +351,33 @@ Use results to populate "Related Files" and "Dependencies" in RESEARCH.md. This 
 **Fallback (when `$GITNEXUS_STATUS` != `GITNEXUS_AVAILABLE`)**:
 
 ```bash
-# Pattern-based search
+# Source file listing that respects .gitignore (auto-excludes node_modules/.git/dist/build)
+list_src() {
+  if git -C "$PROJECT_ROOT" rev-parse --git-dir >/dev/null 2>&1; then
+    timeout 20s git -C "$PROJECT_ROOT" ls-files 2>/dev/null
+  else
+    timeout 20s find "$PROJECT_ROOT" \
+      \( -path '*/node_modules' -o -path '*/.git' -o -path '*/dist' \
+         -o -path '*/build' -o -path '*/.next' -o -path '*/vendor' \
+         -o -path '*/target' -o -path '*/.venv' -o -path '*/venv' \
+         -o -path '*/__pycache__' -o -path '*/.turbo' -o -path '*/.cache' \) -prune \
+      -o -type f -print 2>/dev/null
+  fi
+}
+
 KEYWORDS=$(echo "$INPUT_TITLE $INPUT_TEXT" | tr '[:upper:]' '[:lower:]' | grep -oE '[a-z][a-z0-9_-]{3,}' | sort -u | head -10)
+FILES=$(list_src | grep -E '\.(ts|tsx|js|jsx|py|rs|go|rb|java|kt|swift|c|cpp|h|hpp)$')
 
 for kw in $KEYWORDS; do
-  # Grep hits
+  # Real timeout wrap — aborts the entire grep operation, not just output
   echo "== $kw =="
-  grep -rl "$kw" "$PROJECT_ROOT" --include="*.ts" --include="*.js" --include="*.tsx" --include="*.py" --include="*.rs" --include="*.go" 2>/dev/null | head -5
+  echo "$FILES" | timeout 15s xargs -I{} grep -l -- "$kw" "{}" 2>/dev/null | head -5
 done
 ```
 
-Soft timeout 120s. If research doesn't complete in time, proceed with partial context and note `⚠ Research incomplete — ran out of time` in RESEARCH.md.
+**Real timeouts (not just comments)**: every `timeout` above is a real shell command. If `timeout` returns exit 124, print `ℹ Research keyword scan for <kw> timed out — partial` and continue. Never let research hang the workflow.
+
+If research doesn't complete, note `⚠ Research incomplete — ran out of time` in RESEARCH.md with the list of keywords that did complete.
 
 Compose `RESEARCH.md` with sections:
 - **Summary** — 2-3 sentences

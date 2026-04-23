@@ -255,20 +255,8 @@ $WORKER_RULES
 END
 )
 
-  # --- Step 5.C: Dispatch wave (real Agent tool call) ---
-  # Action (main workflow AI): For each task in the current wave, emit ONE Agent tool call.
-  # If the wave has multiple tasks, batch ALL Agent calls in a single assistant message
-  # so they dispatch concurrently.
-  #
-  # Required pattern (one call per task, built from $PROMPT in Step 5.B):
-  #   Agent(
-  #     description: "Implement wave $WAVE_ID — task <task.id>",
-  #     subagent_type: "general-purpose",
-  #     prompt: $PROMPT   # built in Step 5.B
-  #   )
-  #
-  # Do NOT simulate by reading files manually. Do NOT batch all tasks into one Agent call.
-  # One Agent call = one task, concurrently dispatched with its siblings in the same wave.
+  # --- Step 5.C marker — actual Agent dispatch is a prose instruction, not bash ---
+  # See the prose block immediately below "### Step 5.C — Dispatch (MANDATORY Agent tool calls)"
 
   # --- Step 5.D: Parse response, handle failure ---
   # Parse RESPONSE JSON block
@@ -298,6 +286,24 @@ JSON
 done
 ```
 
+### Step 5.C — Dispatch (MANDATORY Agent tool calls)
+
+**This is not a bash command.** Stop writing bash. For each task in the current wave, invoke the `Agent` tool exactly once per task:
+
+```
+Agent(
+  description: "Implement wave $WAVE_ID — task <task.id>",
+  subagent_type: "general-purpose",
+  prompt: <contents of $PROMPT built in Step 5.B for this task>
+)
+```
+
+Rules:
+- If the wave has multiple tasks → batch ALL Agent calls in a **single assistant message** so they dispatch concurrently.
+- Do NOT simulate by reading files manually in the orchestrator context.
+- Do NOT bundle all tasks into one Agent call.
+- Wait for every sub-agent to return before moving to Step 5.D.
+
 ### Step 5.F — Wave review gate
 
 **Mandatory**: After each wave's bash block executes (status updated, progress saved), the orchestrator invokes an AskUserQuestion BEFORE starting the next wave. Do NOT batch waves silently — the dev needs a control point between waves.
@@ -315,7 +321,7 @@ en:
 ```json
 {"questions": [{"question": "Wave $WAVE_ID done. Continue?", "header": "Wave $WAVE_ID", "multiSelect": false, "options": [
   {"label": "Continue to next wave", "description": "Wave $((WAVE_ID+1)) will start"},
-  {"label": "Retry this wave", "description": "Roll back this wave's commit and redo (git reset --hard HEAD~1)"},
+  {"label": "Retry this wave", "description": "Show wave diff first, then confirm rollback (git reset --hard HEAD~1)"},
   {"label": "Pause build", "description": "Save state and stop — resume later with /compass:cook"},
   {"label": "Abort build", "description": "Stop completely — commits stay, branch stays, status=paused"}
 ]}]}
@@ -325,7 +331,33 @@ vi: translate.
 
 **Branch**:
 - **Continue** → proceed to next wave
-- **Retry this wave** → `git reset --hard HEAD~1`, remove wave from state, loop back to same wave
+- **Retry this wave** → **DO NOT reset immediately**. First preview + confirm:
+
+  ```bash
+  # Show what will be rolled back
+  echo "📊 Wave $WAVE_ID commit that will be DESTROYED:"
+  echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+  git -C "$PROJECT_ROOT" log -1 --stat HEAD
+  echo ""
+  echo "💥 git reset --hard HEAD~1 will:"
+  echo "  - Move HEAD back 1 commit"
+  echo "  - Discard all file changes in that commit (unrecoverable unless reflog used)"
+  echo "  - Remove wave $WAVE_ID from state, requeue for retry"
+  ```
+
+  Then AskUserQuestion:
+
+  ```json
+  {"questions": [{"question": "Confirm destructive rollback of wave $WAVE_ID?", "header": "Confirm reset", "multiSelect": false, "options": [
+    {"label": "Yes — reset and retry", "description": "Run git reset --hard HEAD~1 and re-spawn the wave sub-agents"},
+    {"label": "Keep commit, retry on top", "description": "Leave wave $WAVE_ID commit in place and run sub-agents again (layered fix)"},
+    {"label": "Cancel retry", "description": "Go back to the wave gate"}
+  ]}]}
+  ```
+
+  - "Yes — reset" → `git -C "$PROJECT_ROOT" reset --hard HEAD~1`, remove wave from state, loop back to same wave
+  - "Keep commit, retry on top" → do NOT reset, just re-dispatch sub-agents; new edits land on top of existing wave commit
+  - "Cancel retry" → back to Step 5.F gate
 - **Pause build** → status=paused in state, print resume hint, stop
 - **Abort build** → status=paused, stop
 
