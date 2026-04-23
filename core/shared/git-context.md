@@ -39,13 +39,14 @@ FEAT_BRANCH="feat/$SESSION_SLUG"
 
 Branch on current state:
 
-| `$CURRENT_BRANCH` | `$DIRTY` | Action |
-|---|---|---|
-| `$BASE_BRANCH` | no | Create + checkout `$FEAT_BRANCH` via `compass-cli git branch "$FEAT_BRANCH"` or `git checkout -b "$FEAT_BRANCH"`. Print `✓ Created $FEAT_BRANCH from $BASE_BRANCH.` |
-| `$BASE_BRANCH` | yes | AskUserQuestion (see below — option A) |
-| `$FEAT_BRANCH` (matches session) | no | Resume — continue on existing branch. Print `ℹ Continuing on $FEAT_BRANCH.` |
-| `$FEAT_BRANCH` (matches session) | yes | Resume with WIP. Print `ℹ Continuing on $FEAT_BRANCH (with uncommitted changes).` |
-| any other branch | any | AskUserQuestion (see below — option B) |
+| `$CURRENT_BRANCH` | `$DIRTY` | `$IS_HOTFIX` | Action |
+|---|---|---|---|
+| `$BASE_BRANCH` | no | `false` | Create + checkout `$FEAT_BRANCH` via `compass-cli git branch "$FEAT_BRANCH"` or `git checkout -b "$FEAT_BRANCH"`. Print `✓ Created $FEAT_BRANCH from $BASE_BRANCH.` |
+| `$BASE_BRANCH` | no | `true` | **AskUserQuestion (option C — hotfix confirmation).** Hotfix flow must always confirm before auto-branching. |
+| `$BASE_BRANCH` | yes | any | AskUserQuestion (see below — option A) |
+| `$FEAT_BRANCH` (matches session) | no | any | Resume — continue on existing branch. Print `ℹ Continuing on $FEAT_BRANCH.` |
+| `$FEAT_BRANCH` (matches session) | yes | any | Resume with WIP. Print `ℹ Continuing on $FEAT_BRANCH (with uncommitted changes).` |
+| any other branch | any | any | AskUserQuestion (see below — option B) |
 
 ### AskUserQuestion — Option A (on base branch + dirty)
 
@@ -77,6 +78,25 @@ vi: translate labels (`Stash, tạo branch`, `Commit trước rồi tạo branch
 - "Continue" → just proceed. Dev takes responsibility.
 - "Cancel" → stop.
 
+### AskUserQuestion — Option C (hotfix on clean base — explicit confirm)
+
+Hotfix flow (`IS_HOTFIX=true`) never creates a branch silently. Even when the working tree is clean and we're on the base branch, ask first:
+
+en:
+```json
+{"questions": [{"question": "Create hotfix branch $FEAT_BRANCH from $BASE_BRANCH?", "header": "Branch", "multiSelect": false, "options": [
+  {"label": "Create branch (Recommended)", "description": "git checkout -b $FEAT_BRANCH — isolate the fix for PR + easy revert"},
+  {"label": "Stay on $BASE_BRANCH", "description": "Apply fix directly on base branch. Only pick if you know what you're doing."},
+  {"label": "Cancel", "description": "Stop the workflow — don't create a branch or apply the fix"}
+]}]}
+```
+
+vi: translate (`Tạo branch (Khuyến nghị)`, `Ở lại $BASE_BRANCH`, `Huỷ`).
+
+- "Create branch" → `compass-cli git branch "$FEAT_BRANCH"` or `git checkout -b "$FEAT_BRANCH"`. Print `✓ Created $FEAT_BRANCH from $BASE_BRANCH.`
+- "Stay on base" → proceed without creating a branch. Set `FEAT_BRANCH=$BASE_BRANCH` for downstream steps. Print `⚠ Applying hotfix directly on $BASE_BRANCH.`
+- "Cancel" → stop.
+
 ---
 
 ## Part C — Record branch state in session
@@ -84,14 +104,16 @@ vi: translate labels (`Stash, tạo branch`, `Commit trước rồi tạo branch
 After Part B resolves, persist to `state.json`:
 
 ```bash
-compass-cli state update "$SESSION_DIR" '{
-  "git": {
-    "base_branch": "'$BASE_BRANCH'",
-    "feat_branch": "'$FEAT_BRANCH'",
-    "base_sha": "'$(git rev-parse "$BASE_BRANCH")'",
-    "session_start_sha": "'$(git rev-parse HEAD)'"
-  }
-}'
+# Build JSON safely via jq to avoid quote/escape injection from branch names
+# or SHAs that could otherwise corrupt state.json.
+GIT_STATE_JSON=$(jq -n \
+  --arg base  "$BASE_BRANCH" \
+  --arg feat  "$FEAT_BRANCH" \
+  --arg bsha  "$(git rev-parse "$BASE_BRANCH" 2>/dev/null)" \
+  --arg ssha  "$(git rev-parse HEAD 2>/dev/null)" \
+  '{git: {base_branch:$base, feat_branch:$feat, base_sha:$bsha, session_start_sha:$ssha}}')
+
+compass-cli state update "$SESSION_DIR" "$GIT_STATE_JSON"
 ```
 
 This lets `/compass:cook` verify dev didn't wander off-branch between sessions, and lets `/compass:fix` know the base state for diff calculations.

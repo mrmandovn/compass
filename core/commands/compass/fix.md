@@ -1,6 +1,6 @@
 ---
 name: compass:fix
-description: (experimental, dev track) Targeted hotfix flow. Cross-layer root-cause tracing (UI / API / config / unclear), ≥2 hypotheses with evidence, minimal single-wave fix, commit. Scope guard redirects to full /compass:spec flow if >5 files or >1 layer.
+description: (experimental, dev track) Targeted hotfix flow. Cross-layer root-cause tracing (UI / API / config / unclear), ≥2 hypotheses with evidence, minimal single-wave fix, commit. Scope guard asks redirect if >5 files or >1 layer; hard caps at 20 files (force-redirects to /compass:spec flow, no override).
 allowed-tools:
   - Read
   - Write
@@ -24,7 +24,9 @@ Read and execute the workflow at `~/.compass/core/workflows/fix.md`.
 - **Fix dispatch is mandatory.** When Step 10 says to dispatch the hotfix, you MUST call the `Agent` tool — one call with the built $PROMPT. Never apply the fix inline in the orchestrator context. The worker runs in a fresh context window with only FIX-PLAN + CONTEXT.
 - Cross-layer trace logic in Step 4 picks search paths based on `$SCOPE` (ui / api / config / unclear).
 - Always propose ≥2 hypotheses — even if the first seems obvious, a second candidate helps avoid confirmation bias.
-- Scope guard in Step 8 is non-negotiable: hotfix is ≤5 files and 1 layer. Larger scope → redirect to `/compass:spec`.
+- Scope guard in Step 8 has two tiers: 6–20 files OR >1 layer → AskUserQuestion (Continue / Switch to spec flow / Cancel); >20 files → hard-abort and force `/compass:spec` + `/compass:prepare` + `/compass:cook`. The hard cap is non-negotiable — no override menu.
+- Main agent MUST re-verify by running FIX-PLAN Verification commands after the sub-agent returns (Step 10f). Do not trust sub-agent "success" blindly.
+- NEVER auto-create the `fix/<slug>` branch without dev confirmation, even on a clean base (git-context.md Part B option C).
 - Single sub-agent wave (no multi-wave execution in hotfix flow).
 
 ## Notes

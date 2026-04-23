@@ -2,7 +2,7 @@
 
 You are the hotfix lead. Mission: take a bug description → trace root cause across layers (UI / API / data / config) → propose ≥2 hypotheses with evidence → apply a minimal fix in a single wave → verify → commit.
 
-**Principles:** Minimal is the right size. Fix the root cause, not the symptom. Don't refactor while fixing. Propose alternatives, let the dev pick. If scope exceeds hotfix (>5 files OR >1 layer), stop and redirect to `/compass:spec` + `/compass:prepare` + `/compass:cook`.
+**Principles:** Minimal is the right size. Fix the root cause, not the symptom. Don't refactor while fixing. Propose alternatives, let the dev pick. Scope soft-check >5 files OR >1 layer → ask dev to redirect; scope hard cap >20 files → force redirect to `/compass:spec` + `/compass:prepare` + `/compass:cook` (no override).
 
 **Purpose**: Targeted bug fix with cross-layer tracing, without going through the full spec + prepare + build loop.
 
@@ -99,59 +99,78 @@ Use impact results to identify cross-layer boundaries (e.g. frontend component c
 
 **Fallback (when `$GITNEXUS_STATUS` != `GITNEXUS_AVAILABLE`):**
 
+**Source file listing (shared by all scopes)** — respects `.gitignore`, excludes noise dirs, real timeout:
+
+```bash
+# Shell helper — list candidate source files safely
+list_src() {
+  if git -C "$PROJECT_ROOT" rev-parse --git-dir >/dev/null 2>&1; then
+    # git ls-files respects .gitignore → no node_modules / dist / build / .next
+    timeout 20s git -C "$PROJECT_ROOT" ls-files 2>/dev/null
+  else
+    timeout 20s find "$PROJECT_ROOT" \
+      \( -path '*/node_modules' -o -path '*/.git' -o -path '*/dist' \
+         -o -path '*/build' -o -path '*/.next' -o -path '*/.nuxt' \
+         -o -path '*/coverage' -o -path '*/vendor' -o -path '*/target' \
+         -o -path '*/.venv' -o -path '*/venv' -o -path '*/__pycache__' \
+         -o -path '*/.turbo' -o -path '*/.cache' \) -prune \
+      -o -type f -print 2>/dev/null
+  fi
+}
+
+# Keyword extraction — min 5 chars, skip English stopwords
+STOP_WORDS='^(click|button|error|value|when|with|from|this|that|form|input|page|view|data|call|text|item|work|show|list|user|null|true|false|undefined)$'
+KEYWORDS=$(echo "$BUG_DESC" | grep -oE '[a-zA-Z][a-zA-Z0-9_-]{4,}' | sort -u | grep -Evi "$STOP_WORDS" | head -5)
+[ -z "$KEYWORDS" ] && KEYWORDS=$(echo "$BUG_DESC" | grep -oE '[a-zA-Z][a-zA-Z0-9_-]{4,}' | sort -u | head -3)
+
+# Safe keyword grep — cap total matches per keyword at 20
+kw_grep() {
+  local pattern="$1"; local files; files=$(list_src)
+  [ -z "$files" ] && return 0
+  echo "$files" | timeout 15s xargs -I{} -P 1 grep -lE "$pattern" -- "{}" 2>/dev/null | head -20
+}
+```
+
 Per `$SCOPE`:
 
 **UI**:
 ```bash
-# Component render + state + API client calls
-find "$PROJECT_ROOT" -path "*/components/*" -o -path "*/pages/*" -o -path "*/src/ui/*" -o -path "*/src/app/*" 2>/dev/null | while read f; do
-  grep -l "$KEYWORD" "$f" 2>/dev/null
+UI_PATHS=$(list_src | grep -E '(^|/)(components|pages|app|ui|views|screens|routes)/' | head -200)
+for kw in $KEYWORDS; do
+  echo "$UI_PATHS" | timeout 10s xargs -I{} grep -l -- "$kw" "{}" 2>/dev/null | head -10
 done
-
-# State management (Redux, Zustand, Pinia, etc.)
-grep -rl "useState\|useReducer\|useStore\|defineStore\|createStore" "$PROJECT_ROOT/src" 2>/dev/null | xargs grep -l "$KEYWORD"
-
-# API calls from frontend
-grep -rl "fetch(\|axios\.\|api\." "$PROJECT_ROOT/src" 2>/dev/null | xargs grep -l "$KEYWORD"
+kw_grep 'useState|useReducer|useStore|defineStore|createStore|createSignal'
+kw_grep 'fetch\(|axios\.|api\.|http\.(get|post|put|delete)'
 ```
 
 **API**:
 ```bash
-# Routes
-grep -rl "router\.\|app\.get\|app\.post\|@Route\|@Controller" "$PROJECT_ROOT" 2>/dev/null
-
-# Service layer
-find "$PROJECT_ROOT" -path "*/services/*" -o -path "*/handlers/*" 2>/dev/null
-
-# Middleware + auth
-grep -rl "middleware\|authenticate\|authorize" "$PROJECT_ROOT/src" 2>/dev/null
+kw_grep 'router\.|app\.(get|post|put|delete|patch)|@(Route|Controller|Get|Post|Put|Delete)'
+list_src | grep -E '(^|/)(services|handlers|controllers|routes|api)/' | head -100
+kw_grep 'middleware|authenticate|authorize|requireAuth'
 ```
 
 **Config**:
 ```bash
-# Env + config files
-find "$PROJECT_ROOT" -maxdepth 3 -name ".env*" -o -name "*.config.*" -o -name "docker-compose*" -o -name "Dockerfile*" 2>/dev/null
-
-# CI workflows
-find "$PROJECT_ROOT/.github/workflows" "$PROJECT_ROOT/.gitlab-ci.yml" 2>/dev/null
-
-# Build scripts
-find "$PROJECT_ROOT" -maxdepth 2 -name "package.json" -o -name "Makefile" -o -name "build.sh" 2>/dev/null
+list_src | grep -E '(^|/)(\.env[^/]*|[^/]*\.config\.(js|ts|mjs|cjs|json|yaml|yml)|docker-compose[^/]*\.ya?ml|Dockerfile[^/]*|Makefile|build\.sh|package\.json|pyproject\.toml|Cargo\.toml|go\.mod)$' | head -80
+list_src | grep -E '^(\.github/workflows|\.gitlab-ci|\.circleci|\.buildkite)' | head -40
 ```
 
 **Unclear**:
 ```bash
-# Recent commits affecting code files
-git log --since="30.days.ago" --name-only --pretty=format:"%h %s" "$PROJECT_ROOT" 2>/dev/null | head -80
+# Recent commits touching tracked files
+timeout 15s git -C "$PROJECT_ROOT" log --since="30.days.ago" --name-only --pretty=format:"%h %s" 2>/dev/null | head -80
 
-# Broad keyword grep
-KEYWORDS=$(echo "$BUG_DESC" | grep -oE '[a-z][a-z0-9_-]{3,}' | sort -u | head -5)
+# Keyword scan limited to source files
 for kw in $KEYWORDS; do
-  grep -rl "$kw" "$PROJECT_ROOT/src" 2>/dev/null | head -3
+  echo "  ↳ keyword: $kw"
+  kw_grep "$kw" | head -5
 done
 ```
 
-Timeout 60s. Soft-fail if trace doesn't complete.
+**Timeout + soft-fail**: every `timeout` command above is real (not a comment). If any `timeout` returns exit code 124, print `ℹ Trace for <scope> timed out — results partial.` and continue. Never let trace hang the workflow.
+
+**Never fabricate evidence**: if trace produced 0 meaningful hits, Step 5 MUST state `Evidence: none — trace returned no matches` on at least one hypothesis, rather than inventing paths.
 
 ---
 
@@ -203,26 +222,37 @@ Store the picked `$ROOT_CAUSE` + evidence in CONTEXT.md.
 ### Session init (after root cause confirmed)
 
 ```bash
-SLUG="fix-$(slugify "$BUG_TITLE")"
+BASE_SLUG="fix-$(slugify "$BUG_TITLE")"
+SLUG="$BASE_SLUG"
+N=2
+
+# Collision check — never reuse an existing session dir or branch silently
+while [ -d "$PROJECT_ROOT/.compass/.state/sessions/$SLUG" ] \
+   || git -C "$PROJECT_ROOT" show-ref --verify --quiet "refs/heads/fix/$SLUG"; do
+  SLUG="${BASE_SLUG}-${N}"
+  N=$((N + 1))
+  [ "$N" -gt 20 ] && { echo "✗ Too many slug collisions for '$BASE_SLUG'. Pick a different bug title."; exit 1; }
+done
+
 SESSION_DIR="$PROJECT_ROOT/.compass/.state/sessions/$SLUG"
 mkdir -p "$SESSION_DIR"
 
-compass-cli state update "$SESSION_DIR" "$(cat <<JSON
-{
-  "session_id": "$SLUG",
-  "type": "dev",
-  "task_type": "fix",
-  "category": "code",
-  "is_hotfix": true,
-  "stack": "$STACK",
-  "status": "fix",
-  "created_at": "$(date -u +%FT%TZ)"
-}
-JSON
-)"
+# Build state JSON safely via jq (handles quotes, backslashes, newlines in $BUG_TITLE etc.)
+STATE_JSON=$(jq -n \
+  --arg id   "$SLUG" \
+  --arg typ  "dev" \
+  --arg tsk  "fix" \
+  --arg cat  "code" \
+  --arg stk  "${STACK:-}" \
+  --arg st   "fix" \
+  --arg at   "$(date -u +%FT%TZ)" \
+  '{session_id:$id, type:$typ, task_type:$tsk, category:$cat, is_hotfix:true,
+    stack:$stk, status:$st, created_at:$at}')
+
+compass-cli state update "$SESSION_DIR" "$STATE_JSON"
 ```
 
-Apply `core/shared/git-context.md` Part C — creates `fix/<slug>` branch.
+Apply `core/shared/git-context.md` Parts B + C with `IS_HOTFIX=true` — ALWAYS confirms before creating the `fix/<slug>` branch, even on clean base (see git-context.md Part B hotfix rule).
 
 ---
 
@@ -261,44 +291,146 @@ Write to `$SESSION_DIR/FIX-PLAN.md`.
 
 ## Step 8 — Scope guard
 
-```bash
-AFFECTED_FILES=$(grep -oE "File: \`[^\`]+\`" "$SESSION_DIR/FIX-PLAN.md" | wc -l | tr -d ' ')
-AFFECTED_LAYERS=$(grep -oE "src/(components|pages|services|handlers|config)" "$SESSION_DIR/FIX-PLAN.md" | sort -u | wc -l | tr -d ' ')
+Extract, dedupe, and validate the file list from FIX-PLAN.md before anything else:
 
-if [ "$AFFECTED_FILES" -gt 5 ] || [ "$AFFECTED_LAYERS" -gt 1 ]; then
-  # AskUserQuestion: continue-anyway / switch-to-full-flow / cancel
+```bash
+# Extract + dedupe + drop empties
+AFFECTED_LIST=$(grep -oE 'File: `[^`]+`' "$SESSION_DIR/FIX-PLAN.md" \
+  | sed 's/^File: `//; s/`$//' \
+  | awk 'NF' | sort -u)
+
+AFFECTED_FILES=$(echo "$AFFECTED_LIST" | awk 'NF' | wc -l | tr -d ' ')
+
+# Layer detection — broader, covers JS/TS, Go, Rust, Python, monorepo, mobile
+AFFECTED_LAYERS=$(echo "$AFFECTED_LIST" | awk -F'/' '{
+  for (i=1; i<=NF; i++) {
+    if ($i ~ /^(src|app|apps|packages|internal|pkg|cmd|lib|ios|android|macos|web|api|server|client|frontend|backend|services|handlers|components|pages|config|infra)$/) {
+      print $i; next
+    }
+  }
+  if (NF > 0) print $1
+}' | sort -u | wc -l | tr -d ' ')
+
+echo "  AFFECTED_FILES=$AFFECTED_FILES  AFFECTED_LAYERS=$AFFECTED_LAYERS"
+```
+
+### Hard cap (non-negotiable)
+
+```bash
+if [ "$AFFECTED_FILES" -eq 0 ]; then
+  echo "✗ FIX-PLAN has no 'File: \`...\`' entries. Cannot dispatch."
+  echo "  Fix FIX-PLAN.md manually or re-run /compass:fix."
+  # Stop the workflow here. Do NOT dispatch Step 10.
+  exit 0
+fi
+
+if [ "$AFFECTED_FILES" -gt 20 ]; then
+  echo "✗ Hard cap: hotfix scope is limited to 20 files; FIX-PLAN lists $AFFECTED_FILES."
+  echo "  This is never a hotfix. Run:"
+  echo "    /compass:spec \"$BUG_DESC\""
+  echo "    /compass:prepare"
+  echo "    /compass:cook"
+  # Do NOT offer an override. Stop workflow.
+  exit 0
 fi
 ```
 
-```json
-{"questions": [{"question": "Scope beyond typical hotfix ($AFFECTED_FILES files, $AFFECTED_LAYERS layer(s)). Proceed anyway?", "header": "Scope check", "multiSelect": false, "options": [
-  {"label": "Continue hotfix flow", "description": "Accept the scope; single-wave fix"},
-  {"label": "Switch to full spec flow", "description": "Abort — use /compass:spec + /compass:prepare + /compass:cook for this scope"},
-  {"label": "Cancel", "description": "Stop, rethink scope manually"}]}]}
+### Soft check (6–20 files OR >1 layer)
+
+```bash
+if [ "$AFFECTED_FILES" -gt 5 ] || [ "$AFFECTED_LAYERS" -gt 1 ]; then
+  # AskUserQuestion — with the numbers substituted
+  :
+fi
 ```
 
-On switch → print: `ℹ Scope > hotfix. Run: /compass:spec "$BUG_DESC"` and stop.
+en:
+```json
+{"questions": [{"question": "Scope beyond typical hotfix ($AFFECTED_FILES files, $AFFECTED_LAYERS layer(s)). Proceed?", "header": "Scope check", "multiSelect": false, "options": [
+  {"label": "Continue hotfix flow", "description": "Accept scope; single-wave fix. Risky above 10 files — main agent will re-verify each file."},
+  {"label": "Switch to full spec flow (Recommended)", "description": "Abort — use /compass:spec + /compass:prepare + /compass:cook. Safer for multi-file / multi-layer changes."},
+  {"label": "Cancel", "description": "Stop, rethink scope manually"}
+]}]}
+```
+
+vi: translate (`Tiếp tục hotfix`, `Chuyển sang spec flow (Khuyến nghị)`, `Huỷ`).
+
+On "Switch" → print: `ℹ Scope > hotfix. Run: /compass:spec "$BUG_DESC"` and stop.
+On "Cancel" → stop.
+On "Continue" → proceed to Step 9. Persist `AFFECTED_LIST` to `$SESSION_DIR/.files-affected` for Step 10.
 
 ---
 
 ## Step 9 — Dev review + approve
 
-Show FIX-PLAN.md. Then:
+### 9a. MANDATORY render — print the 3 key blocks into chat
+
+Do not just tell the dev "FIX-PLAN has been written". Extract and display each block so the dev can make an informed decision without opening the file. Format:
+
+```
+📋 Fix Plan — <BUG_TITLE>
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+🎯 Root Cause
+<Verbatim contents of the "## Root Cause" section from FIX-PLAN.md>
+
+📝 Patch (<N> file(s), <L> layer(s))
+<Verbatim contents of the "## Patch" section — keep bullet structure>
+
+🧪 Verification (<V> command(s))
+<Verbatim contents of the "## Verification" section>
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Full plan: $SESSION_DIR/FIX-PLAN.md
+```
+
+Extraction helper — parse sections by heading:
+
+```bash
+# Extract block between "## <heading>" and the next "## " (or EOF)
+extract_section() {
+  local heading="$1"; local file="$2"
+  awk -v h="## $heading" '
+    $0 == h { flag=1; next }
+    /^## / && flag { exit }
+    flag { print }
+  ' "$file"
+}
+
+ROOT_CAUSE_BLOCK=$(extract_section "Root Cause" "$SESSION_DIR/FIX-PLAN.md")
+PATCH_BLOCK=$(extract_section "Patch" "$SESSION_DIR/FIX-PLAN.md")
+VERIFY_BLOCK=$(extract_section "Verification" "$SESSION_DIR/FIX-PLAN.md")
+```
+
+If any block is empty → do NOT proceed. Print `✗ FIX-PLAN missing "## <heading>" section — fix it before approve.` and stop.
+
+### 9b. Approve
 
 ```json
 {"questions": [{"question": "Fix plan OK?", "header": "Approve", "multiSelect": false, "options": [
-  {"label": "OK, implement", "description": "Spawn sub-agent, apply patch, verify"},
-  {"label": "Adjust plan", "description": "Edit FIX-PLAN.md manually — I'll re-read after you're done"},
+  {"label": "OK, implement", "description": "Spawn sub-agent, apply patch, run verify commands"},
+  {"label": "Show full FIX-PLAN", "description": "Print the entire FIX-PLAN.md including Symptom + Constraints, then re-ask"},
+  {"label": "Adjust plan", "description": "I'll edit FIX-PLAN.md manually. When done, reply 'done' and I'll re-read + re-render Step 9a"},
   {"label": "Wrong root cause — re-trace", "description": "Back to Step 4 with new hypothesis"},
-  {"label": "Cancel", "description": "Abort — session kept for debug"}
+  {"label": "Cancel", "description": "Abort — session dir kept for debug"}
 ]}]}
 ```
+
+vi: translate (`Triển khai`, `Xem FIX-PLAN đầy đủ`, `Tôi sẽ sửa plan`, `Sai root cause — trace lại`, `Huỷ`).
+
+- **"OK, implement"** → proceed to Step 10.
+- **"Show full FIX-PLAN"** → `cat "$SESSION_DIR/FIX-PLAN.md"` verbatim into chat, then re-render Step 9b (not 9a — the 3 blocks already shown).
+- **"Adjust plan"** → pause, wait for dev to signal done, then re-extract blocks + re-render Step 9a (full loop).
+- **"Wrong root cause"** → clear `CONTEXT.md`, loop back to Step 4.
+- **"Cancel"** → stop.
 
 ---
 
 ## Step 10 — Execute (single wave)
 
-Apply `core/shared/wave-execution.md` for a single-wave "fix" variant:
+Apply `core/shared/wave-execution.md` for a single-wave "fix" variant.
+
+### 10a. Prepare worker rules
 
 ```bash
 # Load worker rules (same pattern as cook)
@@ -307,17 +439,40 @@ if [ -f "$PROJECT_ROOT/.compass/worker-rules.md" ]; then
 else
   WORKER_RULES=$(cat "$HOME/.compass/core/worker-rules/base.md")
 fi
+
 TECH_STACK=$(echo "$CONFIG" | jq -r '.tech_stack // [] | .[]' 2>/dev/null)
 for STACK in $TECH_STACK; do
   ADDON="$HOME/.compass/core/worker-rules/addons/$STACK.md"
-  [ -f "$ADDON" ] && WORKER_RULES="$WORKER_RULES\n---\n$(sed '1,/^---$/d' "$ADDON")"
+  if [ -f "$ADDON" ]; then
+    # Use printf so \n becomes a real newline (bash "\n" in double quotes is literal)
+    WORKER_RULES=$(printf '%s\n---\n%s' "$WORKER_RULES" "$(sed '1,/^---$/d' "$ADDON")")
+  fi
 done
+```
 
-# Build sub-agent prompt
-FILES_AFFECTED=$(grep -oE "File: \`[^\`]+\`" "$SESSION_DIR/FIX-PLAN.md" | sed 's/File: `//;s/`$//' | tr '\n' ' ')
+### 10b. Reuse the validated file list from Step 8
 
+```bash
+# Reuse the dedup'd + capped list from Step 8 — do NOT re-extract from FIX-PLAN
+if [ ! -f "$SESSION_DIR/.files-affected" ]; then
+  echo "✗ Missing $SESSION_DIR/.files-affected — Step 8 must run first."
+  exit 1
+fi
+FILES_AFFECTED=$(cat "$SESSION_DIR/.files-affected" | tr '\n' ' ' | sed 's/ $//')
+
+# Final safety re-check (belt-and-suspenders)
+FILES_COUNT=$(echo "$FILES_AFFECTED" | tr ' ' '\n' | awk 'NF' | wc -l | tr -d ' ')
+if [ "$FILES_COUNT" -eq 0 ] || [ "$FILES_COUNT" -gt 20 ]; then
+  echo "✗ Invariant broken: FILES_AFFECTED count = $FILES_COUNT. Aborting dispatch."
+  exit 1
+fi
+```
+
+### 10c. Build sub-agent prompt
+
+```bash
 PROMPT=$(cat <<END
-# Hotfix — <bug title>
+# Hotfix — $BUG_TITLE
 
 You are applying a single-file (or small multi-file) hotfix. Read FIX-PLAN below, make the change, verify with the listed test command, report back.
 
@@ -326,11 +481,14 @@ GitNexus: $GITNEXUS_STATUS
 GitNexus Repo: $GITNEXUS_REPO
 If GitNexus is GITNEXUS_AVAILABLE, run gitnexus_impact({target: "symbolName", direction: "upstream", repo: "$GITNEXUS_REPO"}) before modifying any symbol. If risk is HIGH or CRITICAL, report back instead of proceeding.
 
-## Strict scope rules
+## Strict scope rules (HARD LIMITS)
 - Files you may modify: $FILES_AFFECTED
-- Do NOT touch other files
-- Do NOT refactor
-- Do NOT run git commit
+- Do NOT modify any file outside this whitelist
+- Do NOT create new files unless a listed entry does not yet exist (creating is ONLY allowed to satisfy a whitelist entry)
+- Do NOT refactor unrelated code
+- Do NOT run git commit, git add, git push, or any git state-changing command
+- Do NOT run npm install, yarn install, pip install, or any dependency-changing command
+- If the whitelist looks wrong or insufficient to fix the bug, STOP and report back with status "needs_human"
 
 ## Context
 $(cat "$SESSION_DIR/CONTEXT.md")
@@ -342,85 +500,314 @@ $(cat "$SESSION_DIR/FIX-PLAN.md")
 $WORKER_RULES
 
 ## Execution steps
-1. Read the files in files_affected
-2. Apply the patch per FIX-PLAN
-3. Run each verification command
-4. If a test fails, read output, targeted fix, re-run (up to 2 retries)
-5. Report back:
-   {
-     "status": "success" | "needs_human" | "partial",
-     "files_changed": [{"path": "...", "change_summary": "..."}],
-     "tests_run": [{"command": "...", "exit_code": N, "output_excerpt": "..."}],
-     "retries_used": 0 | 1 | 2,
-     "notes": "..."
-   }
+1. Read each file in the whitelist (only the ones that exist)
+2. Apply the patch per FIX-PLAN — minimal edits, no incidental cleanup
+3. Run each verification command from FIX-PLAN
+4. If a test fails: read output, make a targeted fix, re-run (max 2 retries)
+5. Report back with EXACTLY this JSON shape:
+{
+  "status": "success" | "needs_human" | "partial",
+  "files_changed": [{"path": "...", "change_summary": "..."}],
+  "tests_run": [{"command": "...", "exit_code": N, "output_excerpt": "..."}],
+  "retries_used": 0,
+  "notes": "..."
+}
 END
 )
-
-# --- Dispatch (real Agent tool call) ---
-# Action: emit ONE Agent tool call with $PROMPT built above.
-# Required pattern:
-#   Agent(
-#     description: "Apply hotfix — <bug title>",
-#     subagent_type: "general-purpose",
-#     prompt: $PROMPT
-#   )
-#
-# Do NOT simulate by reading files manually in orchestrator context.
-# The sub-agent runs in a fresh context window with only FIX-PLAN + CONTEXT.
-# If acceptance fails, retry up to 2× with enriched error context, then escalate.
 ```
 
-Main-agent re-verify: run each command from FIX-PLAN Verification section. Capture exit codes.
+### 10d. Dispatch — MANDATORY Agent tool call
+
+**This is not a bash command.** Stop writing bash. The orchestrator MUST now invoke the `Agent` tool exactly once:
+
+```
+Agent(
+  description: "Apply hotfix — <bug title, ≤40 chars>",
+  subagent_type: "general-purpose",
+  prompt: <contents of $PROMPT built in 10c>
+)
+```
+
+Rules:
+- Do NOT apply the fix inline in the orchestrator context. The sub-agent must run in a fresh context window.
+- Do NOT spawn multiple sub-agents. Exactly one call for the single wave.
+- Wait for the sub-agent to return before moving to 10e.
+
+### 10e. Parse sub-agent response
+
+```bash
+# Capture the sub-agent's reported status from its return message.
+# Store in $WORKER_STATUS (one of: success | needs_human | partial)
+# Store the parsed JSON in $SESSION_DIR/.worker-report.json for audit.
+```
+
+Branch:
+- `success` → proceed to 10f (main-agent re-verify).
+- `needs_human` → AskUserQuestion below.
+- `partial` → AskUserQuestion below.
+
+en:
+```json
+{"questions": [{"question": "Sub-agent reported '$WORKER_STATUS'. What now?", "header": "Worker result", "multiSelect": false, "options": [
+  {"label": "Retry with guidance", "description": "Type a hint in Other — I'll re-spawn the sub-agent with your guidance appended"},
+  {"label": "Abort fix", "description": "Stop workflow. Keep session dir for inspection. No commit."},
+  {"label": "Escalate to full spec flow", "description": "This bug needs more than a hotfix — run /compass:spec"}
+]}]}
+```
+
+vi: translate (`Retry với gợi ý`, `Huỷ fix`, `Chuyển sang spec flow`).
+
+Retry max 2 additional times. After 3 total attempts, force `Abort`.
+
+### 10f. Main-agent re-verify (MANDATORY — preview + run)
+
+**Extract verification commands from FIX-PLAN.md:**
+
+```bash
+VERIFY_CMDS=$(awk '/^## Verification/{flag=1; next} /^## /{flag=0} flag' "$SESSION_DIR/FIX-PLAN.md" \
+  | grep -oE '`[^`]+`' | sed 's/`//g')
+
+VERIFY_COUNT=$(echo "$VERIFY_CMDS" | awk 'NF' | wc -l | tr -d ' ')
+```
+
+#### 10f-preview — show commands + ask before running
+
+If `VERIFY_COUNT = 0`:
+```
+ℹ No verification commands parsed from FIX-PLAN (none found in `backticks` under "## Verification").
+  Skipping re-verify. You'll need to test manually after fix.
+```
+Set `VERIFY_FAILED=0` and proceed to Step 11.
+
+If `VERIFY_COUNT > 0`, render:
+```
+🧪 About to run $VERIFY_COUNT verify command(s):
+  1. <cmd1>
+  2. <cmd2>
+  ...
+Working directory: $PROJECT_ROOT
+Per-command timeout: 300s
+```
+
+Flag potentially destructive commands — any of: `rm `, `rm -`, `> `, `>>`, `dd `, `mkfs`, `deploy`, `publish`, `push `, `curl `, `wget `, `sudo `, `:(){`, `git push`, `npm publish`, `yarn publish`, `chmod -R`, `chown -R`. If any match, add:
+```
+⚠ One or more commands look destructive or network-facing. Review carefully.
+```
+
+en:
+```json
+{"questions": [{"question": "Run these $VERIFY_COUNT verify command(s)?", "header": "Verify", "multiSelect": false, "options": [
+  {"label": "Run all (Recommended)", "description": "Execute each command in $PROJECT_ROOT with 300s timeout"},
+  {"label": "Run one-by-one", "description": "Confirm each command individually before running"},
+  {"label": "Skip verify", "description": "⚠ Fix is unverified — commit gate will still block commit unless you force"},
+  {"label": "Edit verify commands", "description": "Pause — edit '## Verification' in FIX-PLAN.md, then reply 'done'"}
+]}]}
+```
+
+vi: translate (`Chạy hết (Khuyến nghị)`, `Chạy từng lệnh`, `Bỏ qua verify`, `Sửa verify commands`).
+
+#### 10f-run — execute based on choice
+
+```bash
+VERIFY_FAILED=0
+
+run_one() {
+  local cmd="$1"
+  echo "▶ Verifying: $cmd"
+  if ! timeout 300s bash -c "cd \"$PROJECT_ROOT\" && $cmd"; then
+    echo "  ✗ Failed (exit=$?): $cmd"
+    VERIFY_FAILED=1
+    return 1
+  fi
+  echo "  ✓ Passed"
+  return 0
+}
+
+case "$VERIFY_CHOICE" in
+  run_all)
+    while IFS= read -r cmd; do
+      [ -z "$cmd" ] && continue
+      run_one "$cmd"
+    done <<< "$VERIFY_CMDS"
+    ;;
+  one_by_one)
+    # For each cmd, AskUserQuestion: Run / Skip this one / Abort
+    # Run via run_one; Skip marks that cmd skipped (not failed); Abort stops verify and sets VERIFY_FAILED=1
+    :
+    ;;
+  skip)
+    VERIFY_FAILED=-1   # special: user skipped, not passed
+    ;;
+  edit)
+    # Pause; on resume, re-run Step 10f from preview
+    :
+    ;;
+esac
+
+echo "VERIFY_FAILED=$VERIFY_FAILED"
+```
+
+Outcomes:
+- `VERIFY_FAILED=0` → continue to Step 11.
+- `VERIFY_FAILED=1` → treat same as `needs_human` in 10e (do NOT commit).
+- `VERIFY_FAILED=-1` (skipped) → continue, but Step 11a will show a warning and require explicit "Commit anyway" confirmation.
 
 ---
 
 ## Step 11 — Chain: test → commit
 
-### 11a. Chain to compass:test
+### 11a. Gate — only proceed if Step 10 succeeded
+
+```bash
+# Hard gate — sub-agent must have reported success.
+if [ "$WORKER_STATUS" != "success" ]; then
+  echo "ℹ Sub-agent did not report success (worker=$WORKER_STATUS). Not committing."
+  echo "  Changes left unstaged for manual review:"
+  echo "$FILES_AFFECTED" | tr ' ' '\n' | awk 'NF'
+  compass-cli state update "$SESSION_DIR" '{"status":"blocked","reason":"worker_not_success"}' 2>/dev/null || true
+  exit 0
+fi
+
+# Hard gate — verify failures block commit.
+if [ "${VERIFY_FAILED:-0}" -eq 1 ]; then
+  echo "✗ Verify commands failed. Not committing."
+  compass-cli state update "$SESSION_DIR" '{"status":"blocked","reason":"verify_failed"}' 2>/dev/null || true
+  exit 0
+fi
+```
+
+**Soft gate — verify was skipped:**
+
+If `VERIFY_FAILED=-1` (user chose "Skip verify" at Step 10f), ask explicit confirmation before committing an unverified fix:
+
+en:
+```json
+{"questions": [{"question": "⚠ Fix was NOT verified. Commit anyway?", "header": "Unverified commit", "multiSelect": false, "options": [
+  {"label": "Commit anyway", "description": "I accept the risk — no tests were run to confirm the fix works"},
+  {"label": "Run verify now", "description": "Go back to Step 10f and run the verify commands"},
+  {"label": "Cancel commit", "description": "Stop — keep changes unstaged for manual review"}
+]}]}
+```
+
+vi: translate (`Commit luôn`, `Chạy verify ngay`, `Huỷ commit`).
+
+- "Commit anyway" → proceed to 11b (tests chain still available).
+- "Run verify now" → jump back to Step 10f preview.
+- "Cancel commit" → stop.
+
+### 11b. Chain to compass:test (optional)
 
 en:
 ```json
 {"questions": [{"question": "Run tests before committing?", "header": "Test", "multiSelect": false, "options": [
-  {"label": "Run compass:test (Recommended)", "description": "Verify fix didn't break anything"},
+  {"label": "Run compass:test (Recommended)", "description": "Verify fix didn't break anything else"},
   {"label": "Skip tests", "description": "Commit without testing"}
 ]}]}
 ```
 
 vi: translate (`Chạy compass:test (Khuyến nghị)` / `Bỏ qua tests`).
 
-If "Run compass:test" → invoke `/compass:test` workflow inline (read and execute `~/.compass/core/workflows/test.md`). Wait for results.
+If "Run compass:test" → invoke `/compass:test` workflow inline (read and execute `~/.compass/core/workflows/test.md`). Wait for results. If test.md reports failures → re-gate 11a semantics (do not auto-commit).
 
-### 11b. Chain to commit
+### 11c. Stage files (safely quoted)
 
 ```bash
-git add $FILES_AFFECTED
+# NEVER use unquoted $FILES_AFFECTED with git add — filenames with spaces break.
+STAGE_ERR=0
+while IFS= read -r f; do
+  [ -z "$f" ] && continue
+  if [ ! -e "$PROJECT_ROOT/$f" ] && [ ! -e "$f" ]; then
+    echo "  ⚠ Skipping (not found): $f"
+    continue
+  fi
+  git -C "$PROJECT_ROOT" add -- "$f" || STAGE_ERR=1
+done <<< "$(echo "$FILES_AFFECTED" | tr ' ' '\n' | awk 'NF')"
 
-SCOPE=$(echo "$FILES_AFFECTED" | tr ' ' '\n' | sed 's|^src/||; s|/.*$||' | sort -u | head -1)
+if [ "$STAGE_ERR" -ne 0 ]; then
+  echo "✗ git add failed for one or more files. Aborting commit."
+  exit 1
+fi
+
+# Verify something is actually staged
+if git -C "$PROJECT_ROOT" diff --cached --quiet; then
+  echo "ℹ Nothing staged. Sub-agent may not have modified any file. Skipping commit."
+  exit 0
+fi
+```
+
+### 11d. Derive commit scope (broad layout support)
+
+```bash
+# Handle src/, apps/, packages/, internal/, pkg/, cmd/, ios/, android/, macos/, etc.
+SCOPE=$(echo "$FILES_AFFECTED" | tr ' ' '\n' | awk -F'/' 'NF {
+  # Strip common layout prefixes, return the next segment if present
+  layout="^(src|app|apps|packages|internal|pkg|cmd|lib)$"
+  if ($1 ~ layout && NF >= 2) { print $2; next }
+  print $1
+}' | sort -u | head -1)
+
+# Safe fallback
 [ -z "$SCOPE" ] && SCOPE="core"
+# Strip file extensions in case we picked up a top-level file name
+SCOPE=$(echo "$SCOPE" | sed 's/\.[^.]*$//')
 
-SUMMARY=$(echo "$BUG_TITLE" | head -c 72)
+SUMMARY=$(printf '%s' "$BUG_TITLE" | head -c 72)
 MSG="fix($SCOPE): $SUMMARY"
 ```
 
+### 11e. Commit — preview diff first
+
+**Show staged changes before asking.** Do not ask "Commit?" in the abstract.
+
+```bash
+# Print summary (stat) + a short sample of the diff
+echo "📊 Staged changes"
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+git -C "$PROJECT_ROOT" diff --cached --stat
+echo ""
+echo "📝 Diff preview (first 200 lines)"
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+git -C "$PROJECT_ROOT" diff --cached | head -200
+DIFF_LINES=$(git -C "$PROJECT_ROOT" diff --cached | wc -l | tr -d ' ')
+if [ "$DIFF_LINES" -gt 200 ]; then
+  echo ""
+  echo "… ($DIFF_LINES lines total — $((DIFF_LINES - 200)) lines truncated. Pick 'Show full diff' to see all.)"
+fi
+echo ""
+echo "💬 Proposed commit message"
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo "$MSG"
+echo ""
+```
+
+Render the AskUserQuestion AFTER the preview is printed.
+
 en:
 ```json
-{"questions": [{"question": "Commit fix?", "header": "Commit", "multiSelect": false, "options": [
-  {"label": "Commit (Recommended)", "description": "git commit -m \"<MSG>\""},
+{"questions": [{"question": "Commit this fix?", "header": "Commit", "multiSelect": false, "options": [
+  {"label": "Commit (Recommended)", "description": "Use the generated message shown above"},
+  {"label": "Show full diff", "description": "Print the entire git diff --cached, then re-ask"},
   {"label": "Edit message", "description": "Type your own commit message"},
-  {"label": "Cancel", "description": "Don't commit — keep changes staged"}
+  {"label": "Unstage and cancel", "description": "git reset HEAD — leave changes in working tree for manual review"},
+  {"label": "Cancel (keep staged)", "description": "Stop — changes stay staged, no commit"}
 ]}]}
 ```
 
-vi: translate.
+vi: translate (`Commit (Khuyến nghị)`, `Xem diff đầy đủ`, `Sửa commit message`, `Unstage + huỷ`, `Huỷ (giữ staged)`).
 
-If "Commit" → `compass-cli git commit "$MSG" || git commit -m "$MSG"`.
-If "Edit message" → ask for custom message, commit with that.
-If "Cancel" → stop.
+- **"Commit"** → `compass-cli git commit "$MSG" || git -C "$PROJECT_ROOT" commit -m "$MSG"`.
+- **"Show full diff"** → `git -C "$PROJECT_ROOT" diff --cached` (verbatim), then re-render the AskUserQuestion (not the preview).
+- **"Edit message"** → prompt for custom message via AskUserQuestion Other field, commit with that.
+- **"Unstage and cancel"** → `git -C "$PROJECT_ROOT" reset HEAD -- .` (scoped to staged files only), then stop.
+- **"Cancel (keep staged)"** → stop; dev deals manually.
 
 ```bash
-COMMIT_SHA=$(git rev-parse HEAD)
-compass-cli state update "$SESSION_DIR" '{"status":"complete","commit_sha":"'$COMMIT_SHA'","completed_at":"'$(date -u +%FT%TZ)'"}'
+COMMIT_SHA=$(git -C "$PROJECT_ROOT" rev-parse HEAD)
+compass-cli state update "$SESSION_DIR" "$(jq -n \
+  --arg status "complete" \
+  --arg sha "$COMMIT_SHA" \
+  --arg at "$(date -u +%FT%TZ)" \
+  '{status:$status, commit_sha:$sha, completed_at:$at}')"
 ```
 
 ---
