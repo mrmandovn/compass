@@ -4,6 +4,13 @@ You are the creative facilitator. Mission: turn a pain point into 5-10 diverse, 
 
 **Principles:** Quantity before quality — generate breadth first, then score. Challenge assumptions. Include at least one unconventional idea. Constraints are inputs, not blockers. ≥3 options when asking PO to choose direction or scope.
 
+**Anti-template rule (universal — applies to EVERY AskUserQuestion in this workflow):** Options MUST reference the current task subject, not generic PM archetypes. "Tight timeline", "No backend changes", "Must work on mobile", "High/Medium/Low priority" are PM dropdown leakage — NEVER offer them as-is. Every option must tie to (a) a concrete number/metric in the pain point, (b) a capability / file / stack element in the project, or (c) a compliance signal derived from `$CONFIG.domain`. If none can be derived, offer ≤2 options ("Ideate freely" + "Type your own") — do not pad with template filler.
+
+**Config-driven verbosity (`interaction_level`):**
+- `quick` — silent derive wherever possible; ask only when core creative direction needs a human choice (pain point Q2, angles Step 2d)
+- `standard` (default) — ask Q1 trigger only if not derivable from `$ARGUMENTS`, ask Q2 pain point, silent-derive Q3 constraints when HIGH confidence, always ask Step 2d angles
+- `detailed` — force Q1 + Q2 + Q3 + extra probing on any element with <CLEAR ambiguity score
+
 **Purpose**: Structured brainstorming — turn one pain point / opportunity / piece of feedback into a set of ideas with pros and cons. Avoids "drifting brainstorm".
 
 **Output**:
@@ -127,7 +134,22 @@ The module handles scanning, matching, and asking the user:
 
 Ask the 3 questions below using AskUserQuestion. On mid-tier models, ask one at a time; on frontier models, you may bundle all three.
 
-### Question 1: Trigger
+### Question 1: Trigger (skip when derivable)
+
+**Silent-derive path** — if `$ARGUMENTS` already signals the trigger, skip the menu and set `$TRIGGER` silently. Signal rules:
+
+| Signal in `$ARGUMENTS` | Set `$TRIGGER` |
+|---|---|
+| User quote, "user said", "khách hàng bực mình", complaint verbatim | `User / customer pain point` |
+| Support ticket ref, feedback ID, "phản hồi từ" | `Specific feedback or complaint` |
+| Metric + number ("activation 25%", "+20% retention", "churn 8%") | `Business goal to hit` |
+| Competitor name + feature ("Notion có X", "Linear làm Y") | `Something a competitor does well` |
+| None of the above AND `$ARGUMENTS` is just a bare feature name | `Spontaneous idea` |
+| `--from-brief` marker | Skip entirely — trigger already derived in brief |
+
+Print one-line note: `ℹ Trigger derived as <value> from arguments — skipping Q1.` Proceed to Q2.
+
+**Ask path** — only when `$ARGUMENTS` is empty or truly ambiguous:
 
 Use AskUserQuestion with:
 - `header`: `"What's sparking this brainstorm?"` (en) / `"Điều gì khởi động buổi brainstorm này?"` (vi)
@@ -171,19 +193,108 @@ Use AskUserQuestion with ≥2 context-aware suggestions. Each option is a concre
 
 **Key rule**: options phải là CỤ THỂ, không phải "Open text" hay "Nhập mô tả". PO chọn 1 gợi ý làm base rồi sửa, hoặc tự viết qua "Type your own answer".
 
-### Question 3: Constraints
+#### Q2 post-answer — ambiguity probing (0-2 Qs, adaptive)
 
-Use AskUserQuestion with:
-- `header`: `"Any constraints to keep in mind?"` (en) / `"Có ràng buộc nào cần lưu ý không?"` (vi)
-- `question`: `"Select all that apply, or skip if none."` (en) / `"Chọn tất cả những gì phù hợp, hoặc bỏ qua nếu không có."` (vi)
-- `multiSelect`: true
-- `options`:
-  - `{label: "Tight timeline (≤2 weeks)", description: "Solution must ship within 2 weeks"}` (en) / `{label: "Timeline gấp (≤2 tuần)", description: "Giải pháp phải ra mắt trong vòng 2 tuần"}` (vi)
-  - `{label: "No backend changes", description: "Frontend-only solution required"}` (en) / `{label: "Không thay đổi backend", description: "Chỉ được thay đổi frontend"}` (vi)
-  - `{label: "No additional infra cost", description: "Must use existing infrastructure"}` (en) / `{label: "Không thêm chi phí hạ tầng", description: "Phải dùng hạ tầng hiện có"}` (vi)
-  - `{label: "Must work on mobile", description: "Solution must be mobile-compatible"}` (en) / `{label: "Phải hoạt động trên mobile", description: "Giải pháp phải tương thích mobile"}` (vi)
-  - `{label: "No new external dependencies", description: "Cannot add third-party services or libraries"}` (en) / `{label: "Không thêm phụ thuộc bên ngoài", description: "Không được thêm dịch vụ hoặc thư viện bên thứ ba"}` (vi)
-  - `{label: "Other / None", description: "Skip or add a constraint in chat"}` (en) / `{label: "Khác / Không có", description: "Bỏ qua hoặc thêm ràng buộc trong chat"}` (vi)
+After PO chooses/writes a pain point, score its clarity on 3 elements:
+
+1. **Concrete subject?** — specific noun vs generic
+   - Vague: *"UX kém"*, *"tốc độ chậm"*, *"user không thích"*
+   - Clear: *"Upload file >100MB drop 40% ở bước xác nhận"*
+2. **Quantified impact?** — số liệu / baseline / metric
+   - Vague: *"chậm"*, *"hay lỗi"*, *"người dùng complain"*
+   - Clear: *"avg 8s latency"*, *"40% drop-off"*, *"15 tickets/tuần"*
+3. **Actor + context?** — ai gặp, khi nào
+   - Vague: *"users bực mình"*
+   - Clear: *"enterprise admin khi setup SSO lần đầu"*
+
+Depth scaling (same pattern as brief Step 1b):
+- **3/3 CLEAR** → 0 probing Qs, vào Q3 ngay
+- **2/3 CLEAR** → 1 targeted Q filling the gap
+- **≤1/3 CLEAR** → 2 Qs batched (hard cap — never interrogate past 2)
+
+Question angles — AI picks only unclear element:
+
+| Gap | Probing Q |
+|---|---|
+| Subject ambiguous | "Cụ thể `<pain>` xảy ra ở đâu? Screen / feature / workflow nào?" — options derived từ project scan |
+| Impact unquantified | "Có số liệu cụ thể không? (latency / error rate / drop-off %)" — options: 3-4 số phỏng đoán từ pain + "Không rõ, skip" + "Type your own" |
+| Actor + context unclear | "Ai gặp, lúc nào?" — options derived từ user segments trong project PRDs |
+
+Each probing Q MUST have 3-5 context-derived options (never PM template). `detailed` interaction_level forces minimum 1 Q even if 3/3 CLEAR. `quick` mode caps probing at 1 Q regardless of score.
+
+Save ambiguity score + probing answers into `$PAIN_CLARITY` for Step 2d Angles (CLEAR pain → generate 5 angles; PARTIAL/UNCLEAR → generate 7 angles to compensate for fuzzy input).
+
+### Question 3: Constraints (adaptive — silent derive, ask only if LOW confidence)
+
+**Mission**: Identify hard limits the ideas must respect, derived from the actual task — NEVER from a generic PM template.
+
+#### Derivation procedure (run FIRST, before any AskUserQuestion)
+
+Scan these 5 sources for concrete constraint signals:
+
+1. **Q2 pain point + probing answers** — numbers, stack elements, must/can't phrases, user segment specifics
+2. **`$CONFIG.tech_stack`** — e.g. `["typescript", "nextjs", "supabase"]` → constraint: "stay within current stack; no new framework"
+3. **`$CONFIG.domain`** — domains ∈ {ard, access, finance, health} trigger compliance constraints (audit trail, data residency, PII handling)
+4. **≤3 most recent artifacts** in `$PROJECT_ROOT/PRD/`, `Ideas/`, `research/` — architectural commitments, prior decisions, known limits
+5. **Capability registry** (Silver Tiger mode only) — "leverage capability X", "don't duplicate capability Y"
+
+For each derived constraint, it MUST satisfy one of:
+- Contains a **specific number/metric** (e.g. "≤4KB", "≥200ms budget", "P95 < 300ms")
+- **References a capability/file/stack element** by name in this project
+- Ties to a **compliance signal** from `$CONFIG.domain`
+
+If a would-be constraint has none of the above, DO NOT offer it.
+
+#### Confidence judgment
+
+- **HIGH** (≥2 concrete constraints derivable from scan) → render CONFIRM menu (below) with derived options pre-visible
+- **LOW** (<2 concrete constraints derivable) → render MINIMAL fallback menu (below) — do NOT pad with generic PM templates
+
+#### HIGH path — confirm derived constraints
+
+en:
+```json
+{"questions": [{"question": "Constraints derived from <PAIN_SUBJECT> + project context. Adjust or accept.", "header": "Constraints", "multiSelect": true, "options": [
+  {"label": "<derived constraint 1 with number/ref>", "description": "<why this applies — cite source e.g. 'from PRD-Auth', 'from $CONFIG.tech_stack'>"},
+  {"label": "<derived constraint 2>", "description": "<source>"},
+  {"label": "<derived constraint 3 — optional>", "description": "<source>"},
+  {"label": "None apply — ideate freely", "description": "Override: generate ideas without these constraints"},
+  {"label": "Type your own", "description": "Add a constraint not captured above"}
+]}]}
+```
+
+vi: translate (`Ràng buộc suy ra từ <PAIN_SUBJECT> + context dự án. Chỉnh hoặc chấp nhận.`, `Không áp dụng — ideate tự do`, `Tự nhập`).
+
+**Good derived-option examples** (from real contexts):
+
+- Pain = "token cost Compass cao" + stack CLI tool → `{label: "Prompt size ≤ 4KB per workflow", description: "Current avg 6KB — from token-audit.md"}`
+- Pain = "mobile upload drop" + domain=photography → `{label: "Offline-first (sync on reconnect)", description: "Field shooters have flaky 3G — from USER-research-2026-03.md"}`
+- Pain = "SSO setup confusing" + `$CONFIG.domain=access` → `{label: "SAML + OIDC audit logs mandatory", description: "Access domain compliance rule"}`
+
+#### LOW path — minimal fallback
+
+```json
+{"questions": [{"question": "No concrete constraints derived from context. Proceed how?", "header": "Constraints", "multiSelect": false, "options": [
+  {"label": "Ideate freely (no constraints)", "description": "Generate ideas without preset limits — PO can constrain during review"},
+  {"label": "Type your own", "description": "Add specific constraints in free text"}
+]}]}
+```
+
+vi: translate (`Không ràng buộc`, `Tự nhập`).
+
+#### BAD patterns — NEVER offer
+
+- `"Tight timeline (≤2 weeks)"` — PM archetype, not derived from the pain
+- `"No backend changes"` — generic without referencing a system
+- `"Must work on mobile"` — only valid if Q2 explicitly mentions mobile
+- `"No new external dependencies"` — vague without naming what
+- `"High / Medium / Low priority"` — not a constraint, a scoring dimension
+
+These are **anti-patterns**. If the AI catches itself about to generate one, REGENERATE from context or fall through to the LOW path.
+
+#### Rule of thumb
+
+Every offered constraint must pass this test: "If I remove the project context and paste this label into another random project, does it still make sense?" If YES → it's too generic, remove. If NO → it's appropriately context-tied, keep.
 
 ## Step 2d — Propose diversity angles + user picks
 
