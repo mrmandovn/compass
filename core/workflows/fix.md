@@ -6,10 +6,11 @@ You are the hotfix lead. Mission: take a bug description → trace root cause ac
 
 **Purpose**: Targeted bug fix with cross-layer tracing, without going through the full spec + prepare + build loop.
 
-**Output**:
-- `$SESSION_DIR/CONTEXT.md`, `$SESSION_DIR/RESEARCH.md`, `$SESSION_DIR/FIX-PLAN.md`
+**Output** (consolidated — 1 markdown + 1 state.json + 1 worker report):
+- `$SESSION_DIR/FIX-PLAN.md` — single artifact: symptom + root cause + rejected alternatives (audit) + patch + verify
+- `$SESSION_DIR/state.json` — metadata + `files_affected[]` array + `task_type: fix` + `is_hotfix: true` + `status` + `commit_sha`
+- `$SESSION_DIR/.worker-report.json` — sub-agent return payload
 - Single commit on a `fix/<slug>` branch with `fix(<scope>): <summary>` message
-- `state.json` with `task_type: fix`, `is_hotfix: true`, `status: complete`
 
 **When to use**:
 - A bug is small enough to fit in one commit (≤5 files, single layer)
@@ -174,36 +175,33 @@ done
 
 ---
 
-## Step 5 — Root cause hypotheses
+## Step 5 — Root cause hypotheses (in-chat only)
 
-Based on trace results, compose `RESEARCH.md`:
+Based on trace results, compose ≥2 hypotheses **in chat** — do NOT write a separate file. They persist as in-memory state until Step 7 folds them into FIX-PLAN.md.
 
-```markdown
-# Research — <bug title>
+Render format (print to chat, one block per hypothesis):
 
-## Symptoms
-<From input: error message, stack trace, described behavior>
+```
+🧩 Hypothesis 1 — <short label>
+   Evidence:
+     • <file>:<line> — <quote or behavior>
+     • Recent change: <commit SHA + date> (if applicable)
+     • <other signal>
+   Confidence: High / Medium / Low
+   Fix scope estimate: <N files, 1 layer>
 
-## Hypotheses
-
-### Hypothesis 1: <label>
-- **Evidence**:
-  - File: `path/to/suspect.ts` line <N>: `<code snippet>`
-  - Recent change: <commit SHA + date>
-  - <other signal>
-- **Confidence**: High / Medium / Low
-- **Fix scope estimate**: <N files, 1 layer>
-
-### Hypothesis 2: <label>
-- **Evidence**: ...
-- **Confidence**: ...
-
-## Affected Code Paths
-- `path/A.ts` — <role>
-- `path/B.ts` — <role>
+🧩 Hypothesis 2 — <short label>
+   Evidence: ...
+   Confidence: ...
+   Fix scope estimate: ...
 ```
 
-Require ≥2 hypotheses. If trace found only 1 clear candidate, still propose an alternative (even if confidence=Low) to avoid confirmation bias.
+Rules:
+- **Minimum 2 hypotheses** — even if one looks obvious. A weak alternative (Low confidence) prevents confirmation bias.
+- **Affected code paths** belong inside each hypothesis's Evidence bullets — no separate "Affected Code Paths" list.
+- If Step 4 trace returned zero evidence, at least one hypothesis MUST say `Evidence: none — trace returned no matches` rather than invent paths.
+
+Store hypotheses into shell vars `$HYP_1_LABEL`, `$HYP_1_EVIDENCE`, `$HYP_2_LABEL`, `$HYP_2_EVIDENCE`, etc. — they'll be referenced by Step 6 menu and Step 7 FIX-PLAN composition.
 
 ---
 
@@ -217,7 +215,14 @@ Require ≥2 hypotheses. If trace found only 1 clear candidate, still propose an
 ]}]}
 ```
 
-Store the picked `$ROOT_CAUSE` + evidence in CONTEXT.md.
+Store the picked hypothesis into shell vars:
+- `$ROOT_CAUSE_LABEL` — the chosen hypothesis's label
+- `$ROOT_CAUSE_EVIDENCE` — its full evidence block (file:line bullets, commit refs, etc.)
+- `$REJECTED_HYPOTHESES` — array/newline-separated: for each NOT-chosen hypothesis, `<label> — <why-rejected-1-line>` (why-rejected is inferred from evidence strength + dev's pick; OK to say "Lower confidence" if no richer signal).
+
+These feed Step 7 FIX-PLAN composition. **No file is written in Step 6** — the FIX-PLAN in Step 7 captures everything needed for audit trail (chosen + rejected).
+
+"Other" branch: prompt dev for their theory, store as `$ROOT_CAUSE_LABEL` + `$ROOT_CAUSE_EVIDENCE = <dev's theory text>`.
 
 ### Session init (after root cause confirmed)
 
@@ -256,36 +261,72 @@ Apply `core/shared/git-context.md` Parts B + C with `IS_HOTFIX=true` — ALWAYS 
 
 ---
 
-## Step 7 — Compose FIX-PLAN.md
+## Step 7 — Compose FIX-PLAN.md (single consolidated artifact)
+
+Write ONE file that replaces the old trio of RESEARCH + CONTEXT + FIX-PLAN. Keep it tight — no generic constraint bullets (sub-agent HARD LIMITS in Step 10 already enforce "no refactor / no API change / preserve tests"), no nested 3-level patch structure.
+
+### Template
 
 ```markdown
-# Fix Plan — <bug title>
+# Fix — <bug title>
 
-## Symptom
-<From input>
+**Symptom**: <1 line from input — error message, stack trace summary, described behavior>
 
-## Root Cause
-<Confirmed hypothesis + evidence>
+## Root cause
+<1-2 sentences of chosen hypothesis + concrete evidence: `<file>:<line>` + commit ref if applicable>
+
+**Rejected alternatives** *(audit)*:
+- <alt label> — <why rejected: lower confidence / contradicting evidence / out of scope>
+- <alt label> — <why rejected>
 
 ## Patch
-- File: `<path>`
-  - Line(s): <N-M>
-  - Change: <concrete summary, e.g. "Add null check on `user.id` before calling `.toUpperCase()`">
-- File: `<path>` (if >1 file)
-  - ...
+- File: `<path>` @ L<N> — <concrete change, 1 line, e.g. "Add null check on user.id before .toUpperCase()">
+- File: `<path>` @ L<N>-<M> — <concrete change>
 
-## Constraints
-- Do NOT refactor surrounding code
-- Do NOT change public API signatures
-- Preserve existing tests
-
-## Verification
-- **Re-run failing test**: `<command>` — expected: pass
-- **Regression**: run tests for all files in Patch — expected: pass
-- **Manual check** (if applicable): <browser step or curl>
+## Verify
+- `<command 1>` *(expected pass)*
+- `<command 2>`
+- `<manual: browser step or curl>` *(manual)*
 ```
 
-Write to `$SESSION_DIR/FIX-PLAN.md`.
+### Rules
+
+- **Symptom** is inline (`**Symptom**:`), not a section heading — saves a line for 1-line content.
+- **Root cause** gets 1-2 sentences, not a full essay. Evidence embedded as `file:line` inline refs.
+- **Rejected alternatives** is a short audit trail — 1 line per rejected hypothesis. This replaces the old separate RESEARCH.md file.
+- **Patch** is flat: one bullet per file. The `File: \`<path>\`` marker stays for Step 8 regex extraction. `@ L<N>` gives line info; `@ L<N>-<M>` for ranges.
+- **No "Constraints" section** — sub-agent prompt HARD LIMITS enforce those universally; writing them per-fix is noise.
+- **Verify** is a flat bullet list of commands. Use `*(manual)*` suffix only for non-scriptable steps.
+
+### Write
+
+```bash
+cat > "$SESSION_DIR/FIX-PLAN.md" <<MARKDOWN
+# Fix — $BUG_TITLE
+
+**Symptom**: $BUG_DESC_ONE_LINE
+
+## Root cause
+$ROOT_CAUSE_ONE_LINE
+
+$(if [ -n "$ROOT_CAUSE_EVIDENCE" ]; then
+  echo ""
+  echo "Evidence:"
+  echo "$ROOT_CAUSE_EVIDENCE" | sed 's/^/- /'
+fi)
+
+**Rejected alternatives** *(audit)*:
+$(echo "$REJECTED_HYPOTHESES" | sed 's/^/- /')
+
+## Patch
+$(echo "$PATCH_BULLETS")
+
+## Verify
+$(echo "$VERIFY_BULLETS")
+MARKDOWN
+```
+
+`$PATCH_BULLETS` and `$VERIFY_BULLETS` are composed by the LLM from the chosen root cause + dev's domain knowledge. Each patch bullet MUST start with `- File: \`<path>\`` so Step 8 regex can parse reliably.
 
 ---
 
@@ -357,34 +398,42 @@ vi: translate (`Tiếp tục hotfix`, `Chuyển sang spec flow (Khuyến nghị)
 
 On "Switch" → print: `ℹ Scope > hotfix. Run: /compass:spec "$BUG_DESC"` and stop.
 On "Cancel" → stop.
-On "Continue" → proceed to Step 9. Persist `AFFECTED_LIST` to `$SESSION_DIR/.files-affected` for Step 10.
+On "Continue" → proceed to Step 9. Persist `AFFECTED_LIST` into **state.json** (NOT a separate `.files-affected` file) so Step 10 can read it via jq:
+
+```bash
+# Build JSON array of files from newline-separated list, merge into state.json
+FILES_JSON=$(echo "$AFFECTED_LIST" | awk 'NF' | jq -R . | jq -s .)
+compass-cli state update "$SESSION_DIR" "$(jq -n \
+  --argjson files "$FILES_JSON" \
+  '{files_affected: $files}')"
+```
 
 ---
 
 ## Step 9 — Dev review + approve
 
-### 9a. MANDATORY render — print the 3 key blocks into chat
+### 9a. MANDATORY render — print the key blocks into chat
 
-Do not just tell the dev "FIX-PLAN has been written". Extract and display each block so the dev can make an informed decision without opening the file. Format:
+Do not just tell the dev "FIX-PLAN has been written". Extract and display each block verbatim so the dev can decide without opening the file. Format:
 
 ```
-📋 Fix Plan — <BUG_TITLE>
+📋 Fix — <BUG_TITLE>
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-🎯 Root Cause
-<Verbatim contents of the "## Root Cause" section from FIX-PLAN.md>
+🎯 Root cause
+<Verbatim contents of the "## Root cause" section from FIX-PLAN.md>
 
 📝 Patch (<N> file(s), <L> layer(s))
-<Verbatim contents of the "## Patch" section — keep bullet structure>
+<Verbatim contents of the "## Patch" section>
 
-🧪 Verification (<V> command(s))
-<Verbatim contents of the "## Verification" section>
+🧪 Verify (<V> command(s))
+<Verbatim contents of the "## Verify" section>
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 Full plan: $SESSION_DIR/FIX-PLAN.md
 ```
 
-Extraction helper — parse sections by heading:
+Extraction helper — parse sections by heading. Note: Symptom is inline (`**Symptom**: ...`), not a `## Symptom` heading, so it's not extracted as a block; it's surfaced inside Root cause context if relevant.
 
 ```bash
 # Extract block between "## <heading>" and the next "## " (or EOF)
@@ -397,9 +446,9 @@ extract_section() {
   ' "$file"
 }
 
-ROOT_CAUSE_BLOCK=$(extract_section "Root Cause" "$SESSION_DIR/FIX-PLAN.md")
+ROOT_CAUSE_BLOCK=$(extract_section "Root cause" "$SESSION_DIR/FIX-PLAN.md")
 PATCH_BLOCK=$(extract_section "Patch" "$SESSION_DIR/FIX-PLAN.md")
-VERIFY_BLOCK=$(extract_section "Verification" "$SESSION_DIR/FIX-PLAN.md")
+VERIFY_BLOCK=$(extract_section "Verify" "$SESSION_DIR/FIX-PLAN.md")
 ```
 
 If any block is empty → do NOT proceed. Print `✗ FIX-PLAN missing "## <heading>" section — fix it before approve.` and stop.
@@ -409,7 +458,7 @@ If any block is empty → do NOT proceed. Print `✗ FIX-PLAN missing "## <headi
 ```json
 {"questions": [{"question": "Fix plan OK?", "header": "Approve", "multiSelect": false, "options": [
   {"label": "OK, implement", "description": "Spawn sub-agent, apply patch, run verify commands"},
-  {"label": "Show full FIX-PLAN", "description": "Print the entire FIX-PLAN.md including Symptom + Constraints, then re-ask"},
+  {"label": "Show full FIX-PLAN", "description": "Print the entire FIX-PLAN.md including Symptom + Rejected alternatives, then re-ask"},
   {"label": "Adjust plan", "description": "I'll edit FIX-PLAN.md manually. When done, reply 'done' and I'll re-read + re-render Step 9a"},
   {"label": "Wrong root cause — re-trace", "description": "Back to Step 4 with new hypothesis"},
   {"label": "Cancel", "description": "Abort — session dir kept for debug"}
@@ -421,7 +470,7 @@ vi: translate (`Triển khai`, `Xem FIX-PLAN đầy đủ`, `Tôi sẽ sửa pla
 - **"OK, implement"** → proceed to Step 10.
 - **"Show full FIX-PLAN"** → `cat "$SESSION_DIR/FIX-PLAN.md"` verbatim into chat, then re-render Step 9b (not 9a — the 3 blocks already shown).
 - **"Adjust plan"** → pause, wait for dev to signal done, then re-extract blocks + re-render Step 9a (full loop).
-- **"Wrong root cause"** → clear `CONTEXT.md`, loop back to Step 4.
+- **"Wrong root cause"** → clear `$ROOT_CAUSE_LABEL` + `$ROOT_CAUSE_EVIDENCE` + any draft FIX-PLAN.md, loop back to Step 4.
 - **"Cancel"** → stop.
 
 ---
@@ -450,22 +499,26 @@ for STACK in $TECH_STACK; do
 done
 ```
 
-### 10b. Reuse the validated file list from Step 8
+### 10b. Reuse the validated file list from Step 8 (via state.json)
 
 ```bash
-# Reuse the dedup'd + capped list from Step 8 — do NOT re-extract from FIX-PLAN
-if [ ! -f "$SESSION_DIR/.files-affected" ]; then
-  echo "✗ Missing $SESSION_DIR/.files-affected — Step 8 must run first."
-  exit 1
-fi
-FILES_AFFECTED=$(cat "$SESSION_DIR/.files-affected" | tr '\n' ' ' | sed 's/ $//')
+# Read files_affected[] persisted by Step 8 — do NOT re-extract from FIX-PLAN.
+# This avoids volatility if the LLM reformats FIX-PLAN between steps.
+FILES_AFFECTED=$(jq -r '.files_affected // [] | .[]' "$SESSION_DIR/state.json" 2>/dev/null)
 
-# Final safety re-check (belt-and-suspenders)
-FILES_COUNT=$(echo "$FILES_AFFECTED" | tr ' ' '\n' | awk 'NF' | wc -l | tr -d ' ')
-if [ "$FILES_COUNT" -eq 0 ] || [ "$FILES_COUNT" -gt 20 ]; then
-  echo "✗ Invariant broken: FILES_AFFECTED count = $FILES_COUNT. Aborting dispatch."
+if [ -z "$FILES_AFFECTED" ]; then
+  echo "✗ state.json has no files_affected[] — Step 8 must run first."
   exit 1
 fi
+
+FILES_COUNT=$(echo "$FILES_AFFECTED" | awk 'NF' | wc -l | tr -d ' ')
+if [ "$FILES_COUNT" -eq 0 ] || [ "$FILES_COUNT" -gt 20 ]; then
+  echo "✗ Invariant broken: files_affected count = $FILES_COUNT. Aborting dispatch."
+  exit 1
+fi
+
+# Space-joined form for the sub-agent prompt
+FILES_AFFECTED_JOINED=$(echo "$FILES_AFFECTED" | tr '\n' ' ' | sed 's/ $//')
 ```
 
 ### 10c. Build sub-agent prompt
@@ -482,7 +535,7 @@ GitNexus Repo: $GITNEXUS_REPO
 If GitNexus is GITNEXUS_AVAILABLE, run gitnexus_impact({target: "symbolName", direction: "upstream", repo: "$GITNEXUS_REPO"}) before modifying any symbol. If risk is HIGH or CRITICAL, report back instead of proceeding.
 
 ## Strict scope rules (HARD LIMITS)
-- Files you may modify: $FILES_AFFECTED
+- Files you may modify: $FILES_AFFECTED_JOINED
 - Do NOT modify any file outside this whitelist
 - Do NOT create new files unless a listed entry does not yet exist (creating is ONLY allowed to satisfy a whitelist entry)
 - Do NOT refactor unrelated code
@@ -490,10 +543,7 @@ If GitNexus is GITNEXUS_AVAILABLE, run gitnexus_impact({target: "symbolName", di
 - Do NOT run npm install, yarn install, pip install, or any dependency-changing command
 - If the whitelist looks wrong or insufficient to fix the bug, STOP and report back with status "needs_human"
 
-## Context
-$(cat "$SESSION_DIR/CONTEXT.md")
-
-## FIX-PLAN
+## FIX-PLAN (single source of truth — contains symptom, root cause, rejected alternatives, patch, verify)
 $(cat "$SESSION_DIR/FIX-PLAN.md")
 
 ## Worker Rules
@@ -564,7 +614,7 @@ Retry max 2 additional times. After 3 total attempts, force `Abort`.
 **Extract verification commands from FIX-PLAN.md:**
 
 ```bash
-VERIFY_CMDS=$(awk '/^## Verification/{flag=1; next} /^## /{flag=0} flag' "$SESSION_DIR/FIX-PLAN.md" \
+VERIFY_CMDS=$(awk '/^## Verify/{flag=1; next} /^## /{flag=0} flag' "$SESSION_DIR/FIX-PLAN.md" \
   | grep -oE '`[^`]+`' | sed 's/`//g')
 
 VERIFY_COUNT=$(echo "$VERIFY_CMDS" | awk 'NF' | wc -l | tr -d ' ')
@@ -574,7 +624,7 @@ VERIFY_COUNT=$(echo "$VERIFY_CMDS" | awk 'NF' | wc -l | tr -d ' ')
 
 If `VERIFY_COUNT = 0`:
 ```
-ℹ No verification commands parsed from FIX-PLAN (none found in `backticks` under "## Verification").
+ℹ No verification commands parsed from FIX-PLAN (none found in `backticks` under "## Verify").
   Skipping re-verify. You'll need to test manually after fix.
 ```
 Set `VERIFY_FAILED=0` and proceed to Step 11.
@@ -600,7 +650,7 @@ en:
   {"label": "Run all (Recommended)", "description": "Execute each command in $PROJECT_ROOT with 300s timeout"},
   {"label": "Run one-by-one", "description": "Confirm each command individually before running"},
   {"label": "Skip verify", "description": "⚠ Fix is unverified — commit gate will still block commit unless you force"},
-  {"label": "Edit verify commands", "description": "Pause — edit '## Verification' in FIX-PLAN.md, then reply 'done'"}
+  {"label": "Edit verify commands", "description": "Pause — edit '## Verify' in FIX-PLAN.md, then reply 'done'"}
 ]}]}
 ```
 
@@ -848,7 +898,7 @@ Stop. Do NOT auto-push.
 | Bug is a false report (code is correct) | Dev picks "Cancel" at Step 9 — session kept with hypothesis notes |
 | Fix touches config + code | Step 8 flags as >1 layer; dev decides |
 | Retry loop fails 3 times | AskUserQuestion (retry-with-guidance / open-as-full-spec / abort) |
-| Cross-layer trace takes >60s | Partial trace used, note in RESEARCH.md |
+| Cross-layer trace takes >60s | Partial trace used; note in FIX-PLAN Root cause section ("Trace partial — <reason>") |
 | Commit hook rejects (linting, pre-commit) | Print error, pause; dev resolves hook issue then resumes `/compass:fix` |
 
 ---
