@@ -454,9 +454,4 @@ jq --arg mode "<manual|auto>" '.auto_mode = $mode' "$SESSION_DIR/context.json" >
 
 ## Final — Hand-off
 
-Print one of these closing messages (pick based on `$LANG`):
-
-- en: `✓ Plan generated. Review the DAG above, then `/compass:run` to execute stages — or `/compass:plan` again to refine.`
-- vi: `✓ Plan xong. Review DAG ở trên, rồi `/compass:run` để execute stages — hoặc `/compass:plan` lại để refine.`
-
-Then stop. Do NOT auto-invoke the next workflow.
+Step 8 handled the hand-off branching (auto-chain to `/compass:run` if `AUTO_MODE=auto`, else 3-option gate). Stop cleanly per the chosen branch.
