@@ -51,7 +51,7 @@ Do NOT ask the user which branch to take. Do NOT present `STATE` values as optio
 
 ## Step 1-DEV — Dev setup (fresh)
 
-Runs when `STATE=fresh` AND `$ARGUMENTS` contains "dev" (case-insensitive). Lightweight flow: global wizard → project name/prefix → stack detect → gitnexus → minimal structure → config → register → hand-off.
+Runs when `STATE=fresh` AND `$ARGUMENTS` contains "dev" (case-insensitive). Lightweight flow: global wizard → project name → stack detect → gitnexus → minimal structure → config → register → hand-off.
 
 ### Step 1-DEV.0 — Language setup
 
@@ -70,20 +70,19 @@ If `~/.compass/global-config.json` is missing OR `lang` is not set, ask language
 
 Map and save to global config (same mapping as Step 1A.1b). If global config already has `lang` set, skip to Step 1-DEV.a.
 
-### Step 1-DEV.a — Project name + prefix
+### Step 1-DEV.a — Project name
 
-Auto-detect from folder name and git config:
+Auto-detect from folder name:
 
 ```bash
 TARGET=$(pwd)
 GLOBAL=$(compass-cli project global-config get)
 LANG=$(echo "$GLOBAL" | jq -r '.lang // "en"')
 DETECTED_NAME=$(basename "$TARGET")
-DETECTED_PREFIX=$(echo "$DETECTED_NAME" | awk -F- '{for(i=1;i<=NF;i++) printf "%s", toupper(substr($i,1,1))}' | cut -c1-5)
-echo "DEV_DETECT: NAME=$DETECTED_NAME PREFIX=$DETECTED_PREFIX"
+echo "DEV_DETECT: NAME=$DETECTED_NAME"
 ```
 
-Send 1 AskUserQuestion with 2 questions batched (in `$LANG`):
+Send 1 AskUserQuestion (in `$LANG`):
 
 en:
 ```json
@@ -91,10 +90,6 @@ en:
   {"question": "Project name?", "header": "Project", "multiSelect": false, "options": [
     {"label": "<DETECTED_NAME>", "description": "From folder name"},
     {"label": "<title-cased DETECTED_NAME>", "description": "Title-cased variant"}
-  ]},
-  {"question": "Issue prefix? (2–5 uppercase letters)", "header": "Prefix", "multiSelect": false, "options": [
-    {"label": "<DETECTED_PREFIX>", "description": "Derived from project name"},
-    {"label": "<DETECTED_PREFIX[0:3]>", "description": "Shorter variant"}
   ]}
 ]}
 ```
@@ -105,15 +100,11 @@ vi:
   {"question": "Tên project?", "header": "Project", "multiSelect": false, "options": [
     {"label": "<DETECTED_NAME>", "description": "Từ tên thư mục"},
     {"label": "<title-cased DETECTED_NAME>", "description": "Biến thể title-case"}
-  ]},
-  {"question": "Prefix ticket? (2–5 chữ cái viết hoa)", "header": "Prefix", "multiSelect": false, "options": [
-    {"label": "<DETECTED_PREFIX>", "description": "Suy ra từ tên project"},
-    {"label": "<DETECTED_PREFIX[0:3]>", "description": "Biến thể ngắn hơn"}
   ]}
 ]}
 ```
 
-**IMPORTANT:** Replace every `<placeholder>` with actual detected values BEFORE calling AskUserQuestion.
+**IMPORTANT:** Replace every `<placeholder>` with actual detected values BEFORE calling AskUserQuestion. Dev mode does NOT need a ticket prefix — that's a PM concept (used for PRD filenames + Jira IDs).
 
 ### Step 1-DEV.b — Stack + framework detection
 
@@ -132,6 +123,9 @@ DETECTED_TEST_FRAMEWORKS=""
 [ -f "$TARGET/pyproject.toml" ] || [ -f "$TARGET/requirements.txt" ] && DETECTED_STACKS="$DETECTED_STACKS python"
 [ -f "$TARGET/go.mod" ] && DETECTED_STACKS="$DETECTED_STACKS go"
 [ -f "$TARGET/pom.xml" ] || [ -f "$TARGET/build.gradle" ] && DETECTED_STACKS="$DETECTED_STACKS java"
+[ -f "$TARGET/Package.swift" ] && DETECTED_STACKS="$DETECTED_STACKS swift"
+ls -d "$TARGET"/*.xcodeproj 2>/dev/null | grep -q . && DETECTED_STACKS="$DETECTED_STACKS swift"
+ls -d "$TARGET"/*.xcworkspace 2>/dev/null | grep -q . && DETECTED_STACKS="$DETECTED_STACKS swift"
 
 # Frameworks (JS/TS ecosystem — package.json dependencies)
 if [ -f "$TARGET/package.json" ] && command -v jq >/dev/null 2>&1; then
@@ -163,27 +157,7 @@ Framework detection is best-effort — it only covers the JS/TS ecosystem today 
 
 Branch on detection result:
 
-- **Stacks detected** → AskUserQuestion to confirm (in `$LANG`):
-
-en:
-```json
-{"questions": [{"question": "Detected stack: [<DETECTED_STACKS>]. Confirm?", "header": "Tech Stack", "multiSelect": false, "options": [
-  {"label": "OK", "description": "Use detected stack as-is"},
-  {"label": "Add more", "description": "Keep detected + type additional stacks"},
-  {"label": "Change", "description": "Type your own stack list"}
-]}]}
-```
-
-vi:
-```json
-{"questions": [{"question": "Phát hiện stack: [<DETECTED_STACKS>]. Xác nhận?", "header": "Tech Stack", "multiSelect": false, "options": [
-  {"label": "OK", "description": "Dùng stack đã phát hiện"},
-  {"label": "Thêm", "description": "Giữ stack đã phát hiện + nhập thêm"},
-  {"label": "Đổi", "description": "Tự nhập danh sách stack"}
-]}]}
-```
-
-If "Add more / Thêm" or "Change / Đổi" → follow up with free-text AskUserQuestion for additional/replacement stacks.
+- **Stacks detected** → auto-accept. Print `   ✓ Stack: <DETECTED_STACKS>` (and `   ✓ Frameworks: <DETECTED_FRAMEWORKS>` / `   ✓ Test: <DETECTED_TEST_FRAMEWORKS>` if non-empty), continue. Manifest-based detection is deterministic — no confirmation needed. PO can override later by editing `.compass/.state/config.json` or re-running `/compass:init dev`.
 
 - **No stacks detected** → AskUserQuestion:
 
@@ -203,47 +177,7 @@ vi:
 
 ### Step 1-DEV.c — GitNexus setup
 
-```bash
-TARGET=$(pwd)
-if [ -d "$TARGET/.gitnexus" ]; then
-  echo "GITNEXUS_AVAILABLE"
-else
-  echo "GITNEXUS_MISSING"
-fi
-```
-
-- **`GITNEXUS_AVAILABLE`** → print `✓ GitNexus ready` and skip to Step 1-DEV.d.
-
-- **`GITNEXUS_MISSING`** → AskUserQuestion (in `$LANG`):
-
-en:
-```json
-{"questions": [{"question": "Setup GitNexus for impact analysis?", "header": "GitNexus", "multiSelect": false, "options": [
-  {"label": "Sync now", "description": "Run gitnexus analyze (~30s) — enables blast radius analysis in /compass:spec and /compass:fix"},
-  {"label": "Skip", "description": "Setup later — /compass:spec and /compass:fix will still work but without impact analysis"}
-]}]}
-```
-
-vi:
-```json
-{"questions": [{"question": "Setup GitNexus cho impact analysis?", "header": "GitNexus", "multiSelect": false, "options": [
-  {"label": "Sync ngay", "description": "Chạy gitnexus analyze (~30s) — bật blast radius analysis cho /compass:spec và /compass:fix"},
-  {"label": "Bỏ qua", "description": "Setup sau — /compass:spec và /compass:fix vẫn chạy nhưng không có impact analysis"}
-]}]}
-```
-
-If user picks "Sync now / Sync ngay":
-
-```bash
-npx gitnexus analyze --embeddings 2>&1 | tail -5
-if [ -d "$TARGET/.gitnexus" ]; then
-  echo "GITNEXUS_SYNCED"
-else
-  echo "GITNEXUS_SYNC_FAILED"
-fi
-```
-
-Sync failure is non-blocking — print warning and continue.
+Apply the shared snippet from `core/shared/gitnexus-check.md`. It runs the index check, asks the PO to sync if missing/outdated, and sets `$GITNEXUS_STATUS` (+ `$GITNEXUS_REPO`). Sync failure is non-blocking — print the warning from the shared block and continue to Step 1-DEV.d.
 
 ### Step 1-DEV.d — Create minimal structure
 
@@ -269,8 +203,7 @@ cat > "$TARGET/.compass/.state/config.json" <<JSON
   "spec_lang": "<SPEC_LANG from global>",
   "persona": "dev",
   "project": {
-    "name": "<from Step 1-DEV.a>",
-    "prefix": "<from Step 1-DEV.a>"
+    "name": "<from Step 1-DEV.a>"
   },
   "tech_stack": [<detected/confirmed stacks as quoted strings>],
   "frameworks": [<detected frameworks as quoted strings, or []>],
