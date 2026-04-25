@@ -4,11 +4,10 @@ You are the planner. Mission: decompose a reviewed DESIGN-SPEC + TEST-SPEC into 
 
 **Principles:** Small waves beat big waves — 1-4 atomic tasks per wave keeps sub-agent prompts lean. Tasks within a wave must be file-conflict free (parallel-safe). Every REQ in DESIGN-SPEC must map to ≥1 task. Every task needs runnable acceptance criteria.
 
-**Purpose**: Produce `plan.json` + `BUILD-PLAN.md` so `/compass:cook` has a concrete, machine-readable execution plan.
+**Purpose**: Produce `plan.json` so `/compass:cook` has a concrete, machine-readable execution plan. Review happens inline in chat — no companion markdown artifact.
 
 **Output**:
 - `$SESSION_DIR/plan.json` (machine DAG — consumed by `compass-cli dag waves`)
-- `$SESSION_DIR/BUILD-PLAN.md` (human-readable table)
 - `state.json` updated: `status: "prepared"`
 
 **When to use**:
@@ -201,19 +200,19 @@ fi
 If > 4h total: AskUserQuestion:
 ```json
 {"questions": [{"question": "Estimated budget is $TOTAL_MINUTES min (over 4h). Scope may be too big.", "header": "Budget", "multiSelect": false, "options": [
-  {"label": "Continue anyway", "description": "Accept the scope; proceed"},
+  {"label": "Continue anyway (Recommended)", "description": "Accept the scope; proceed"},
   {"label": "Split into sessions", "description": "Suggest splitting the DESIGN-SPEC into smaller focused specs — I'll abort this prepare"},
   {"label": "Cancel", "description": "Stop, re-think scope myself"}
 ]}]}
 ```
 
-vi: translate.
+vi: translate (`Tiếp tục (Recommended)`, `Chia thành nhiều session`, `Huỷ`).
 
 ---
 
 ## Step 6 — Compose plan.json
 
-Apply template from `core/templates/build-plan-template.md` (plan.json section). Fill:
+Fill the schema:
 
 ```json
 {
@@ -232,19 +231,11 @@ Apply template from `core/templates/build-plan-template.md` (plan.json section).
 }
 ```
 
-Write to `$SESSION_DIR/plan.json`.
+Each task object follows the shape defined in Step 3. Write to `$SESSION_DIR/plan.json`.
 
 ---
 
-## Step 7 — Compose BUILD-PLAN.md
-
-Apply template (BUILD-PLAN.md section). Produce human-readable wave tables with task-id, title, files, budget, covers, tests.
-
-Write to `$SESSION_DIR/BUILD-PLAN.md`.
-
----
-
-## Step 8 — Validate
+## Step 7 — Validate
 
 CLI validation:
 
@@ -260,36 +251,52 @@ If validation fails, show the violations and loop back to Step 3 to fix.
 
 ---
 
-## Step 9 — Review gate
+## Step 8 — Review gate
 
-Show BUILD-PLAN.md summary to PO/dev. Then:
+Render an inline summary by parsing `plan.json`. Format:
+
+```
+Plan: <session_id>
+Total budget: ~<N>k tokens (~<H>h) | Waves: <count> | Tasks: <count>
+
+Wave 1 — <wave title>
+  [DEV-01] <task name> · <files_affected joined> · <budget/1000>k · covers REQ-XX
+  [DEV-02] <task name> · <files_affected joined> · <budget/1000>k · covers REQ-XX
+
+Wave 2 — <wave title> (depends on Wave 1)
+  [DEV-03] <task name> · <files_affected joined> · <budget/1000>k · covers REQ-XX
+```
+
+Pull `session_id`, wave titles, and task fields directly from `plan.json`. Wave-level dependencies are inferred from any task's `depends_on` referencing a task in an earlier wave.
+
+Keep it terse — one line per task. Then:
 
 en:
 ```json
 {"questions": [{"question": "Build plan OK?", "header": "Review", "multiSelect": false, "options": [
-  {"label": "OK, lock and next /compass:cook", "description": "Set status=prepared, hint next"},
+  {"label": "OK, lock and next /compass:cook (Recommended)", "description": "Set status=prepared, hint next"},
   {"label": "Adjust waves", "description": "Wave boundaries wrong — describe changes in Other"},
   {"label": "Adjust budget / scope", "description": "Task too big/small — list task IDs in Other"},
   {"label": "Cancel", "description": "Abort — session kept"}
 ]}]}
 ```
 
-vi: translate (`OK, tiếp /compass:cook`, `Chỉnh waves`, `Chỉnh budget`, `Cancel`).
+vi: translate (`OK, tiếp /compass:cook (Recommended)`, `Chỉnh waves`, `Chỉnh budget`, `Cancel`).
 
 Branch:
-- **OK** → proceed to Step 10
+- **OK** → proceed to Step 9
 - **Adjust waves** → re-run Step 4 with PO notes, re-show
 - **Adjust budget** → re-run Step 3 (re-decompose) for specified tasks
 - **Cancel** → status=cancelled, stop
 
 ---
 
-## Step 9b — Pre-build context packs
+## Step 8b — Pre-build context packs
 
 After plan is validated + approved, generate a context pack for each task so cook-phase workers start with pre-loaded file contents instead of reading from scratch:
 
 ```bash
-for TASK_ID in $(jq -r '.tasks[].task_id // .tasks[].id' "$SESSION_DIR/plan.json"); do
+for TASK_ID in $(jq -r '.waves[].tasks[].task_id // .waves[].tasks[].id' "$SESSION_DIR/plan.json"); do
   compass-cli context pack "$SESSION_DIR" "$TASK_ID" 2>/dev/null && echo "  ✓ Context pack: $TASK_ID" || echo "  ⚠ Context pack failed for $TASK_ID (cook will fall back to raw file read)"
 done
 ```
@@ -298,7 +305,7 @@ Each `<task_id>.context.json` bundles the task's `context_pointers` file content
 
 ---
 
-## Step 10 — Finalize + hand-off
+## Step 9 — Finalize + hand-off
 
 ```bash
 compass-cli state update "$SESSION_DIR" "$(cat <<JSON
@@ -312,8 +319,8 @@ JSON
 ```
 
 Print:
-- en: `✓ Plan ready at $SESSION_DIR/BUILD-PLAN.md. Next: /compass:cook to execute waves.`
-- vi: `✓ Plan sẵn ở $SESSION_DIR/BUILD-PLAN.md. Tiếp: /compass:cook để execute waves.`
+- en: `✓ Plan ready at $SESSION_DIR/plan.json. Next: /compass:cook to execute waves.`
+- vi: `✓ Plan sẵn ở $SESSION_DIR/plan.json. Tiếp: /compass:cook để execute waves.`
 
 **Auto-chain**: if `--auto` mode is active (set by wrapper), invoke `/compass:cook` inline automatically (read and execute `~/.compass/core/workflows/cook.md`). Otherwise stop — do NOT auto-invoke.
 
@@ -329,14 +336,13 @@ Print:
 | Status not reviewed/prepared | Step 1 blocks, explains current status |
 | REQ has no test coverage | Step 2 warns, continues |
 | Dependency cycle in task graph | Step 4 algorithm detects, prints cycle, asks dev to fix |
-| plan.json rejected by CLI validate | Step 8 falls back to inline validate, prints CLI errors as warnings |
+| plan.json rejected by CLI validate | Step 7 falls back to inline validate, prints CLI errors as warnings |
 | Budget > 4h | Step 5 asks confirm / split / cancel |
 | PO adjusts waves mid-review | Loop back to Step 4 |
-| Session already prepared (re-run prepare) | AskUserQuestion: overwrite plan / keep existing / cancel |
-| Review loop 5+ rounds | Warn, still allow continue |
+| Session already prepared (re-run prepare) | Step 1 lets it through; Step 6 silently overwrites plan.json (dev re-run is intentional) |
 
 ---
 
 ## Final — Hand-off
 
-Step 10 handled it. Stop cleanly.
+Step 9 handled it. Stop cleanly.

@@ -1,6 +1,6 @@
 ---
 name: compass:prepare
-description: (experimental, dev track) Decompose a reviewed DESIGN-SPEC + TEST-SPEC into wave-based DAG. Output plan.json + BUILD-PLAN.md for /compass:cook to execute.
+description: (experimental, dev track) Decompose a reviewed DESIGN-SPEC + TEST-SPEC into wave-based DAG. Output plan.json for /compass:cook to execute, with inline review in chat.
 allowed-tools:
   - Read
   - Write
