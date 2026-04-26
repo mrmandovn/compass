@@ -206,7 +206,7 @@ If > 4h total: AskUserQuestion:
 ]}]}
 ```
 
-vi: translate (`Tiếp tục (Recommended)`, `Chia thành nhiều session`, `Huỷ`).
+AI translates per `$LANG` — see ux-rules Language Policy.
 
 ---
 
@@ -271,7 +271,6 @@ Pull `session_id`, wave titles, and task fields directly from `plan.json`. Wave-
 
 Keep it terse — one line per task. Then:
 
-en:
 ```json
 {"questions": [{"question": "Build plan OK?", "header": "Review", "multiSelect": false, "options": [
   {"label": "OK, lock and next /compass:cook (Recommended)", "description": "Set status=prepared, hint next"},
@@ -281,7 +280,7 @@ en:
 ]}]}
 ```
 
-vi: translate (`OK, tiếp /compass:cook (Recommended)`, `Chỉnh waves`, `Chỉnh budget`, `Cancel`).
+AI translates per `$LANG` — see ux-rules Language Policy.
 
 Branch:
 - **OK** → proceed to Step 9

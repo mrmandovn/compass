@@ -23,12 +23,7 @@ Apply the shared snippet from `core/shared/resolve-project.md`. It sets up `$PRO
 
 From `$CONFIG`, extract: `lang`, `spec_lang`, `prefix`, `naming`, `output_paths`, `integrations_override`. If missing → tell user to run `/compass:init` first and stop.
 
-All output from this point is in `lang`.
-
-**Vietnamese prompt examples:**
-- "Kiểm tra tất cả tài liệu đầu ra — cross-references, naming, TBD, traceability."
-- "Đẩy kết quả lên Jira sau khi validate xong."
-- "Tìm TBD không có owner trong PRD và Story."
+All output from this point is in `lang` (AI translates per `$LANG` — see ux-rules Language Policy).
 
 ---
 
@@ -91,10 +86,9 @@ find "$PROJECT_ROOT/.compass/.state/sessions/" -name "pipeline.json" -exec grep 
 done
 ```
 
-After printing, append the action hints (adapt to `$LANG`):
+After printing, append the action hints (AI translates per `$LANG` — see ux-rules Language Policy):
 
-- en: `Close specific: /compass:check <slug>  |  Batch close stale: /compass:cleanup --stale`
-- vi: `Close cụ thể: /compass:check <slug>  |  Batch close stale: /compass:cleanup --stale`
+`Close specific: /compass:check <slug>  |  Batch close stale: /compass:cleanup --stale`
 
 Then stop — do NOT proceed to Step 2.
 
@@ -120,21 +114,12 @@ Branch on `$CURRENT_STATUS`:
 - `completed` → print `ℹ Pipeline $TARGET_SLUG is already closed (completed_at=...).` and stop.
 - anything else → print `⚠ Unexpected status "$CURRENT_STATUS" for $TARGET_SLUG — leaving untouched.` and stop.
 
-If active, confirm with the PO once (AskUserQuestion):
+If active, confirm with the PO once (AskUserQuestion — AI translates per `$LANG` — see ux-rules Language Policy):
 
-en:
 ```json
 {"questions": [{"question": "Close pipeline \"<title>\" at <slug>? No validation will run.", "header": "Close pipeline", "multiSelect": false, "options": [
   {"label": "Yes — close", "description": "Mark the pipeline as completed. Artifacts stay in place."},
   {"label": "Cancel", "description": "Leave the pipeline active"}
-]}]}
-```
-
-vi:
-```json
-{"questions": [{"question": "Close pipeline \"<title>\" tại <slug>? Sẽ không chạy validation.", "header": "Close pipeline", "multiSelect": false, "options": [
-  {"label": "Có — close", "description": "Đánh dấu pipeline là completed. Artifacts giữ nguyên."},
-  {"label": "Huỷ", "description": "Giữ pipeline active"}
 ]}]}
 ```
 
@@ -156,9 +141,8 @@ Scan `$PROJECT_ROOT/.compass/.state/sessions/` for the latest folder containing 
 
 Collect all output file paths listed in the session's `result.json`.
 
-If no completed session found → show (in `lang`):
-- en: `"No completed run found. Run /compass:run first, then come back here."`
-- vi: `"Chưa có run nào hoàn thành. Chạy /compass:run trước rồi quay lại."`
+If no completed session found → show (AI translates per `$LANG` — see ux-rules Language Policy):
+`"No completed run found. Run /compass:run first, then come back here."`
 Then stop.
 
 ### 1a. Read auto-chain mode (for context, no further chaining)
@@ -240,9 +224,8 @@ Collect pass/warn/fail per check:
 
 ## Step 3: Report
 
-Display validation results. Example format (adapt to `lang`):
+Display validation results (AI translates per `$LANG` — see ux-rules Language Policy). Example format:
 
-**English:**
 ```
 Cross-document Validation Report
 
@@ -256,23 +239,8 @@ Cross-document Validation Report
   Overall: ⚠️  1 warning, 1 error — needs fixes
 ```
 
-**Vietnamese:**
-```
-Báo cáo Kiểm Tra Tài Liệu
+Then use AskUserQuestion (AI translates per `$LANG` — see ux-rules Language Policy):
 
-  ✅ Cross-references: 12/12 hợp lệ
-  ⚠️  Naming: 1 file không đúng pattern (STORY-003 thiếu prefix)
-  ❌  TBDs: 2 TBD không có owner (PRD mục 5.2, Story S-003)
-  ✅ Traceability: 8/8 requirement → story
-  ✅ Template: đầy đủ các section
-  ✅ Ngôn ngữ: nhất quán
-
-  Tổng hợp: ⚠️  1 cảnh báo, 1 lỗi — cần sửa trước khi giao
-```
-
-Then use AskUserQuestion (in `lang`):
-
-**If lang = en:**
 ```json
 {
   "questions": [{
@@ -283,22 +251,6 @@ Then use AskUserQuestion (in `lang`):
       {"label": "Fix issues", "description": "Re-run /compass:run for the affected Colleagues"},
       {"label": "Proceed to delivery", "description": "Accept as-is and push to Jira/Confluence"},
       {"label": "Review manually", "description": "Stop here — I'll fix things myself"}
-    ]
-  }]
-}
-```
-
-**If lang = vi:**
-```json
-{
-  "questions": [{
-    "question": "Đã kiểm tra xong. Bạn muốn làm gì tiếp?",
-    "header": "Bước tiếp theo",
-    "multiSelect": false,
-    "options": [
-      {"label": "Sửa lỗi", "description": "Chạy lại /compass:run cho Colleague bị lỗi"},
-      {"label": "Giao hàng luôn", "description": "Chấp nhận kết quả và đẩy lên Jira/Confluence"},
-      {"label": "Xem xét thủ công", "description": "Dừng ở đây — tôi sẽ tự sửa"}
     ]
   }]
 }
@@ -330,7 +282,7 @@ The CLI exits `0` on pass; exits `1` and emits JSON `{ "ok": false, "violations"
    - The offending token or section name + line range
    - The rule ID
 
-   Example render (adapt to `lang`):
+   Example render (AI translates per `$LANG` — see ux-rules Language Policy):
    ```
    PRD taste violations — delivery BLOCKED
 
@@ -345,9 +297,8 @@ The CLI exits `0` on pass; exits `1` and emits JSON `{ "ok": false, "violations"
          Dangling reference [REQ-17]: no matching anchor in file; not found under PRDs/, Stories/, Backlog/, epics/.
    ```
 
-2. **Block delivery.** Use AskUserQuestion (in `lang`) to let the user choose:
+2. **Block delivery.** Use AskUserQuestion (AI translates per `$LANG` — see ux-rules Language Policy) to let the user choose:
 
-   **English:**
    ```json
    {
      "questions": [{
@@ -358,22 +309,6 @@ The CLI exits `0` on pass; exits `1` and emits JSON `{ "ok": false, "violations"
          {"label": "Pause for author fix", "description": "Stop here so the PRD author can fix the violations, then re-run /compass:check"},
          {"label": "Skip this PRD", "description": "Exclude the failing PRD(s) from this delivery and continue with the rest"},
          {"label": "Abort delivery", "description": "Cancel the entire delivery for this session"}
-       ]
-     }]
-   }
-   ```
-
-   **Vietnamese:**
-   ```json
-   {
-     "questions": [{
-       "question": "Phát hiện vi phạm taste rules của PRD. Giao hàng bị chặn. Bạn muốn làm gì?",
-       "header": "Taste gate",
-       "multiSelect": false,
-       "options": [
-         {"label": "Dừng để tác giả sửa", "description": "Dừng ở đây để tác giả PRD sửa vi phạm, sau đó chạy lại /compass:check"},
-         {"label": "Bỏ qua PRD này", "description": "Loại PRD bị lỗi khỏi lần giao này và tiếp tục với phần còn lại"},
-         {"label": "Huỷ giao hàng", "description": "Huỷ toàn bộ phần giao hàng của phiên này"}
        ]
      }]
    }
@@ -402,9 +337,8 @@ If Jira configured:
 - On confirm → push via Jira MCP tools.
 - On cancel → skip silently.
 
-If Jira not configured → show (in `lang`):
-- en: `"Jira not connected. Run /compass:setup jira to configure it."`
-- vi: `"Jira chưa được kết nối. Chạy /compass:setup jira để cấu hình."`
+If Jira not configured → show (AI translates per `$LANG` — see ux-rules Language Policy):
+`"Jira not connected. Run /compass:setup jira to configure it."`
 
 ### Confluence push
 
@@ -415,9 +349,8 @@ If Confluence configured:
 - Link Confluence page URL back into the Jira Epic description.
 - Use AskUserQuestion to confirm space/page title before publishing.
 
-If Confluence not configured → show (in `lang`):
-- en: `"Confluence not connected. Run /compass:setup confluence to configure it."`
-- vi: `"Confluence chưa kết nối. Chạy /compass:setup confluence để cấu hình."`
+If Confluence not configured → show (AI translates per `$LANG` — see ux-rules Language Policy):
+`"Confluence not connected. Run /compass:setup confluence to configure it."`
 
 ---
 
@@ -459,7 +392,7 @@ Example patch (shape only — derive real content from the current session):
 ```
 
 **Error handling**:
-- If the CLI exits non-zero (e.g. memory file locked, patch rejected), show a one-line warning in `lang` but DO NOT fail the delivery — the artifacts are already in Jira/Confluence. Log the patch JSON so the user can re-apply manually.
+- If the CLI exits non-zero (e.g. memory file locked, patch rejected), show a one-line warning (AI translates per `$LANG` — see ux-rules Language Policy) but DO NOT fail the delivery — the artifacts are already in Jira/Confluence. Log the patch JSON so the user can re-apply manually.
 - If `project-memory.json` does not exist yet, the CLI creates it with `memory_version: "1.0"` and seeds `project_prefix` from `$PROJECT_ROOT/.compass/.state/config.json`.
 
 **If delivery was aborted or all PRDs were skipped in Step 3b**: skip Step 4a entirely — nothing was delivered, so there is nothing to record.
@@ -478,9 +411,8 @@ After validation is complete (Step 3) and the PO chose "Proceed to delivery" or 
    ```
    Merge this with the existing `pipeline.json` content — do NOT overwrite the full file.
 
-2. Show a pipeline summary (in `lang`):
+2. Show a pipeline summary (AI translates per `$LANG` — see ux-rules Language Policy):
 
-**English:**
 ```
 Pipeline closed: <pipeline title>
 
@@ -495,21 +427,6 @@ Pipeline closed: <pipeline title>
     research research/SV-RESEARCH-market-analysis-2026-04-13.md
 ```
 
-**Vietnamese:**
-```
-Đã đóng pipeline: <pipeline title>
-
-  Phiên: .compass/.state/sessions/<slug>/
-  Trạng thái: hoàn thành
-
-  Các artifacts trong pipeline này:
-    <loại>     <đường dẫn>
-    prd        prd/SV-2026-04-13-feature-name.md
-    story      epics/SV-EPIC-01/user-stories/SV-STORY-001-create-cmk.md
-    story      epics/SV-EPIC-01/user-stories/SV-STORY-002-rotate-cmk.md
-    research   research/SV-RESEARCH-market-analysis-2026-04-13.md
-```
-
 Derive the artifact list from the `artifacts` array in `pipeline.json` — show the actual paths, not placeholders.
 
 If `pipeline_active = false` → skip this step entirely.
@@ -518,9 +435,8 @@ If `pipeline_active = false` → skip this step entirely.
 
 ## Step 5: Final summary
 
-Show a clean summary card (in `lang`):
+Show a clean summary card (AI translates per `$LANG` — see ux-rules Language Policy):
 
-**English:**
 ```
 Check complete!
 
@@ -532,20 +448,6 @@ Check complete!
     ✅ prd/TD-2026-04-12-auth-system.md
     ✅ epics/TD-EPIC-05/user-stories/TD-STORY-001-login.md
     ⚠️  epics/TD-EPIC-05/user-stories/STORY-003-signup.md  ← naming issue
-```
-
-**Vietnamese:**
-```
-Kiểm tra hoàn tất!
-
-  Kết quả:      ⚠️  1 cảnh báo, 1 lỗi
-  Giao hàng:    ✅ Đã đẩy lên Jira + Confluence
-
-  Tài liệu:
-    ✅ research/TD-user-feedback-auth.md
-    ✅ prd/TD-2026-04-12-auth-system.md
-    ✅ epics/TD-EPIC-05/user-stories/TD-STORY-001-login.md
-    ⚠️  epics/TD-EPIC-05/user-stories/STORY-003-signup.md  ← lỗi naming
 ```
 
 ---
@@ -565,9 +467,8 @@ Kiểm tra hoàn tất!
 
 ## Final — Hand-off
 
-Print one of these closing messages (pick based on `$LANG`):
+Print this closing message (AI translates per `$LANG` — see ux-rules Language Policy):
 
-- en: `✓ Check done. Review the report, then kick off the next task with `/compass:brief` or deliver outputs to Jira/Confluence if configured.`
-- vi: `✓ Check xong. Xem report, rồi bắt đầu task mới với `/compass:brief` hoặc deliver outputs sang Jira/Confluence nếu đã setup.`
+`✓ Check done. Review the report, then kick off the next task with `/compass:brief` or deliver outputs to Jira/Confluence if configured.`
 
 Then stop. Do NOT auto-invoke the next workflow.

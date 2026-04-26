@@ -27,22 +27,13 @@ You are the project switcher. Mission: let the PO see and change which Compass p
 
 **Note**: This workflow is exempt from the shared `resolve-project` Step 0 — it IS the resolver's UI. Load `lang` preference directly from `~/.compass/global-config.json` (if present) for output language; fall back to `en`.
 
-Usage message (adapt to `lang`):
+Usage message (AI translates per `$LANG` — see ux-rules Language Policy):
 
 ```
 Usage:
   /compass:project              — list registered projects (default)
   /compass:project list         — list registered projects
   /compass:project use <path>   — switch active project
-```
-
-Vietnamese:
-
-```
-Cách dùng:
-  /compass:project              — liệt kê project đã đăng ký (mặc định)
-  /compass:project list         — liệt kê project đã đăng ký
-  /compass:project use <path>   — đổi project đang active
 ```
 
 ---
@@ -55,16 +46,10 @@ RESULT=$(compass-cli project list)
 
 The CLI returns a JSON array. Each entry has: `name`, `path`, `last_used` (ISO timestamp), `is_active` (bool).
 
-**Empty registry** — if the array is empty, print (adapt to `lang`):
+**Empty registry** — if the array is empty, print (AI translates per `$LANG` — see ux-rules Language Policy):
 
-en:
 ```
 No Compass projects registered yet. Run /compass:init to create your first project.
-```
-
-vi:
-```
-Chưa có Compass project nào được đăng ký. Chạy /compass:init để tạo project đầu tiên.
 ```
 
 Stop.
@@ -75,7 +60,7 @@ Stop.
 - Path (abbreviate `$HOME` → `~`)
 - Relative last-used time: compute from `last_used` — e.g. `just now`, `2h ago`, `yesterday`, `3 days ago`, `2 weeks ago`, `last month`.
 
-Example output (en):
+Example output (AI translates per `$LANG` — see ux-rules Language Policy):
 
 ```
 Compass projects:
@@ -85,18 +70,6 @@ Compass projects:
     Stealth Note     ~/sn                         (last used 3 days ago)
 
 Switch: /compass:project use <path>
-```
-
-Vietnamese:
-
-```
-Các Compass project:
-
-  * An Empty Place    ~/an-empty-place            (đang active, dùng 2h trước)
-    Another Test     ~/One Piece/another-test    (dùng hôm qua)
-    Stealth Note     ~/sn                         (dùng 3 ngày trước)
-
-Đổi: /compass:project use <path>
 ```
 
 Align columns visually. Stop after printing.
@@ -120,35 +93,19 @@ Tip: run /compass:project list to see registered projects.
 compass-cli project use "<path>"
 ```
 
-**On success** — CLI prints the resolved name + path. Echo a confirmation (adapt to `lang`):
+**On success** — CLI prints the resolved name + path. Echo a confirmation (AI translates per `$LANG` — see ux-rules Language Policy):
 
-en:
 ```
 ✓ Active project: <name> (<path>)
 ```
 
-vi:
-```
-✓ Project đang active: <name> (<path>)
-```
+If the CLI auto-added the project (path had a valid `.compass/.state/config.json` but wasn't in the registry yet), append: `  (auto-added to registry)`.
 
-If the CLI auto-added the project (path had a valid `.compass/.state/config.json` but wasn't in the registry yet), append:
+**On error** — CLI exits non-zero with a human-readable message on stderr. Surface it and suggest next step (AI translates per `$LANG` — see ux-rules Language Policy):
 
-- en: `  (auto-added to registry)`
-- vi: `  (tự đăng ký vào registry)`
-
-**On error** — CLI exits non-zero with a human-readable message on stderr. Surface it and suggest next step (adapt to `lang`):
-
-en:
 ```
 ✗ Cannot switch: <error message>
   Tip: run /compass:init in that directory first, or /compass:project list to see valid paths.
-```
-
-vi:
-```
-✗ Không đổi được: <error message>
-  Mẹo: chạy /compass:init trong thư mục đó trước, hoặc /compass:project list để xem các path hợp lệ.
 ```
 
 Stop cleanly — never bubble a raw stack trace up to the PO.

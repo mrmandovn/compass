@@ -138,37 +138,7 @@ Print the dashboard. Adapt language to `lang`. Example (en):
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ```
 
-Vietnamese version (used when `lang=vi`):
-
-```
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  COMPASS — Trạng thái Dự án
-  Dự án: <name> | Chế độ: <mode> | Prefix: <PREFIX>
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-  Tài liệu:
-    PRDs:         <N>  (<X> nháp, <Y> đang review, <Z> đã duyệt)
-    Epics:        <N>  (<X> đang chạy, <Y> đã lên kế hoạch, <Z> hoàn thành)
-    Stories:      <N>  (<X> xong, <Y> đang làm, <Z> chờ, <W> bị chặn)
-    Nghiên cứu:   <N>
-    Ý tưởng:      <N>
-    Backlog:      <N>
-    Kỹ thuật:     <N>
-    Release notes: <N>  (mới nhất: v<version> ngày <date>)
-
-  Tiến độ:
-    Stories:   <bar> <X>% hoàn thành (<done> / <total>)
-    Epics:     <bar> <X>% đóng (<closed> / <total>)
-
-  Vấn đề chặn:
-    <PREFIX>-STORY-<N> — <title>
-        phụ thuộc vào <PREFIX>-STORY-<M> (trạng thái: <status>)
-
-  Hoạt động gần đây:
-    <date>:  <type> <filename> (<status>)
-    ...
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-```
+(AI translates output per `$LANG` — see `core/shared/ux-rules.md` Language Policy.)
 
 **Do not use AskUserQuestion** — this is a display-only command. Print and stop.
 

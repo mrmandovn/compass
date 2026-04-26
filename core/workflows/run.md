@@ -403,7 +403,6 @@ Read `AUTO_MODE` from Step 1a.
 
 **If `AUTO_MODE = "manual"` or `"stop"`** → show 3-option gate:
 
-en:
 ```json
 {"questions": [{"question": "Run done. Next?", "header": "Next", "multiSelect": false, "options": [
   {"label": "Continue to /compass:check (Recommended)", "description": "Validate outputs + deliver to integrations — ask again at next checkpoint"},
@@ -412,19 +411,12 @@ en:
 ]}]}
 ```
 
-vi:
-```json
-{"questions": [{"question": "Run xong. Next?", "header": "Next", "multiSelect": false, "options": [
-  {"label": "Tiếp tục /compass:check (Recommended)", "description": "Validate outputs + deliver tới integrations — sẽ hỏi lại ở checkpoint tiếp theo"},
-  {"label": "Auto-chain check", "description": "Chạy /compass:check không hỏi thêm"},
-  {"label": "Dừng ở đây", "description": "Tự chạy /compass:check sau"}
-]}]}
-```
+AI translates per `$LANG` — see ux-rules Language Policy.
 
 **Branch**:
 - **Continue** → invoke `/compass:check` inline (persist `auto_mode` unchanged).
 - **Auto-chain** → set `auto_mode="auto"` in context.json, invoke `/compass:check`.
-- **Stop** → print `✓ Run /compass:check when ready.` / `✓ Chạy /compass:check khi sẵn sàng.` and stop.
+- **Stop** → print `✓ Run /compass:check when ready.` and stop.
 
 Persistence:
 ```bash

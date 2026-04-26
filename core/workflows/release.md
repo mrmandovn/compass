@@ -142,7 +142,7 @@ Build `PERIOD_LABEL = "<SPRINT_NAME> (<SPRINT_START> → <SPRINT_END>)"`.
 ]}]}
 ```
 
-vi: regenerate both blocks in Vietnamese when `lang=vi`.
+AI translates per `$LANG` — see ux-rules Language Policy.
 
 Use AskUserQuestion for target audience:
 

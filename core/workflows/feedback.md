@@ -63,8 +63,10 @@ After Step 0a returns:
 Use AskUserQuestion to identify where the feedback comes from:
 
 ```json
-{"questions": [{"question": "Where is the feedback coming from?\n(Tiếng Việt: Phản hồi đến từ đâu?)", "header": "Feedback source", "multiSelect": true, "options": [{"label": "Jira tickets", "description": "I'll scan open bugs and feature requests from Jira / Tôi sẽ quét Jira tìm bug và feature request"}, {"label": "Paste feedback directly", "description": "I'll paste raw feedback text now / Tôi sẽ dán nội dung phản hồi trực tiếp"}, {"label": "Describe verbally", "description": "Tell me what users are saying, I'll structure it / Mô tả những gì người dùng phản hồi"}, {"label": "Support tickets or chat logs", "description": "Paste excerpts from support conversations / Dán đoạn trích từ hội thoại hỗ trợ"}, {"label": "User interview notes", "description": "Paste interview notes or transcripts / Dán ghi chú phỏng vấn người dùng"}]}]}
+{"questions": [{"question": "Where is the feedback coming from?", "header": "Feedback source", "multiSelect": true, "options": [{"label": "Jira tickets", "description": "I'll scan open bugs and feature requests from Jira"}, {"label": "Paste feedback directly", "description": "I'll paste raw feedback text now"}, {"label": "Describe verbally", "description": "Tell me what users are saying, I'll structure it"}, {"label": "Support tickets or chat logs", "description": "Paste excerpts from support conversations"}, {"label": "User interview notes", "description": "Paste interview notes or transcripts"}]}]}
 ```
+
+AI translates per `$LANG` — see ux-rules Language Policy.
 
 ---
 
@@ -79,8 +81,10 @@ Use AskUserQuestion to identify where the feedback comes from:
 Ask one clarifying question only if the source is Jira and no issues are found:
 
 ```json
-{"questions": [{"question": "No Jira issues found. How would you like to proceed?\n(Tiếng Việt: Không tìm thấy Jira issue. Bạn muốn tiếp tục như thế nào?)", "header": "No Jira data", "multiSelect": false, "options": [{"label": "Paste feedback manually", "description": "I'll provide the feedback text / Tôi sẽ cung cấp nội dung phản hồi"}, {"label": "Try a different Jira filter", "description": "I'll describe the filter / Tôi sẽ mô tả bộ lọc khác"}, {"label": "Skip — describe verbally", "description": "Tell me what users say / Mô tả những gì người dùng nói"}]}]}
+{"questions": [{"question": "No Jira issues found. How would you like to proceed?", "header": "No Jira data", "multiSelect": false, "options": [{"label": "Paste feedback manually", "description": "I'll provide the feedback text"}, {"label": "Try a different Jira filter", "description": "I'll describe the filter"}, {"label": "Skip — describe verbally", "description": "Tell me what users say"}]}]}
 ```
+
+AI translates per `$LANG` — see ux-rules Language Policy.
 
 ---
 
@@ -110,8 +114,6 @@ FEEDBACK_COUNT = len(raw_feedback_signals)
   ...
 ]}]}
 ```
-
-vi: regenerate with Vietnamese labels.
 
 **If `FEEDBACK_COUNT > 30`** — force bucketing to avoid analysis paralysis:
 - Warn: "<N> signals is too many for open clustering — forcing max 5 buckets to keep report actionable"
@@ -192,8 +194,10 @@ status: draft
 Show a preview of the themed output. Use AskUserQuestion:
 
 ```json
-{"questions": [{"question": "Themes look good?\n(Tiếng Việt: Phân nhóm chủ đề trông ổn không?)", "header": "Review themes", "multiSelect": false, "options": [{"label": "Save the report", "description": "Write the file now / Lưu báo cáo ngay bây giờ"}, {"label": "Adjust a theme", "description": "I want to rename or merge themes / Tôi muốn đổi tên hoặc gộp chủ đề"}, {"label": "Add more feedback", "description": "I have additional signals to include / Tôi có thêm tín hiệu phản hồi để thêm vào"}]}]}
+{"questions": [{"question": "Themes look good?", "header": "Review themes", "multiSelect": false, "options": [{"label": "Save the report", "description": "Write the file now"}, {"label": "Adjust a theme", "description": "I want to rename or merge themes"}, {"label": "Add more feedback", "description": "I have additional signals to include"}]}]}
 ```
+
+AI translates per `$LANG` — see ux-rules Language Policy.
 
 Save path:
 - Silver Tiger: `research/FEEDBACK-{PREFIX}-{slug}-{date}.md`
@@ -221,9 +225,8 @@ compass-cli index add "<output-file-path>" "research" 2>/dev/null || true
 
 ## Final — Hand-off
 
-Print one of these closing messages (pick based on `$LANG`):
+Print this closing message (AI translates per `$LANG` — see ux-rules Language Policy):
 
-- en: `✓ Feedback themed. Next: `/compass:prioritize` to score top themes, or `/compass:research` to dig deeper into one.`
-- vi: `✓ Đã theme feedback. Tiếp: `/compass:prioritize` để score top themes, hoặc `/compass:research` để dig sâu vào 1 theme.`
+`✓ Feedback themed. Next: `/compass:prioritize` to score top themes, or `/compass:research` to dig deeper into one.`
 
 Then stop. Do NOT auto-invoke the next workflow.

@@ -176,7 +176,7 @@ ELSE:
 
 Build AskUserQuestion putting the recommended framework as the first option with "(Recommended)" suffix. Always include other options for override.
 
-**AskUserQuestion (en)** — order determined by `mode` above:
+**AskUserQuestion** — order determined by `mode` above:
 
 ```json
 {"questions": [{"question": "Framework for <ITEM_COUNT> items?", "header": "Choose framework", "multiSelect": false, "options": [
@@ -190,7 +190,7 @@ Build AskUserQuestion putting the recommended framework as the first option with
 
 De-duplicate: if `recommendation_label` already contains "RICE" or "MoSCoW", don't repeat that option below.
 
-vi: regenerate with Vietnamese labels/descriptions.
+AI translates per `$LANG` — see ux-rules Language Policy.
 
 ### 3c. Mode = "discuss" special case
 

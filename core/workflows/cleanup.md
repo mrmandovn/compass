@@ -117,7 +117,8 @@ done
 
 ### Step 1a — Print inventory summary (always)
 
-en:
+AI translates labels per `$LANG` — see ux-rules Language Policy.
+
 ```
 📋 Session inventory — <PROJECT_NAME>
 
@@ -125,8 +126,6 @@ en:
   Completed sessions:      <#COMPLETED_RECENT> recent (≤30d), <#COMPLETED_OLD> old (>30d)
   Archived sessions:       <#ARCHIVED_RECENT> recent (≤90d), <#ARCHIVED_OLD> old (>90d) — eligible for purge
 ```
-
-vi: equivalent structure, translated labels.
 
 If `MODE=inventory`, stop here.
 
@@ -136,9 +135,8 @@ If `MODE=inventory`, stop here.
 
 ### MODE=interactive
 
-Ask via AskUserQuestion:
+Ask via AskUserQuestion (AI translates labels per `$LANG` — see ux-rules Language Policy):
 
-en:
 ```json
 {"questions": [{"question": "What should the cleanup do?", "header": "Cleanup", "multiSelect": false, "options": [
   {"label": "Close stale pipelines", "description": "Mark <#ACTIVE_STALE> active pipelines as completed (active >14d, 0 artifacts)"},
@@ -147,8 +145,6 @@ en:
   {"label": "Show details", "description": "List every session in each bucket"}
 ]}]}
 ```
-
-vi: equivalent.
 
 **Note:** if a bucket is empty (e.g. `#ACTIVE_STALE == 0`), omit that option from the list. If ALL buckets are empty → print `✓ Nothing to clean up.` and stop.
 
@@ -203,16 +199,10 @@ Already handled in Step 0a — nothing more to do. Stop.
 
 ## Step 3 — Post-action summary
 
-After any non-inventory mode completes (interactive or flag-driven), print a final line:
+After any non-inventory mode completes (interactive or flag-driven), print a final line (AI translates per `$LANG` — see ux-rules Language Policy):
 
-en:
 ```
 ✓ Cleanup done. Next: /compass:cleanup --inventory to re-check state.
-```
-
-vi:
-```
-✓ Cleanup xong. Tiếp: /compass:cleanup --inventory để check lại state.
 ```
 
 ---
@@ -233,9 +223,8 @@ vi:
 
 ## Final — Hand-off
 
-After cleanup completes (or was a no-op), print one of:
+After cleanup completes (or was a no-op), print (AI translates per `$LANG` — see ux-rules Language Policy):
 
-- en: `✓ Cleanup complete. Next: /compass:brief to start a fresh task, or /compass:status to view project health.`
-- vi: `✓ Cleanup xong. Tiếp: /compass:brief để bắt đầu task mới, hoặc /compass:status để xem project health.`
+> `✓ Cleanup complete. Next: /compass:brief to start a fresh task, or /compass:status to view project health.`
 
 Then stop. Do NOT auto-invoke the next workflow.
