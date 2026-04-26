@@ -182,11 +182,11 @@ Read and follow `~/.compass/core/integrations/<name>.md` in `verify` mode.
 
 ### Action: Reset one
 
-1. Ask the PO to confirm using AskUserQuestion format (in `lang`):
+1. Ask the PO to confirm using AskUserQuestion format:
 
    ```json
    {
-     "header": "Reset <Name> Integration",
+     "header": "Reset <Name>",
      "questions": [
        {
          "id": "confirm_reset",
@@ -198,22 +198,9 @@ Read and follow `~/.compass/core/integrations/<name>.md` in `verify` mode.
    }
    ```
 
-   Vietnamese example (when `lang = "vi"`):
-   ```json
-   {
-     "header": "Đặt lại tích hợp <Name>",
-     "questions": [
-       {
-         "id": "confirm_reset",
-         "question": "Thao tác này sẽ xóa thông tin tích hợp <Name> khỏi Compass nhưng KHÔNG xóa cấu hình MCP server. Bạn có muốn tiếp tục không?",
-         "options": ["Có, đặt lại", "Hủy"],
-         "multiSelect": false
-       }
-     ]
-   }
-   ```
+   (AI translates per `$LANG` — see `core/shared/ux-rules.md` Language Policy.)
 
-2. If the PO selects "Yes" / "Có, đặt lại", overwrite the integration entry:
+2. If the PO selects "Yes, reset it", overwrite the integration entry:
    ```json
    { "status": "not-configured" }
    ```

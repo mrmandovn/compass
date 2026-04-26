@@ -775,7 +775,6 @@ Ask the PO whether to connect integrations now. Adapt wording to `$LANG`:
 
 - **"Pick some"** → secondary AskUserQuestion (multiSelect):
 
-  en:
   ```json
   {"questions": [{"question": "Which integrations?", "header": "Select", "multiSelect": true, "options": [
     {"label": "Jira", "description": "Issue tracking + sprint sync"},
@@ -785,15 +784,7 @@ Ask the PO whether to connect integrations now. Adapt wording to `$LANG`:
   ]}]}
   ```
 
-  vi:
-  ```json
-  {"questions": [{"question": "Integrations nào?", "header": "Chọn", "multiSelect": true, "options": [
-    {"label": "Jira", "description": "Issue tracking + sprint sync"},
-    {"label": "Figma", "description": "Design references + prototypes"},
-    {"label": "Confluence", "description": "Xuất bản tài liệu"},
-    {"label": "Vercel", "description": "Deploy preview links"}
-  ]}]}
-  ```
+  (AI translates per `$LANG` — see `core/shared/ux-rules.md` Language Policy.)
 
   Store user-picked labels as `$PICKED` array (e.g. `["Jira", "Figma"]`).
 

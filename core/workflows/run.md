@@ -94,14 +94,12 @@ Ready to execute: <plan name>
   ...
 ```
 
-Vietnamese example: _"Bạn có muốn bắt đầu chạy kế hoạch này không?"_
-
 **AskUserQuestion**:
 ```json
 {
   "questions": [{
-    "question": "Xác nhận chạy kế hoạch?",
-    "header": "Sẵn sàng thực thi",
+    "question": "Confirm plan execution?",
+    "header": "Ready to run",
     "multiSelect": false,
     "options": [
       {"label": "Proceed", "description": "Start executing all stages now"},
@@ -111,6 +109,8 @@ Vietnamese example: _"Bạn có muốn bắt đầu chạy kế hoạch này kh�
   }]
 }
 ```
+
+(AI translates per `$LANG` — see `core/shared/ux-rules.md` Language Policy.)
 
 If user picks **Cancel** → exit cleanly.
 If user picks **Edit plan** → instruct them to re-run `/compass:plan`.
