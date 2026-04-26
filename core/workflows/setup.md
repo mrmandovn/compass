@@ -247,20 +247,7 @@ All questions to the PO during setup or integration flows MUST use this JSON str
 - `options`: Predefined choices. MUST have ≥2 options — never use empty array. Provide concrete suggestions; the built-in "Type your own answer" handles custom input.
 - `multiSelect`: `true` if the PO may choose more than one option; `false` otherwise.
 
-**Vietnamese example** (general integration selection):
-```json
-{
-  "header": "Cài đặt tích hợp Compass",
-  "questions": [
-    {
-      "id": "select_integration",
-      "question": "Bạn muốn thiết lập tích hợp nào?",
-      "options": ["Jira", "Figma", "Confluence", "Vercel", "Bỏ qua"],
-      "multiSelect": false
-    }
-  ]
-}
-```
+(AI translates per `$LANG` — see `core/shared/ux-rules.md` Language Policy.)
 
 ---
 

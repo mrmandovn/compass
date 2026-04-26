@@ -22,9 +22,7 @@ Apply the shared snippet from `core/shared/resolve-project.md`. It sets up `$PRO
 From `$CONFIG`, extract `lang`, `spec_lang`, `naming`, and `model_routing`.
 If config missing → prompt user to run `/compass:init` first.
 
-All user-facing messages in `lang`. All generated document content in `spec_lang`.
-
-Vietnamese example — if `lang: "vi"`: _"Đang tải kế hoạch cộng tác..."_
+All user-facing messages in `lang`. All generated document content in `spec_lang`. AI translates runtime per ux-rules Language Policy.
 
 ---
 
@@ -391,7 +389,7 @@ Done!
   Budget used  : <X>k / <Y>k tokens
 ```
 
-Vietnamese example: _"Hoàn tất! Tất cả các Đồng nghiệp đã chạy xong."_
+(AI translates per `$LANG` — see `core/shared/ux-rules.md` Language Policy.)
 
 ---
 
