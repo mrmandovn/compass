@@ -72,8 +72,8 @@ Print: `✓ Plan mode: <minimal|full>` so PO knows which flow is coming.
 
 **FULL mode**: unchanged from current behavior.
 
-**Vietnamese prompt example:**
-> "Không tìm thấy phiên brief nào. Hãy chạy `/compass:brief` trước để tạo brief session nhé!"
+**Prompt example (AI translates per `$LANG`):**
+> "No brief session found. Run `/compass:brief` first to create a brief session."
 
 ---
 
@@ -114,8 +114,8 @@ Based on `can_depend_on` in the manifest and the Colleagues selected in the brie
 
 Auto-calculate stages from the resolved depends_on relationships — do not hardcode stage numbers.
 
-**Vietnamese prompt example:**
-> "Đang phân tích DAG và tính toán các stage... Colleague nào chạy song song, Colleague nào phải chờ phụ thuộc (depends_on) sẽ được sắp xếp tự động."
+**Prompt example (AI translates per `$LANG`):**
+> "Analyzing DAG and computing stages... Colleagues running in parallel and those awaiting depends_on resolution will be auto-arranged."
 
 ---
 
@@ -231,8 +231,8 @@ Before presenting the plan to the PO, validate the dependency graph:
    - a `domain` value that is either one of the four v1.0 enums or `null`
    - every task has `context_pointers` with 1..30 entries
 
-**Vietnamese prompt example:**
-> "Đang kiểm tra DAG... Không có vòng lặp phụ thuộc, tất cả depends_on đều hợp lệ. Plan sẵn sàng để review!"
+**Prompt example (AI translates per `$LANG`):**
+> "Validating DAG... No dependency cycles, all depends_on entries valid. Plan ready for review."
 
 ---
 
