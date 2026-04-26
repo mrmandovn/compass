@@ -72,7 +72,6 @@ Pick the version matching `lang`.
 
 **If migration ran (no errors):**
 
-English:
 ```
 ✓ Migrated to v1.0 state layout.
 
@@ -83,16 +82,7 @@ English:
   Safe to re-run anytime — migrate is idempotent.
 ```
 
-Vietnamese:
-```
-✓ Đã migrate sang layout v1.0.
-
-  Session đã chuyển:   <sessions_migrated>
-  Backup đã tạo:       <backups_written>  →  $PROJECT_ROOT/.compass/.state/.backup-<ISO>/
-  project-memory.json: <project_memory>   ("created" hoặc "exists")
-
-  Chạy lại lúc nào cũng an toàn — migrate là idempotent.
-```
+(AI translates per `$LANG` — see `core/shared/ux-rules.md` Language Policy.)
 
 ---
 

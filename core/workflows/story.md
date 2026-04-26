@@ -151,11 +151,8 @@ The module handles scanning, matching, and asking the user:
 
 Use AskUserQuestion to ask the user what this story is based on.
 
-English example question: "What is this story based on?"
-Vietnamese example question: "Story này dựa trên cơ sở nào?"
-
 ```json
-{"questions": [{"question": "What is this story based on?\n(Tiếng Việt: Story này dựa trên cơ sở nào?)", "header": "Story source", "multiSelect": false, "options": [{"label": "A PRD", "description": "Point me to the PRD path and I'll break it into stories / Chỉ cho tôi đường dẫn PRD, tôi sẽ chia thành các stories"}, {"label": "A new idea / feature (no PRD yet)", "description": "Start from scratch with a new concept / Bắt đầu từ ý tưởng mới chưa có PRD"}, {"label": "Refining an existing story", "description": "Point me to the story file to refine / Chỉ cho tôi file story cần chỉnh sửa"}]}]}
+{"questions": [{"question": "What is this story based on?", "header": "Story source", "multiSelect": false, "options": [{"label": "A PRD", "description": "Point me to the PRD path and I'll break it into stories"}, {"label": "A new idea / feature (no PRD yet)", "description": "Start from scratch with a new concept"}, {"label": "Refining an existing story", "description": "Point me to the story file to refine"}]}]}
 ```
 
 If (a — PRD) → read the PRD, propose how many stories it could break into, list them. Use AskUserQuestion to let the user pick which to write, or "all".
@@ -175,11 +172,8 @@ Build the options array from the epics found in Step 1. If zero epics exist, the
 1. `📚 Create Epic first (recommended)` — invokes `/compass:epic` inline, then returns to Step 3.
 2. `⏭ Skip Epic — write story directly` — marks the story as epic-less; output goes to the standalone story path (`.compass/Stories/STORY-{NNN}-{slug}.md`), frontmatter `epic: null`, Step 7 (update parent epic.md) is skipped.
 
-English example question: "Where should this story live?"
-Vietnamese example question: "Story này thuộc đâu?"
-
 ```json
-{"questions": [{"question": "Where should this story live?\n(Tiếng Việt: Story này thuộc đâu?)", "header": "Select epic", "multiSelect": false, "options": [{"label": "{PREFIX}-EPIC-01 — {Epic Name}", "description": "Add the story under this existing epic / Thêm story vào epic này"}, {"label": "📚 Create Epic first (recommended)", "description": "I'll run /compass:epic now, then continue writing this story / Tôi sẽ chạy /compass:epic trước, sau đó quay lại viết story"}, {"label": "⏭ Skip Epic — write story directly", "description": "Write a standalone story under .compass/Stories/ without a parent epic / Viết story đứng riêng trong .compass/Stories/ không thuộc epic nào"}]}]}
+{"questions": [{"question": "Where should this story live?", "header": "Select epic", "multiSelect": false, "options": [{"label": "{PREFIX}-EPIC-01 — {Epic Name}", "description": "Add the story under this existing epic"}, {"label": "📚 Create Epic first (recommended)", "description": "I'll run /compass:epic now, then continue writing this story"}, {"label": "⏭ Skip Epic — write story directly", "description": "Write a standalone story under .compass/Stories/ without a parent epic"}]}]}
 ```
 
 ### Step 3b — Route based on choice
@@ -288,11 +282,6 @@ Use AskUserQuestion. Scan the PRD (if available) for feature name and user roles
 
 ```json
 {"questions": [{"question": "What's the story title?", "header": "Story Title", "multiSelect": false, "options": [{"label": "As a <role>, I want to <action>, so that <benefit>", "description": "Standard user story format — replace placeholders with your context"}, {"label": "As an Admin, I want to manage team members, so that I can control workspace access", "description": "Example admin story — adapt to your feature"}, {"label": "As a user, I want to upload files in bulk, so that I can save time on repetitive uploads", "description": "Example end-user story — adapt to your feature"}, {"label": "Type a custom title", "description": "Enter your own title or user story statement"}]}]}
-```
-
-Vietnamese example (used when `lang=vi`):
-```json
-{"questions": [{"question": "Tiêu đề story là gì?", "header": "Tiêu đề Story", "multiSelect": false, "options": [{"label": "Là một <vai trò>, tôi muốn <hành động>, để <lợi ích>", "description": "Định dạng user story chuẩn — thay thế placeholder bằng ngữ cảnh của bạn"}, {"label": "Là một Admin, tôi muốn quản lý thành viên nhóm, để kiểm soát quyền truy cập workspace", "description": "Ví dụ story admin — điều chỉnh theo tính năng của bạn"}, {"label": "Là một người dùng, tôi muốn tải lên file hàng loạt, để tiết kiệm thời gian cho các lần tải lên lặp lại", "description": "Ví dụ story người dùng cuối — điều chỉnh theo tính năng của bạn"}, {"label": "Nhập tiêu đề tùy chỉnh", "description": "Nhập tiêu đề hoặc phát biểu user story của bạn"}]}]}
 ```
 
 ### Question B: User context (STANDALONE mode only — skipped in PRD_LINKED mode)
@@ -545,9 +534,6 @@ Emit the final progress summary (Pattern 1 Step C from `core/shared/progress.md`
 
 Then use AskUserQuestion to offer next actions after showing the summary.
 
-English example question: "What would you like to do next?"
-Vietnamese example question: "Bạn muốn làm gì tiếp theo?"
-
 Show the summary first (in `lang`):
 
 ```
@@ -566,7 +552,7 @@ Notes:
 Then use AskUserQuestion:
 
 ```json
-{"questions": [{"question": "What would you like to do next?\n(Tiếng Việt: Bạn muốn làm gì tiếp theo?)", "header": "Next step", "multiSelect": false, "options": [{"label": "/compass:story", "description": "Write the next story / Viết story tiếp theo"}, {"label": "/compass:prioritize", "description": "Sort this batch of stories / Sắp xếp thứ tự ưu tiên cho batch stories này"}, {"label": "Done for now", "description": "I'm finished / Tôi đã xong"}]}]}
+{"questions": [{"question": "What would you like to do next?", "header": "Next step", "multiSelect": false, "options": [{"label": "/compass:story", "description": "Write the next story"}, {"label": "/compass:prioritize", "description": "Sort this batch of stories"}, {"label": "Done for now", "description": "I'm finished"}]}]}
 ```
 
 ## Save session

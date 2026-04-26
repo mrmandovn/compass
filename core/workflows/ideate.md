@@ -178,7 +178,7 @@ Use AskUserQuestion with ≥2 context-aware suggestions. Each option is a concre
 - `options`: Generate 2–3 options dynamically based on project context. Examples:
 
   **If trigger = "User pain point" and existing PRDs mention auth issues:**
-  - `{label: "Auth flow quá phức tạp", description: "Người dùng mất 5 bước để đăng nhập, tỉ lệ drop-off 40% ở bước MFA"}`
+  - `{label: "Auth flow too complex", description: "Users take 5 steps to log in; 40% drop-off at MFA step"}`
   - `{label: "Onboarding mới chưa rõ ràng", description: "User mới không biết bắt đầu từ đâu, support ticket tăng 30%"}`
 
   **If trigger = "Business goal" and no existing context:**
