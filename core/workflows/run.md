@@ -275,7 +275,7 @@ When a Colleague fails or times out, escalate in order:
 ```json
 {
   "questions": [{
-    "question": "C-03 Product Writer gặp lỗi sau 3 lần thử. Bạn muốn làm gì?",
+    "question": "C-03 Product Writer failed after 3 retries. What do you want to do?",
     "header": "Escalation — C-03",
     "multiSelect": false,
     "options": [

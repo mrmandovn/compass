@@ -108,21 +108,14 @@ Show full output, then proceed to **Step 4**.
 
 **If no runner is detected** → AskUserQuestion:
 
-- vi:
-```json
-{"questions": [{"question": "Không tìm thấy test runner. Bạn muốn làm gì?", "header": "Test runner", "multiSelect": false, "options": [
-  {"label": "Nhập lệnh test", "description": "Gõ command test của bạn"},
-  {"label": "Bỏ qua", "description": "Không chạy test"}
-]}]}
-```
-
-- en:
 ```json
 {"questions": [{"question": "No test runner detected. What would you like to do?", "header": "Test runner", "multiSelect": false, "options": [
   {"label": "Type your test command", "description": "Enter a custom test command to run"},
   {"label": "Skip", "description": "Don't run any tests"}
 ]}]}
 ```
+
+(AI translates per `$LANG` — see `core/shared/ux-rules.md` Language Policy.)
 
 If user provides a command → run it. If skip → stop with no-op message.
 

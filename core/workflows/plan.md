@@ -31,8 +31,7 @@ From `$CONFIG`, extract:
 
 If config missing → tell user to run `/compass:init` first, stop.
 
-**Vietnamese prompt example:**
-> "Đang tải cấu hình Compass... Sẵn sàng xây dựng DAG plan cho phiên làm việc của bạn."
+(AI translates user-facing prompts per `$LANG` — see `core/shared/ux-rules.md` Language Policy.)
 
 ---
 
