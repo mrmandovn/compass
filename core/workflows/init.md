@@ -466,16 +466,6 @@ en (when `OTHERS_COUNT = 0` — omit option 2):
 ]}]}
 ```
 
-vi (pattern same as en, translated labels):
-```json
-{"questions": [{"question": "Tạo project Compass ở đâu?", "header": "Đích", "multiSelect": false, "options": [
-  {"label": "Tại đây: <BASENAME>", "description": "Dùng thư mục hiện tại — <CWD>"},
-  {"label": "Project đã đăng ký khác", "description": "Chọn từ <OTHERS_COUNT> projects đã register"},
-  {"label": "Sibling folder trong <PARENT_NAME>", "description": "Tạo folder mới ngang cấp với <BASENAME>"},
-  {"label": "Đường dẫn tuyệt đối khác", "description": "Tự nhập full path"}
-]}]}
-```
-
 **Substitute placeholders before calling:** `<CWD>`, `<BASENAME>`, `<PARENT_NAME>`, `<OTHERS_COUNT>` must be filled with actual values from the bash block above, not left as-is.
 
 **Branch logic:**

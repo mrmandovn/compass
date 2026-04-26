@@ -344,7 +344,7 @@ Before calling, scan existing stories in the same epic to derive dependency cand
 ]}
 ```
 
-When `lang=vi`, regenerate all labels/descriptions in Vietnamese — do NOT make two separate calls.
+AI translates labels/descriptions per `$LANG` at runtime — see `core/shared/ux-rules.md` Language Policy. Do NOT make two separate AskUserQuestion calls.
 
 **Save-as-default prompt** (fires only in three-sub-Q path, after PO picks DoD):
 
