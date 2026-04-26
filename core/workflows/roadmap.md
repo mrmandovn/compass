@@ -170,9 +170,10 @@ compass-cli index add "<output-file-path>" "research" 2>/dev/null || true
 
 ## Final — Hand-off
 
-Print one of these closing messages (pick based on `$LANG`):
+Print:
 
-- en: `✓ Roadmap drafted. Next: `/compass:sprint` to plan the next sprint, or `/compass:prioritize` to re-score backlog.`
-- vi: `✓ Roadmap đã draft. Tiếp: `/compass:sprint` để plan sprint tiếp theo, hoặc `/compass:prioritize` để re-score backlog.`
+`✓ Roadmap drafted. Next: `/compass:sprint` to plan the next sprint, or `/compass:prioritize` to re-score backlog.`
+
+(AI translates per `$LANG` — see `core/shared/ux-rules.md` Language Policy.)
 
 Then stop. Do NOT auto-invoke the next workflow.

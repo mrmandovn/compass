@@ -77,38 +77,6 @@ If interaction_level is "standard":
 
 ---
 
-## Step 0a: Detect active pipeline session
-
-Before scanning for project context, check whether a pipeline session is active:
-
-```bash
-PIPELINE=$(find "$PROJECT_ROOT/.compass/.state/sessions/" -name "pipeline.json" -exec grep -l '"status": "active"' {} \; 2>/dev/null | sort | tail -1)
-```
-
-**If an active pipeline is found:**
-
-1. Read `pipeline.json` — extract the session `id` (slug) and `title` from the sibling `context.json`.
-2. Show: `"Active pipeline detected: <title>. Stories can be saved into this session."`
-   (AI translates per `$LANG` — see `core/shared/ux-rules.md` Language Policy.)
-3. Use AskUserQuestion to confirm:
-   ```json
-   {"questions": [{"question": "Save stories in the active pipeline session?", "header": "Pipeline session", "multiSelect": false, "options": [{"label": "Yes — part of pipeline", "description": "Save stories in the session AND in the normal output folder"}, {"label": "No — standalone", "description": "Save only in the normal output folder, ignore the pipeline"}]}]}
-   ```
-4. If **Yes**:
-   - Set `pipeline_mode = true` and `pipeline_slug = <id>`.
-   - After Step 6 writes each story file, also copy it to `$PROJECT_ROOT/.compass/.state/sessions/<slug>/story-<slug>.md`.
-   - Append each story's file path to the `artifacts` array in `pipeline.json`:
-     ```json
-     { "type": "story", "path": "<output-file-path>", "session_path": "$PROJECT_ROOT/.compass/.state/sessions/<slug>/story-<slug>.md", "created_at": "<ISO>" }
-     ```
-   - When breaking a PRD into multiple stories (Step 4b), append each story individually as a separate artifact entry.
-5. If **No** → set `pipeline_mode = false`. Proceed as standalone (current behavior).
-
-**If no active pipeline found:** set `pipeline_mode = false`. Continue with current standalone behavior — no change.
-
----
-
-
 ## Step 0a — Pipeline + Project choice gate
 
 This workflow produces an artifact in the project, so apply Step 0d from `core/shared/resolve-project.md` after Step 0. The shared gate:

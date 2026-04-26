@@ -179,19 +179,19 @@ Use AskUserQuestion with ≥2 context-aware suggestions. Each option is a concre
 
   **If trigger = "User pain point" and existing PRDs mention auth issues:**
   - `{label: "Auth flow too complex", description: "Users take 5 steps to log in; 40% drop-off at MFA step"}`
-  - `{label: "Onboarding mới chưa rõ ràng", description: "User mới không biết bắt đầu từ đâu, support ticket tăng 30%"}`
+  - `{label: "Onboarding unclear for new users", description: "New users don't know where to start; support tickets up 30%"}`
 
   **If trigger = "Business goal" and no existing context:**
-  - `{label: "Tăng activation rate", description: "Ví dụ: 'activation rate hiện tại 25%, mục tiêu Q2 là 40%'"}`
-  - `{label: "Giảm churn", description: "Ví dụ: 'monthly churn 8%, muốn giảm xuống 5% bằng cách cải thiện retention'"}`
-  - `{label: "Mở rộng thị trường mới", description: "Ví dụ: 'cần hỗ trợ tiếng Nhật để mở rộng sang thị trường Japan'"}`
+  - `{label: "Increase activation rate", description: "Example: 'current activation rate 25%, Q2 target 40%'"}`
+  - `{label: "Reduce churn", description: "Example: 'monthly churn 8%, want to reduce to 5% via improved retention'"}`
+  - `{label: "Expand to new market", description: "Example: 'need Japanese language support to expand to Japan market'"}`
 
   **Fallback (no project context available):**
-  - `{label: "Ví dụ: Upload file chậm và hay lỗi", description: "Người dùng phản ánh upload >100MB thường bị ngắt, mất 4 lần click"}`
-  - `{label: "Ví dụ: Dashboard thiếu metric quan trọng", description: "Team sales cần thấy MRR, churn rate nhưng dashboard chỉ có DAU"}`
-  - `{label: "Ví dụ: Mobile app chưa có offline mode", description: "Khách hàng field service cần truy cập data khi không có internet"}`
+  - `{label: "Example: Slow and error-prone file upload", description: "Users report uploads >100MB often disconnect; 4 clicks needed"}`
+  - `{label: "Example: Dashboard missing key metrics", description: "Sales team needs MRR, churn rate but dashboard only shows DAU"}`
+  - `{label: "Example: Mobile app lacks offline mode", description: "Field-service customers need data access without internet"}`
 
-**Key rule**: options phải là CỤ THỂ, không phải "Open text" hay "Nhập mô tả". PO chọn 1 gợi ý làm base rồi sửa, hoặc tự viết qua "Type your own answer".
+**Key rule**: options must be SPECIFIC, not "Open text" or "Type a description". PO picks one suggestion as base and edits, or writes their own via "Type your own answer".
 
 #### Q2 post-answer — ambiguity probing (0-2 Qs, adaptive)
 

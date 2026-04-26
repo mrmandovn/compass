@@ -107,15 +107,12 @@ The scan result (counts per source) is shown inline at the top of Step 2's sourc
 
 Use AskUserQuestion to ask where the items come from. Include the scan counts from Step 1 in option descriptions so the PO sees available volume per source.
 
-**AskUserQuestion example (en)**:
+**AskUserQuestion example**:
 ```json
 {"questions": [{"question": "Where do the items to score come from?", "header": "Select item source", "multiSelect": false, "options": [{"label": "Auto-load from Ideas", "description": "All ideas with status=brainstorm (.compass/Ideas/ or research/IDEA-*.md)"}, {"label": "Auto-load from PRDs", "description": "All PRDs with status=draft or review"}, {"label": "Auto-load from Stories", "description": "User stories from .compass/Stories/ or epics/"}, {"label": "Paste manually", "description": "I'll type or paste the list now"}, {"label": "Mix — specify file paths", "description": "I'll list file paths and you read them"}]}]}
 ```
 
-**AskUserQuestion example (vi)**:
-```json
-{"questions": [{"question": "Các hạng mục cần chấm điểm đến từ đâu?", "header": "Chọn nguồn dữ liệu", "multiSelect": false, "options": [{"label": "Tự động từ Ideas", "description": "Tất cả ý tưởng có status=brainstorm"}, {"label": "Tự động từ PRDs", "description": "Tất cả PRD có status=draft hoặc review"}, {"label": "Tự động từ Stories", "description": "User story từ thư mục stories hoặc epics"}, {"label": "Dán thủ công", "description": "Tôi sẽ nhập hoặc dán danh sách ngay bây giờ"}, {"label": "Hỗn hợp — chỉ định đường dẫn file", "description": "Tôi sẽ liệt kê đường dẫn file để bạn đọc"}]}]}
-```
+(AI translates per `$LANG` — see `core/shared/ux-rules.md` Language Policy.)
 
 After determining the source, show the collected list and confirm:
 
@@ -128,15 +125,12 @@ Collected <N> items to score:
 
 Then use AskUserQuestion to confirm the list.
 
-**AskUserQuestion example (en)**:
+**AskUserQuestion example**:
 ```json
 {"questions": [{"question": "Collected <N> items. Looks good?", "header": "Confirm item list", "multiSelect": false, "options": [{"label": "Yes, proceed", "description": "Score all items as listed"}, {"label": "Drop an item", "description": "I'll tell you which one to remove"}, {"label": "Add an item", "description": "I'll give you an extra item to include"}]}]}
 ```
 
-**AskUserQuestion example (vi)**:
-```json
-{"questions": [{"question": "Đã thu thập <N> hạng mục. Trông ổn không?", "header": "Xác nhận danh sách", "multiSelect": false, "options": [{"label": "Ổn, tiến hành", "description": "Chấm điểm tất cả như đã liệt kê"}, {"label": "Bỏ một hạng mục", "description": "Tôi sẽ nói cái nào cần xóa"}, {"label": "Thêm một hạng mục", "description": "Tôi sẽ cung cấp thêm một hạng mục"}]}]}
-```
+(AI translates per `$LANG` — see `core/shared/ux-rules.md` Language Policy.)
 
 ---
 

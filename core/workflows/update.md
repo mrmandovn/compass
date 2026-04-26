@@ -111,8 +111,9 @@ Print: "✓ Updated to v{NEW_VERSION} (<N> commands)"
 
 **IMPORTANT — show this after every successful update:**
 
-- en: `"⚠ Close and reopen your AI host to load new commands. Current session only sees commands loaded at startup."`
-- vi: `"⚠ Đóng và mở lại AI host để load commands mới. Session hiện tại chỉ thấy commands đã load lúc khởi động."`
+`"⚠ Close and reopen your AI host to load new commands. Current session only sees commands loaded at startup."`
+
+(AI translates per `$LANG` — see `core/shared/ux-rules.md` Language Policy.)
 
 ---
 
@@ -130,9 +131,10 @@ Print: "✓ Updated to v{NEW_VERSION} (<N> commands)"
 
 ## Final — Hand-off
 
-Print one of these closing messages (pick based on `$LANG`):
+Print:
 
-- en: `✓ Update complete. Close and reopen your AI host app (full quit — not just a new session) to activate new commands.`
-- vi: `✓ Update xong. Đóng và mở lại AI host app (quit hoàn toàn — không chỉ new session) để load commands mới.`
+`✓ Update complete. Close and reopen your AI host app (full quit — not just a new session) to activate new commands.`
+
+(AI translates per `$LANG` — see `core/shared/ux-rules.md` Language Policy.)
 
 Then stop. Do NOT auto-invoke the next workflow.

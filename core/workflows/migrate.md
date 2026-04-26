@@ -64,11 +64,8 @@ Parse with `jq` or `python3 -c "import json,sys; ..."`. If parsing fails, treat 
 
 ## Step 3 — Display summary
 
-Pick the version matching `lang`.
-
 **If `already_v1 = true`:**
-- en: `"✓ Already on v1.0 state layout — nothing to migrate."`
-- vi: `"✓ Đã ở layout v1.0 — không cần migrate."`
+Print: `"✓ Already on v1.0 state layout — nothing to migrate."`
 
 **If migration ran (no errors):**
 
@@ -90,7 +87,6 @@ Pick the version matching `lang`.
 
 If `errors` is non-empty, list each entry and give an actionable next step. Do NOT pretend success.
 
-- en:
 ```
 ⚠ Migration completed with <N> issue(s):
 
@@ -98,16 +94,6 @@ If `errors` is non-empty, list each entry and give an actionable next step. Do N
 
   Your original files are preserved in $PROJECT_ROOT/.compass/.state/.backup-<ISO>/.
   Fix the issue above and re-run: /compass:migrate
-```
-
-- vi:
-```
-⚠ Migrate xong nhưng có <N> lỗi:
-
-  • <file>: <message>
-
-  File gốc vẫn giữ trong $PROJECT_ROOT/.compass/.state/.backup-<ISO>/.
-  Sửa lỗi ở trên rồi chạy lại: /compass:migrate
 ```
 
 Exit code is still 0 for partial success — the user decides whether to re-run.
@@ -129,9 +115,10 @@ Exit code is still 0 for partial success — the user decides whether to re-run.
 
 ## Final — Hand-off
 
-Print one of these closing messages (pick based on `$LANG`):
+Print:
 
-- en: `✓ Migration complete. Run `/compass:status` to verify the migrated state.`
-- vi: `✓ Migration xong. Chạy `/compass:status` để verify state đã migrate.`
+`✓ Migration complete. Run `/compass:status` to verify the migrated state.`
+
+(AI translates per `$LANG` — see `core/shared/ux-rules.md` Language Policy.)
 
 Then stop. Do NOT auto-invoke the next workflow.

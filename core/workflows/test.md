@@ -130,10 +130,11 @@ If user provides a command → run it. If skip → stop with no-op message.
 
 ## Step 4 — Summary
 
-Count total tests and passed/failed. Print summary in `$LANG`:
+Count total tests and passed/failed. Print:
 
-- en: `✅ All tests passed` or `❌ X/Y tests failed`
-- vi: `✅ Tất cả test đã pass` or `❌ X/Y test thất bại`
+`✅ All tests passed` or `❌ X/Y tests failed`
+
+(AI translates per `$LANG` — see `core/shared/ux-rules.md` Language Policy.)
 
 ---
 

@@ -259,9 +259,10 @@ compass-cli index add "release-notes/{version}-{date}.md" "research" 2>/dev/null
 
 ## Final — Hand-off
 
-Print one of these closing messages (pick based on `$LANG`):
+Print:
 
-- en: `✓ Release notes ready. Review above, then publish via your release channel.`
-- vi: `✓ Release notes sẵn sàng. Review ở trên, rồi publish qua release channel của bạn.`
+`✓ Release notes ready. Review above, then publish via your release channel.`
+
+(AI translates per `$LANG` — see `core/shared/ux-rules.md` Language Policy.)
 
 Then stop. Do NOT auto-invoke the next workflow.

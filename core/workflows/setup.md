@@ -297,9 +297,10 @@ Never include raw tokens in the transcript.
 
 ## Final — Hand-off
 
-Print one of these closing messages (pick based on `$LANG`):
+Print:
 
-- en: `✓ Setup complete. Next: `/compass:init` to set up a project (if you haven't), or `/compass:brief` to start work.`
-- vi: `✓ Setup xong. Tiếp: `/compass:init` để set up project (nếu chưa có), hoặc `/compass:brief` để bắt đầu.`
+`✓ Setup complete. Next: `/compass:init` to set up a project (if you haven't), or `/compass:brief` to start work.`
+
+(AI translates per `$LANG` — see `core/shared/ux-rules.md` Language Policy.)
 
 Then stop. Do NOT auto-invoke the next workflow.

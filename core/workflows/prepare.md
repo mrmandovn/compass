@@ -317,9 +317,9 @@ JSON
 )"
 ```
 
-Print:
-- en: `✓ Plan ready at $SESSION_DIR/plan.json. Next: /compass:cook to execute waves.`
-- vi: `✓ Plan sẵn ở $SESSION_DIR/plan.json. Tiếp: /compass:cook để execute waves.`
+Print: `✓ Plan ready at $SESSION_DIR/plan.json. Next: /compass:cook to execute waves.`
+
+(AI translates per `$LANG` — see `core/shared/ux-rules.md` Language Policy.)
 
 **Auto-chain**: if `--auto` mode is active (set by wrapper), invoke `/compass:cook` inline automatically (read and execute `~/.compass/core/workflows/cook.md`). Otherwise stop — do NOT auto-invoke.
 
