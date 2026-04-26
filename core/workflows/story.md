@@ -88,16 +88,11 @@ PIPELINE=$(find "$PROJECT_ROOT/.compass/.state/sessions/" -name "pipeline.json" 
 **If an active pipeline is found:**
 
 1. Read `pipeline.json` — extract the session `id` (slug) and `title` from the sibling `context.json`.
-2. Show (in `lang`):
-   - en: `"Active pipeline detected: <title>. Stories can be saved into this session."`
-   - vi: `"Phát hiện pipeline đang hoạt động: <title>. Stories có thể được lưu vào phiên này."`
+2. Show: `"Active pipeline detected: <title>. Stories can be saved into this session."`
+   (AI translates per `$LANG` — see `core/shared/ux-rules.md` Language Policy.)
 3. Use AskUserQuestion to confirm:
    ```json
    {"questions": [{"question": "Save stories in the active pipeline session?", "header": "Pipeline session", "multiSelect": false, "options": [{"label": "Yes — part of pipeline", "description": "Save stories in the session AND in the normal output folder"}, {"label": "No — standalone", "description": "Save only in the normal output folder, ignore the pipeline"}]}]}
-   ```
-   Vietnamese version (use when `lang=vi`):
-   ```json
-   {"questions": [{"question": "Lưu stories vào pipeline session đang hoạt động?", "header": "Pipeline session", "multiSelect": false, "options": [{"label": "Có — thuộc pipeline", "description": "Lưu stories vào session VÀ vào thư mục output bình thường"}, {"label": "Không — standalone", "description": "Chỉ lưu vào thư mục output bình thường, bỏ qua pipeline"}]}]}
    ```
 4. If **Yes**:
    - Set `pipeline_mode = true` and `pipeline_slug = <id>`.
@@ -264,8 +259,6 @@ If the PRD has REQs but **all are already covered by existing stories** (fully m
 ]}]}
 ```
 
-vi: translate.
-
 - Pick 1 → loop back to Question A REQ picker (all REQs shown, not just uncovered) — new story co-covers chosen REQ
 - Pick 2 → set mode = STANDALONE, skip Question A PRD_LINKED version, fall through to blank title prompt
 - Pick 3 → exit workflow gracefully
@@ -358,8 +351,6 @@ When `lang=vi`, regenerate all labels/descriptions in Vietnamese — do NOT make
 ```json
 {"questions": [{"question": "Save this DoD as project default? Future stories won't ask again.", "header": "Save DoD default", "multiSelect": false, "options": [{"label": "Yes — save to config.story.default_dod", "description": "All future stories in this project inherit this DoD silently"}, {"label": "No — one-time only", "description": "Use for this story, keep asking per-story"}]}]}
 ```
-
-vi: regenerate with Vietnamese labels.
 
 **On Yes** — persist to config:
 ```bash

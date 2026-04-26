@@ -41,7 +41,6 @@ After 0a returns, `$PROJECT_ROOT` may have changed — re-read `$CONFIG` and `$S
 
 Ask the PO what scope this report covers. Three options:
 
-en:
 ```json
 {"questions": [{"question": "Report scope?", "header": "Scope", "multiSelect": false, "options": [
   {"label": "Current project (<PROJECT_NAME>)", "description": "Report only on the current project"},
@@ -50,18 +49,7 @@ en:
 ]}]}
 ```
 
-vi:
-```json
-{"questions": [{"question": "Scope của report?", "header": "Scope", "multiSelect": false, "options": [
-  {"label": "Project hiện tại (<PROJECT_NAME>)", "description": "Report chỉ project hiện tại"},
-  {"label": "Project khác", "description": "Pick project Compass đã đăng ký khác"},
-  {"label": "Domain report", "description": "Tổng hợp mọi product thuộc domain=<config.domain> từ capability-registry"}
-]}]}
-```
-
-**If "Domain report"** and `$SHARED_ROOT` is empty or `capability-registry.yaml` missing → warn and auto-fallback to "Current project":
-- en: `⚠ Capability registry not available. Falling back to Current project scope.`
-- vi: `⚠ Capability registry không khả dụng. Fallback sang Current project scope.`
+**If "Domain report"** and `$SHARED_ROOT` is empty or `capability-registry.yaml` missing → warn and auto-fallback to "Current project": `⚠ Capability registry not available. Falling back to Current project scope.`
 
 Store the choice as `$SCOPE` (`current` / `another` / `domain`).
 
@@ -118,7 +106,6 @@ esac
 
 Period type and depth are coupled — a monthly summary doesn't need 15 pages, and an annual report can't fit in 1 page. Ask them together with period-appropriate depth as the default:
 
-en:
 ```json
 {"questions": [{"question": "What period + depth does this report cover?", "header": "Period & depth", "multiSelect": false, "options": [
   {"label": "Monthly summary (~1 page, 5 min read)", "description": "Fast snapshot of the last month — headlines only, no per-epic breakdown"},
@@ -127,18 +114,6 @@ en:
   {"label": "Annual full (~15+ pages, exec summary + deep dives)", "description": "Full FY — exec summary, per-product deep dives, strategic reflection"},
   {"label": "Multi-quarter custom (2–3 quarters)", "description": "Adjacent quarters (e.g. Q2+Q3) — depth between quarterly and half-year"},
   {"label": "Custom date range + depth", "description": "I'll specify exact dates and choose depth manually"}
-]}]}
-```
-
-vi:
-```json
-{"questions": [{"question": "Report khoảng thời gian + độ sâu nào?", "header": "Period & depth", "multiSelect": false, "options": [
-  {"label": "Tháng tóm tắt (~1 trang, đọc 5 phút)", "description": "Snapshot nhanh tháng trước — chỉ headlines, không breakdown per-epic"},
-  {"label": "Quý tiêu chuẩn (~5 trang, per-epic)", "description": "Phổ biến nhất — 1 quý (Q1/Q2/Q3/Q4) với breakdown theo epic"},
-  {"label": "Nửa năm mở rộng (~10 trang, YoY)", "description": "H1 hoặc H2 với so sánh YoY, deep section per-product"},
-  {"label": "Cả năm đầy đủ (~15+ trang, exec + deep dives)", "description": "Full FY — exec summary, deep dives per-product, reflection chiến lược"},
-  {"label": "Nhiều quý (2–3 quý)", "description": "Quý liền kề (vd Q2+Q3) — depth giữa quý và nửa năm"},
-  {"label": "Dải ngày tuỳ chỉnh + depth", "description": "Tự chỉ định ngày + chọn depth thủ công"}
 ]}]}
 ```
 
@@ -197,7 +172,6 @@ fi
 
 Resolve placeholders before the AskUserQuestion — don't pass raw `<PREV_MONTH_LABEL>` to the user.
 
-en:
 ```json
 {"questions": [{"question": "Which month?", "header": "Month", "multiSelect": false, "options": [
   {"label": "Last month (<PREV_MONTH_LABEL>)", "description": "Most recent completed month"},
@@ -205,8 +179,6 @@ en:
   {"label": "Other", "description": "Type YYYY-MM manually (e.g. 2026-03)"}
 ]}]}
 ```
-
-vi: translate labels (`Tháng trước`, `Tháng hiện tại (đến nay)`, `Khác`).
 
 Derive final variables from the picked month:
 - `$PERIOD_START = YYYY-MM-01`
@@ -216,7 +188,6 @@ Derive final variables from the picked month:
 
 #### 2b-quarter — `$PERIOD_TYPE = quarter`
 
-en:
 ```json
 {"questions": [{"question": "Which quarter?", "header": "Quarter", "multiSelect": false, "options": [
   {"label": "<Q_CUR> <YEAR>", "description": "Current quarter"},
@@ -224,8 +195,6 @@ en:
   {"label": "Other", "description": "Type quarter + year manually (e.g. Q3 2025)"}
 ]}]}
 ```
-
-vi: same shape with labels `Quarter hiện tại`, `Quarter trước`, `Khác`.
 
 Derive:
 
@@ -240,7 +209,6 @@ Set `$PERIOD_LABEL="<QUARTER> <YEAR>"` (e.g. `Q2 2026`) and `$PERIOD_SUFFIX="<QU
 
 #### 2b-half — `$PERIOD_TYPE = half`
 
-en:
 ```json
 {"questions": [{"question": "Which half?", "header": "Half", "multiSelect": false, "options": [
   {"label": "<H_CUR> <YEAR>", "description": "Current half"},
@@ -248,8 +216,6 @@ en:
   {"label": "Other", "description": "Type H1/H2 + year manually (e.g. H1 2025)"}
 ]}]}
 ```
-
-vi: same shape with labels `Half hiện tại`, `Half trước`, `Khác`.
 
 Derive:
 
@@ -264,7 +230,6 @@ Set `$PERIOD_LABEL="<HALF> <YEAR>"` (e.g. `H1 2026`) and `$PERIOD_SUFFIX="<HALF>
 
 Offer a preset list of common combinations. Do NOT allow arbitrary free-form picks — if the user needs non-adjacent quarters, steer them to `custom`.
 
-en:
 ```json
 {"questions": [{"question": "Which multi-quarter combination?", "header": "Combo", "multiSelect": false, "options": [
   {"label": "Q1+Q2 <YEAR>", "description": "First half (auto-converts to Half-year H1)"},
@@ -274,7 +239,7 @@ en:
 ]}]}
 ```
 
-Offer `Q2+Q3+Q4 <YEAR>` via the Other affordance (5th preset). vi: translate labels.
+Offer `Q2+Q3+Q4 <YEAR>` via the Other affordance (5th preset).
 
 **Canonical auto-conversion:** if the PO picks `Q1+Q2` → set `$PERIOD_TYPE=half`, `$HALF=H1`, restart Step 2b-half derivations. Likewise `Q3+Q4` → `half` H2. This keeps data canonical — same 6-month report is stored the same way regardless of entry point.
 
@@ -286,7 +251,6 @@ For genuine multi-quarter (`Q2+Q3`, `Q1+Q2+Q3`, `Q2+Q3+Q4`):
 
 #### 2b-annual — `$PERIOD_TYPE = annual`
 
-en:
 ```json
 {"questions": [{"question": "Which fiscal year?", "header": "Year", "multiSelect": false, "options": [
   {"label": "FY <YEAR>", "description": "Current year"},
@@ -294,8 +258,6 @@ en:
   {"label": "Other", "description": "Type a different year (e.g. 2024)"}
 ]}]}
 ```
-
-vi: translate.
 
 Derive: `$PERIOD_START=<YEAR>-01-01`, `$PERIOD_END=<YEAR>-12-31`, `$PERIOD_LABEL="FY <YEAR>"`, `$PERIOD_SUFFIX="FY<YEAR>"` (e.g. `FY2026`).
 
@@ -367,7 +329,6 @@ Discovery is **filesystem-first** — Silver Tiger convention is that every prod
 
 3. **Print upfront summary** — three buckets, so the PO knows exactly what the report will cover BEFORE any questions:
 
-   en:
    ```
    📋 Domain=<domain> has <N> products in capability-registry:
 
@@ -385,15 +346,12 @@ Discovery is **filesystem-first** — Silver Tiger convention is that every prod
      ...
    ```
 
-   vi: same layout, translated labels (`Có dữ liệu`, `Trống`, `Thiếu folder`).
-
    `Available` and `Sparse` products both contribute subsections in the final report. `Sparse` renders with a `⚠ no data this period` notice.
 
 4. **Per-missing-product decision** (sequential single-select — do NOT use multiSelect; some LLMs cannot render it):
 
    For each product in the `Missing` bucket, ask ONE question:
 
-   en:
    ```json
    {"questions": [{"question": "<product> folder not found at <PARENT>/<owner_repo>/. Include in report?", "header": "<product>", "multiSelect": false, "options": [
      {"label": "Exclude from report", "description": "Render as placeholder \"⚠ folder missing — data unavailable\" in the report"},
@@ -401,8 +359,6 @@ Discovery is **filesystem-first** — Silver Tiger convention is that every prod
      {"label": "Cancel report", "description": "Stop — resolve missing folders manually, re-run /compass:report"}
    ]}]}
    ```
-
-   vi: same shape, translated.
 
    **Branch on pick:**
 
@@ -468,7 +424,6 @@ Only for `$SCOPE=domain`: read `capability-registry.yaml` and build a table of w
 
 Print a transparent data-lineage block so the PO can see what AI is working from:
 
-en:
 ```
 🔍 Diagnostic — Data sources used:
   <product-1> (<owner_repo>/)  → <REL_COUNT> releases, <EPIC_COUNT> epics in period
@@ -479,8 +434,6 @@ en:
   - '<raw>' → treated as '<canonical>' (<N> epics)
   - ...
 ```
-
-vi: `🔍 Nguồn data đang dùng:` / `🗺  Chuẩn hoá status:`.
 
 ### Step 5.1 — Canonicalize epic/release statuses
 
@@ -557,7 +510,6 @@ Show the PO the draft in two ways:
 
 ### Step 5.4 — Review gate (single AskUserQuestion)
 
-en:
 ```json
 {"questions": [{"question": "Draft looks right? Pick the next action.", "header": "Review", "multiSelect": false, "options": [
   {"label": "OK, write it", "description": "Save draft as-is to reports/. Any _TBD_ placeholders remain for the PO to fill manually after"},
@@ -567,15 +519,12 @@ en:
 ]}]}
 ```
 
-vi: translate labels (`OK, ghi`, `Edit một section`, `Thêm commentary`, `Cancel report`).
-
 ### Step 5.5 — Branch on review pick
 
 - **"OK, write it"** → proceed to Step 7 (write output). `$DRAFT_BODY` is the final content.
 
 - **"Edit a section"** → second-level AskUserQuestion to pick the section (max 4 options per call):
 
-  en:
   ```json
   {"questions": [{"question": "Which section to edit?", "header": "Section", "multiSelect": false, "options": [
     {"label": "Period in 3 Bullets", "description": "Domain-level headlines"},
@@ -726,10 +675,7 @@ The path + frontmatter must satisfy `shared/ci/validate_naming.sh` and `shared/c
 
 ## Step 8 — Summary + hand-off
 
-Print:
-
-- en: `✓ Period report draft saved to reports/<SCOPE_PREFIX>-<PERIOD_SUFFIX>-report.md. Next: /compass:check to validate, or open the file to review + fill any remaining TBDs.`
-- vi: `✓ Report draft đã lưu vào reports/<SCOPE_PREFIX>-<PERIOD_SUFFIX>-report.md. Tiếp: /compass:check để validate, hoặc mở file review + fill TBDs còn lại.`
+Print (in `$LANG`): `✓ Period report draft saved to reports/<SCOPE_PREFIX>-<PERIOD_SUFFIX>-report.md. Next: /compass:check to validate, or open the file to review + fill any remaining TBDs.`
 
 ---
 
@@ -754,9 +700,6 @@ Print:
 
 ## Final — Hand-off
 
-After the file is written, print one closing message (pick based on `$LANG`):
-
-- en: `✓ Period report done (<PERIOD_LABEL>). Next: /compass:check to validate naming + frontmatter, or manually review the draft and fill any remaining TBDs.`
-- vi: `✓ Period report xong (<PERIOD_LABEL>). Tiếp: /compass:check để validate naming + frontmatter, hoặc review draft tay và fill TBDs còn lại.`
+After the file is written, print one closing message (in `$LANG`): `✓ Period report done (<PERIOD_LABEL>). Next: /compass:check to validate naming + frontmatter, or manually review the draft and fill any remaining TBDs.`
 
 Then stop. Do NOT auto-invoke the next workflow.
