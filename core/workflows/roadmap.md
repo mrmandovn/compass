@@ -79,19 +79,19 @@ Show a summary of what was found before asking questions.
 Use AskUserQuestion for timeline:
 
 ```json
-{"questions": [{"question": "What is the planning horizon for this roadmap?\n(Tiếng Việt: Khoảng thời gian lập kế hoạch cho roadmap này là gì?)", "header": "Planning horizon", "multiSelect": false, "options": [{"label": "Q1–Q2 (6 months)", "description": "Near-term planning, 2 quarters / Kế hoạch ngắn hạn, 2 quý"}, {"label": "Q1–Q4 (full year)", "description": "Annual roadmap, all 4 quarters / Roadmap năm, tất cả 4 quý"}, {"label": "Next 3 months only", "description": "Rolling 90-day view / Tầm nhìn 90 ngày liên tục"}, {"label": "Custom — I'll specify dates", "description": "Tell me the exact start and end date / Tôi sẽ chỉ định ngày bắt đầu và kết thúc"}]}]}
+{"questions": [{"question": "What is the planning horizon for this roadmap?", "header": "Planning horizon", "multiSelect": false, "options": [{"label": "Q1–Q2 (6 months)", "description": "Near-term planning, 2 quarters"}, {"label": "Q1–Q4 (full year)", "description": "Annual roadmap, all 4 quarters"}, {"label": "Next 3 months only", "description": "Rolling 90-day view"}, {"label": "Custom — I'll specify dates", "description": "Tell me the exact start and end date"}]}]}
 ```
 
 Use AskUserQuestion for capacity constraints:
 
 ```json
-{"questions": [{"question": "Any capacity or resource constraints to account for?\n(Tiếng Việt: Có ràng buộc năng lực hoặc nguồn lực nào cần tính đến không?)", "header": "Capacity constraints", "multiSelect": true, "options": [{"label": "Limited dev team (1–3 engineers)", "description": "Small team — fewer parallel tracks / Nhóm nhỏ, ít luồng song song"}, {"label": "Shared resources with another team", "description": "Some epics depend on shared infra or platform team / Một số epic phụ thuộc vào nhóm chia sẻ"}, {"label": "Hard launch deadline", "description": "Specific date we must hit — I'll tell you which epic / Ngày ra mắt cứng — tôi sẽ nói epic nào"}, {"label": "No major constraints", "description": "Plan freely based on priority / Lập kế hoạch tự do theo ưu tiên"}]}]}
+{"questions": [{"question": "Any capacity or resource constraints to account for?", "header": "Capacity constraints", "multiSelect": true, "options": [{"label": "Limited dev team (1–3 engineers)", "description": "Small team — fewer parallel tracks"}, {"label": "Shared resources with another team", "description": "Some epics depend on shared infra or platform team"}, {"label": "Hard launch deadline", "description": "Specific date we must hit — I'll tell you which epic"}, {"label": "No major constraints", "description": "Plan freely based on priority"}]}]}
 ```
 
 Use AskUserQuestion for must-haves vs nice-to-haves:
 
 ```json
-{"questions": [{"question": "Which epics are must-haves for the next release?\n(Tiếng Việt: Epic nào là bắt buộc cho lần phát hành tiếp theo?)", "header": "Must-have epics", "multiSelect": false, "options": [{"label": "All P0 epics are must-haves", "description": "Use priority from epic.md / Dùng mức độ ưu tiên từ epic.md"}, {"label": "I'll specify which epics are locked", "description": "Tell me which ones cannot slip / Tôi sẽ chỉ định epic nào không thể trễ"}, {"label": "Everything is flexible", "description": "Optimize purely by priority and capacity / Tối ưu hoàn toàn theo ưu tiên và năng lực"}]}]}
+{"questions": [{"question": "Which epics are must-haves for the next release?", "header": "Must-have epics", "multiSelect": false, "options": [{"label": "All P0 epics are must-haves", "description": "Use priority from epic.md"}, {"label": "I'll specify which epics are locked", "description": "Tell me which ones cannot slip"}, {"label": "Everything is flexible", "description": "Optimize purely by priority and capacity"}]}]}
 ```
 
 ---
@@ -141,7 +141,7 @@ gantt
 Use AskUserQuestion:
 
 ```json
-{"questions": [{"question": "Roadmap looks good?\n(Tiếng Việt: Roadmap trông ổn không?)", "header": "Review roadmap", "multiSelect": false, "options": [{"label": "Save the roadmap", "description": "Write file now / Lưu ngay"}, {"label": "Move an epic to a different quarter", "description": "I'll tell you which one / Tôi sẽ chỉ định cái nào"}, {"label": "Add a new item not in epics", "description": "Ad-hoc item to include / Hạng mục bổ sung không có trong epics"}]}]}
+{"questions": [{"question": "Roadmap looks good?", "header": "Review roadmap", "multiSelect": false, "options": [{"label": "Save the roadmap", "description": "Write file now"}, {"label": "Move an epic to a different quarter", "description": "I'll tell you which one"}, {"label": "Add a new item not in epics", "description": "Ad-hoc item to include"}]}]}
 ```
 
 Save path:
@@ -170,9 +170,10 @@ compass-cli index add "<output-file-path>" "research" 2>/dev/null || true
 
 ## Final — Hand-off
 
-Print one of these closing messages (pick based on `$LANG`):
+Print:
 
-- en: `✓ Roadmap drafted. Next: `/compass:sprint` to plan the next sprint, or `/compass:prioritize` to re-score backlog.`
-- vi: `✓ Roadmap đã draft. Tiếp: `/compass:sprint` để plan sprint tiếp theo, hoặc `/compass:prioritize` để re-score backlog.`
+`✓ Roadmap drafted. Next: `/compass:sprint` to plan the next sprint, or `/compass:prioritize` to re-score backlog.`
+
+(AI translates per `$LANG` — see `core/shared/ux-rules.md` Language Policy.)
 
 Then stop. Do NOT auto-invoke the next workflow.

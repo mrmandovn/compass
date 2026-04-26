@@ -85,7 +85,7 @@ The module handles scanning, matching, and asking the user:
 Use AskUserQuestion:
 
 ```json
-{"questions": [{"question": "What is this epic based on?\n(Tiếng Việt: Epic này dựa trên cơ sở nào?)", "header": "Epic source", "multiSelect": false, "options": [{"label": "A PRD (I'll point you to it)", "description": "Extract requirements directly from the PRD / Trích xuất yêu cầu từ PRD"}, {"label": "I'll describe the epic scope manually", "description": "No PRD yet — describe what this epic covers / Chưa có PRD, mô tả phạm vi epic"}, {"label": "An existing epic to update", "description": "Point me to the epic to revise / Chỉ tôi đến epic cần cập nhật"}]}]}
+{"questions": [{"question": "What is this epic based on?", "header": "Epic source", "multiSelect": false, "options": [{"label": "A PRD (I'll point you to it)", "description": "Extract requirements directly from the PRD"}, {"label": "I'll describe the epic scope manually", "description": "No PRD yet — describe what this epic covers"}, {"label": "An existing epic to update", "description": "Point me to the epic to revise"}]}]}
 ```
 
 ---
@@ -105,7 +105,7 @@ Use AskUserQuestion:
 Use AskUserQuestion:
 
 ```json
-{"questions": [{"question": "What is the priority of this epic?\n(Tiếng Việt: Mức độ ưu tiên của epic này là gì?)", "header": "Epic priority", "multiSelect": false, "options": [{"label": "P0 — Critical, blocks release", "description": "Must ship before any release / Phải hoàn thành trước khi phát hành"}, {"label": "P1 — High, ships this quarter", "description": "Important for this quarter's goals / Quan trọng cho mục tiêu quý này"}, {"label": "P2 — Medium, next quarter", "description": "Planned but can shift / Đã lên kế hoạch nhưng có thể điều chỉnh"}, {"label": "P3 — Low, backlog", "description": "Nice to have / Tốt nếu có"}]}]}
+{"questions": [{"question": "What is the priority of this epic?", "header": "Epic priority", "multiSelect": false, "options": [{"label": "P0 — Critical, blocks release", "description": "Must ship before any release"}, {"label": "P1 — High, ships this quarter", "description": "Important for this quarter's goals"}, {"label": "P2 — Medium, next quarter", "description": "Planned but can shift"}, {"label": "P3 — Low, backlog", "description": "Nice to have"}]}]}
 ```
 
 ---
@@ -178,7 +178,7 @@ compass-cli index add "epics/{PREFIX}-EPIC-{NN}-{slug}/epic.md" "epic" 2>/dev/nu
 Show summary and offer next steps via AskUserQuestion:
 
 ```json
-{"questions": [{"question": "Epic created. What would you like to do next?\n(Tiếng Việt: Epic đã tạo. Bạn muốn làm gì tiếp theo?)", "header": "Next step", "multiSelect": false, "options": [{"label": "/compass:story", "description": "Write the first user story for this epic / Viết user story đầu tiên cho epic này"}, {"label": "/compass:prd", "description": "Write or link a PRD to this epic / Viết hoặc liên kết PRD với epic này"}, {"label": "Done for now", "description": "I'll come back later / Tôi sẽ quay lại sau"}]}]}
+{"questions": [{"question": "Epic created. What would you like to do next?", "header": "Next step", "multiSelect": false, "options": [{"label": "/compass:story", "description": "Write the first user story for this epic"}, {"label": "/compass:prd", "description": "Write or link a PRD to this epic"}, {"label": "Done for now", "description": "I'll come back later"}]}]}
 ```
 
 ## Save session

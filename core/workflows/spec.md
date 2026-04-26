@@ -65,15 +65,12 @@ INTERACTION_LEVEL_CUR=$(echo "$PREFS" | jq -r '.interaction_level // "standard"'
 
 Only ask this if `$REVIEW_STYLE_CUR == "null"`:
 
-en:
 ```json
 {"questions": [{"question": "Review style for DESIGN-SPEC + TEST-SPEC?", "header": "Review style", "multiSelect": false, "options": [
   {"label": "Whole document (Recommended)", "description": "One single review gate — fast, low friction"},
   {"label": "Section by section", "description": "Review each section separately — more control, more clicks"}
 ]}]}
 ```
-
-vi: translate (`Nguyên tài liệu (Khuyến nghị)`, `Từng section`).
 
 Save immediately:
 ```bash
@@ -88,8 +85,6 @@ If all prefs are already set, print a one-line confirmation:
 ⚡ Using saved preferences: lang=$LANG_CUR · spec_lang=$SPEC_LANG_CUR · review_style=$REVIEW_STYLE_CUR
   (Type "change preferences" to modify)
 ```
-
-vi: `⚡ Dùng preferences đã lưu: ...`
 
 ---
 
@@ -150,7 +145,6 @@ If MCP not available → skip auto-fetch, treat URL as free-text.
 
 Hybrid AskUserQuestion when ARGUMENTS is empty:
 
-en:
 ```json
 {"questions": [{"question": "What would you like to spec?", "header": "Input", "multiSelect": false, "options": [
   {"label": "Point to an existing file", "description": "Paste the path to a user story / PRD / bug report markdown"},
@@ -160,8 +154,6 @@ en:
 ]}]}
 ```
 
-vi: translate labels (`Dùng file có sẵn`, `Paste URL task manager`, `Mô tả trực tiếp`, `Cho ví dụ`).
-
 Store `$INPUT_TITLE` and `$INPUT_TEXT`.
 
 ---
@@ -170,7 +162,6 @@ Store `$INPUT_TITLE` and `$INPUT_TEXT`.
 
 Use AskUserQuestion (max 4 options per call; offer remaining via Other affordance):
 
-en:
 ```json
 {"questions": [{"question": "Task type?", "header": "Type", "multiSelect": false, "options": [
   {"label": "feat", "description": "New feature / capability"},
@@ -181,8 +172,6 @@ en:
 ```
 
 "Other" accepts: `test, docs, ci, infra, design, chore, deploy`.
-
-vi: translate labels.
 
 Map `$TASK_TYPE` → `$CATEGORY`:
 - feat / fix / refactor / perf / test → code
@@ -719,7 +708,6 @@ Branch on `$REVIEW_STYLE` saved in preferences:
 
 Show the composed CONTEXT + DESIGN-SPEC + TEST-SPEC to the PO/dev (inline or file references). Then one AskUserQuestion:
 
-en:
 ```json
 {"questions": [{"question": "DESIGN-SPEC + TEST-SPEC OK?", "header": "Review", "multiSelect": false, "options": [
   {"label": "OK, lock and next /compass:prepare", "description": "Set status=reviewed, hint next command"},
@@ -728,8 +716,6 @@ en:
   {"label": "Cancel", "description": "Abort — session kept for debug"}
 ]}]}
 ```
-
-vi: translate (`OK, tiếp /compass:prepare`, `Cần sửa`, `Viết lại`, `Cancel`).
 
 Branch:
 - **OK** → proceed to Step 13
@@ -788,10 +774,9 @@ fi
 
 ## Step 14 — Hand-off
 
-Print (adapted to `$LANG`):
+Print:
 
-- en: `✓ Spec ready at $SESSION_DIR. Next: /compass:prepare to decompose into waves.`
-- vi: `✓ Spec sẵn ở $SESSION_DIR. Tiếp: /compass:prepare để chia thành waves.`
+`✓ Spec ready at $SESSION_DIR. Next: /compass:prepare to decompose into waves.`
 
 **Auto-chain**: if `--auto` mode is active (set by wrapper), invoke `/compass:prepare` inline automatically (read and execute `~/.compass/core/workflows/prepare.md` with `$ARGUMENTS` = session slug). Otherwise stop — do NOT auto-invoke.
 

@@ -317,7 +317,6 @@ Print the wave summary first (1-2 lines):
 
 Then:
 
-en:
 ```json
 {"questions": [{"question": "Wave $WAVE_ID done. Continue?", "header": "Wave $WAVE_ID", "multiSelect": false, "options": [
   {"label": "Continue to next wave", "description": "Wave $((WAVE_ID+1)) will start"},
@@ -326,8 +325,6 @@ en:
   {"label": "Abort build", "description": "Stop completely — commits stay, branch stays, status=paused"}
 ]}]}
 ```
-
-vi: translate.
 
 **Branch**:
 - **Continue** → proceed to next wave
@@ -373,12 +370,10 @@ After all waves done, chain to test and commit with user confirmation at each st
 TOTAL_RETRIES=$(echo "$STATE" | jq '[.waves[].retry_count] | add // 0')
 ```
 
-en: `✓ All <TOTAL_WAVES> waves dispatched. Retries: <TOTAL_RETRIES>.`
-vi: `✓ Đã dispatch <TOTAL_WAVES> waves. Retries: <TOTAL_RETRIES>.`
+Print: `✓ All <TOTAL_WAVES> waves dispatched. Retries: <TOTAL_RETRIES>.`
 
 ### 6b. Chain to compass:test
 
-en:
 ```json
 {"questions": [{"question": "Run tests?", "header": "Test", "multiSelect": false, "options": [
   {"label": "Run compass:test (Recommended)", "description": "Verify all acceptance criteria from TEST-SPEC + detect test suite"},
@@ -386,23 +381,18 @@ en:
 ]}]}
 ```
 
-vi: translate (`Chạy compass:test (Khuyến nghị)` / `Bỏ qua tests`).
-
 If "Run compass:test" → invoke `/compass:test` workflow inline (read and execute `~/.compass/core/workflows/test.md`). Wait for results.
 
 ### 6c. Chain to compass:commit
 
 After test completes (or was skipped):
 
-en:
 ```json
 {"questions": [{"question": "Commit changes?", "header": "Commit", "multiSelect": false, "options": [
   {"label": "Run compass:commit (Recommended)", "description": "Auto-generate conventional commit message from all changes"},
   {"label": "Skip commit", "description": "I'll commit manually later"}
 ]}]}
 ```
-
-vi: translate (`Chạy compass:commit (Khuyến nghị)` / `Bỏ qua commit`).
 
 If "Run compass:commit" → invoke `/compass:commit` workflow inline (read and execute `~/.compass/core/workflows/commit.md`).
 
@@ -412,7 +402,7 @@ If "Run compass:commit" → invoke `/compass:commit` workflow inline (read and e
 compass-cli state update "$SESSION_DIR" '{"status":"complete","updated_at":"'$(date -u +%FT%TZ)'"}'
 ```
 
-en:
+Print:
 ```
 ✓ Cook complete
   Session:  <slug>
@@ -425,8 +415,6 @@ en:
     git push -u origin <FEAT_BRANCH>
     gh pr create
 ```
-
-vi: same content, translated labels.
 
 Stop. Do NOT auto-push or auto-create PR.
 

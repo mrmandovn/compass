@@ -71,19 +71,10 @@ If `$ARGUMENTS` is non-empty and ≥3 words → set `TASK_DESCRIPTION = $ARGUMEN
 
 If `$ARGUMENTS` is empty or too short, ask via AskUserQuestion:
 
-en:
 ```json
 {"questions": [{"question": "What do you need? Describe the task or feature.", "header": "Task", "multiSelect": false, "options": [
   {"label": "Type my own description", "description": "Write the task description in the free-text field below"},
   {"label": "Show examples first", "description": "See 3 example brief descriptions before writing my own"}
-]}]}
-```
-
-vi:
-```json
-{"questions": [{"question": "Bạn muốn làm gì? Mô tả ngắn gọn nhiệm vụ hoặc tính năng.", "header": "Task", "multiSelect": false, "options": [
-  {"label": "Tôi tự mô tả", "description": "Gõ mô tả task trong ô free-text dưới đây"},
-  {"label": "Xem ví dụ trước", "description": "Xem 3 ví dụ mô tả task trước khi tự viết"}
 ]}]}
 ```
 
@@ -135,20 +126,11 @@ Set `TASK_DESCRIPTION = <user input>`. Continue immediately to Step 1a.
 
 **When redirect is triggered**:
 
-en:
 ```json
 {"questions": [{"question": "This looks like a <workflow> task. Redirect?", "header": "Intent", "multiSelect": false, "options": [
   {"label": "Yes, redirect to /compass:<workflow>", "description": "Run the dedicated workflow directly — faster, narrower scope"},
   {"label": "No, continue brief", "description": "Treat as multi-artifact scope needing PRD + colleagues"},
   {"label": "Cancel", "description": "Stop — I'll decide later"}]}]}
-```
-
-vi:
-```json
-{"questions": [{"question": "Task này giống /compass:<workflow>. Redirect?", "header": "Intent", "multiSelect": false, "options": [
-  {"label": "Có, redirect /compass:<workflow>", "description": "Chạy workflow dedicated — nhanh, scope hẹp"},
-  {"label": "Không, tiếp tục brief", "description": "Treat như multi-artifact scope cần PRD + colleagues"},
-  {"label": "Cancel", "description": "Dừng — quyết định sau"}]}]}
 ```
 
 **On "Yes"** → invoke `/compass:<workflow>` inline (read and execute `~/.compass/core/workflows/<workflow>.md` with `$ARGUMENTS = TASK_DESCRIPTION`). Do not continue brief.
@@ -265,7 +247,6 @@ Analyze `TASK_DESCRIPTION` verbs + clarified scope (Step 1b) + project-scan hits
 
 **Fallback AskUserQuestion** (only fires when confidence is LOW):
 
-en:
 ```json
 {"questions": [{"question": "Task shape is ambiguous — what should the pipeline produce?", "header": "Deliverable", "multiSelect": false, "options": [
   {"label": "PRD only", "description": "Just the PRD spec"},
@@ -275,8 +256,6 @@ en:
   {"label": "Full package", "description": "Research + PRD + stories + roadmap"}
 ]}]}
 ```
-
-vi: regenerate with Vietnamese labels.
 
 **Store outcome**: After derivation or fallback, write `DELIVERABLE` to session memory for use in Step 2b + 2c. Also append to `CONTEXT.md` a single line: `**Deliverable (derived)**: <value>` — user sees it was derived, not asked.
 
@@ -342,23 +321,12 @@ Non-blocking — if CLI fails, print warning, continue.
 
 **AskUserQuestion** (build options based on judged fit; always include "Continue" + "Skip"):
 
-en:
 ```json
 {"questions": [{"question": "Task looks strategic/large. De-risk first?", "header": "Pre-brief", "multiSelect": false, "options": [
   {"label": "Continue to team assembly (Recommended if direction is clear)", "description": "Proceed directly to Step 3 with the derived team"},
   {"label": "Brainstorm options first — /compass:ideate", "description": "Explore multiple angles + deep-dive top picks before committing to a PRD direction"},
   {"label": "Research context first — /compass:research", "description": "Gather market/competitive/user data before writing a PRD in an unknown space"},
   {"label": "Skip — I've already prepped", "description": "I have prior ideation/research covering this"}
-]}]}
-```
-
-vi:
-```json
-{"questions": [{"question": "Task strategic/large. De-risk trước?", "header": "Pre-brief", "multiSelect": false, "options": [
-  {"label": "Tiếp tục assembly team (Khuyến nghị nếu direction đã rõ)", "description": "Đi thẳng Step 3 với team đã derive"},
-  {"label": "Brainstorm options trước — /compass:ideate", "description": "Explore nhiều angles + deep-dive top picks trước khi commit PRD direction"},
-  {"label": "Research context trước — /compass:research", "description": "Gather market/competitive/user data trước khi viết PRD ở space mới"},
-  {"label": "Skip — đã chuẩn bị rồi", "description": "Có prior ideation/research cover topic này"}
 ]}]}
 ```
 
@@ -375,9 +343,8 @@ Only options the AI judges relevant should appear (e.g. if task signal strongly 
 
 ## Step 3 — Confirm plan
 
-Print the analysis summary (in `$LANG`) — NO metadata questions, NO team picker by default.
+Print the analysis summary — NO metadata questions, NO team picker by default. AI translates per `$LANG` per ux-rules Language Policy (proper nouns like "Product Writer", "Consistency Reviewer", "Colleagues" stay as-is).
 
-en:
 ```
 ✓ Task understood:
   <1-2 sentence summary of clarified scope>
@@ -391,11 +358,8 @@ Team (<N> colleagues):
 Next: /compass:plan → /compass:run
 ```
 
-vi: translate (use "Colleagues" as-is, "Product Writer" as-is — they're proper nouns).
-
 Then ONE AskUserQuestion:
 
-en:
 ```json
 {"questions": [{"question": "Start with this team?", "header": "Confirm", "multiSelect": false, "options": [
   {"label": "Yes — start now", "description": "Create session and proceed"},
@@ -404,22 +368,12 @@ en:
 ]}]}
 ```
 
-vi:
-```json
-{"questions": [{"question": "Bắt đầu với team này?", "header": "Confirm", "multiSelect": false, "options": [
-  {"label": "Có — bắt đầu ngay", "description": "Tạo session và tiếp tục"},
-  {"label": "Tự điều chỉnh team", "description": "Hiển thị full colleague picker để override thủ công"},
-  {"label": "Làm rõ task thêm", "description": "Quay lại Step 1b để clarify task sâu hơn trước khi commit"}
-]}]}
-```
-
 **On "Yes"** → proceed to Step 4 immediately (create session) + Step 5 (summary).
 
 **On "Adjust manually"** → show the 10-colleague multi-select picker with derived colleagues pre-indicated via `⭐ ` prefix:
 
-en:
 ```json
-{"questions": [{"question": "Pick the colleagues for this session (⭐ = recommended).", "header": "Pick Colleagues", "multiSelect": true, "options": [
+{"questions": [{"question": "Pick the colleagues for this session (⭐ = recommended).", "header": "Pick Team", "multiSelect": true, "options": [
   {"label": "⭐ Research Aggregator", "description": "Aggregate context from multiple sources"},
   {"label": "Market Analyst", "description": "Market trends, competitors, positioning"},
   {"label": "Data Analyst", "description": "Metrics, baselines, targets, measurement design"},
@@ -432,8 +386,6 @@ en:
   {"label": "Stakeholder Communicator", "description": "Executive summaries + stakeholder emails"}
 ]}]}
 ```
-
-vi: same shape, translated descriptions.
 
 Strip `⭐ ` prefix from chosen labels. If zero selected → force `Consistency Reviewer` as minimum and warn.
 
@@ -492,9 +444,8 @@ Task was clear from input — no clarification needed.
 
 ## Step 5 — Summary & hand-off
 
-Print (in `$LANG`):
+Print (AI translates per `$LANG` per ux-rules Language Policy):
 
-en:
 ```
 ✓ Brief session ready.
 
@@ -507,7 +458,6 @@ en:
 
 Then AskUserQuestion (3-option pattern for pipeline chaining):
 
-en:
 ```json
 {"questions": [{"question": "Brief done. Next?", "header": "Next", "multiSelect": false, "options": [
   {"label": "Continue to /compass:plan (Recommended)", "description": "Build the execution DAG now — you'll be asked again at next checkpoint"},
@@ -516,22 +466,11 @@ en:
 ]}]}
 ```
 
-vi:
-```json
-{"questions": [{"question": "Brief xong. Next?", "header": "Next", "multiSelect": false, "options": [
-  {"label": "Tiếp tục /compass:plan (Recommended)", "description": "Build DAG ngay — sẽ hỏi lại ở checkpoint tiếp theo"},
-  {"label": "Auto-chain plan → run → check", "description": "Chạy full pipeline không hỏi thêm"},
-  {"label": "Dừng ở đây", "description": "Tự chạy /compass:plan sau"}
-]}]}
-```
-
 **On "Continue"** → set `auto_mode="manual"` in context.json, then invoke `/compass:plan` inline (read and execute `~/.compass/core/workflows/plan.md`).
 
 **On "Auto-chain"** → set `auto_mode="auto"` in context.json, then invoke `/compass:plan` (downstream workflows read this and skip their own gates).
 
-**On "Stop"** → set `auto_mode="stop"` in context.json, print hand-off text:
-- en: `✓ Run /compass:plan when ready.`
-- vi: `✓ Chạy /compass:plan khi sẵn sàng.`
+**On "Stop"** → set `auto_mode="stop"` in context.json, print hand-off text (AI translates per `$LANG` per ux-rules Language Policy): `✓ Run /compass:plan when ready.`
 
 Stop. Do NOT auto-invoke beyond the picked option.
 

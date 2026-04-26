@@ -72,21 +72,12 @@ fi
 ## Branch
 
 - **`GITNEXUS_AVAILABLE`** → store `$GITNEXUS_STATUS` + `$GITNEXUS_REPO`. Pass both to all Agent/worker prompts so they can call `gitnexus_context()` and `gitnexus_impact()`.
-- **`GITNEXUS_MISSING`** or **`GITNEXUS_OUTDATED`** → AskUserQuestion:
+- **`GITNEXUS_MISSING`** or **`GITNEXUS_OUTDATED`** → AskUserQuestion (AI translates per `$LANG` — see ux-rules Language Policy):
 
-en:
 ```json
 {"questions": [{"question": "GitNexus index is outdated/missing. Sync for better code intelligence?", "header": "GitNexus", "multiSelect": false, "options": [
   {"label": "Sync now", "description": "Run gitnexus analyze (~30s) — enables impact analysis, call graph, blast radius checks"},
   {"label": "Skip", "description": "Use Grep/Glob fallback — still works but may miss upstream callers"}
-]}]}
-```
-
-vi:
-```json
-{"questions": [{"question": "GitNexus index bị outdated/missing. Sync lại?", "header": "GitNexus", "multiSelect": false, "options": [
-  {"label": "Sync ngay", "description": "Chạy gitnexus analyze (~30s) — bật impact analysis, call graph, blast radius"},
-  {"label": "Bỏ qua", "description": "Dùng Grep/Glob — vẫn chạy được nhưng có thể miss upstream callers"}
 ]}]}
 ```
 

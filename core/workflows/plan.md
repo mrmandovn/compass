@@ -31,8 +31,7 @@ From `$CONFIG`, extract:
 
 If config missing → tell user to run `/compass:init` first, stop.
 
-**Vietnamese prompt example:**
-> "Đang tải cấu hình Compass... Sẵn sàng xây dựng DAG plan cho phiên làm việc của bạn."
+(AI translates user-facing prompts per `$LANG` — see `core/shared/ux-rules.md` Language Policy.)
 
 ---
 
@@ -73,8 +72,8 @@ Print: `✓ Plan mode: <minimal|full>` so PO knows which flow is coming.
 
 **FULL mode**: unchanged from current behavior.
 
-**Vietnamese prompt example:**
-> "Không tìm thấy phiên brief nào. Hãy chạy `/compass:brief` trước để tạo brief session nhé!"
+**Prompt example (AI translates per `$LANG`):**
+> "No brief session found. Run `/compass:brief` first to create a brief session."
 
 ---
 
@@ -115,8 +114,8 @@ Based on `can_depend_on` in the manifest and the Colleagues selected in the brie
 
 Auto-calculate stages from the resolved depends_on relationships — do not hardcode stage numbers.
 
-**Vietnamese prompt example:**
-> "Đang phân tích DAG và tính toán các stage... Colleague nào chạy song song, Colleague nào phải chờ phụ thuộc (depends_on) sẽ được sắp xếp tự động."
+**Prompt example (AI translates per `$LANG`):**
+> "Analyzing DAG and computing stages... Colleagues running in parallel and those awaiting depends_on resolution will be auto-arranged."
 
 ---
 
@@ -232,8 +231,8 @@ Before presenting the plan to the PO, validate the dependency graph:
    - a `domain` value that is either one of the four v1.0 enums or `null`
    - every task has `context_pointers` with 1..30 entries
 
-**Vietnamese prompt example:**
-> "Đang kiểm tra DAG... Không có vòng lặp phụ thuộc, tất cả depends_on đều hợp lệ. Plan sẵn sàng để review!"
+**Prompt example (AI translates per `$LANG`):**
+> "Validating DAG... No dependency cycles, all depends_on entries valid. Plan ready for review."
 
 ---
 
@@ -266,7 +265,6 @@ Use AskUserQuestion to ask for approval or changes. **Picker varies by compose m
 
 ### FULL mode (default) — 5 options
 
-en:
 ```json
 {
   "questions": [
@@ -288,7 +286,6 @@ en:
 
 ### MINIMAL mode — 3 options (simpler, for 1-2 colleague small tasks)
 
-en:
 ```json
 {
   "questions": [
@@ -306,47 +303,9 @@ en:
 }
 ```
 
-vi (MINIMAL):
-```json
-{
-  "questions": [
-    {
-      "question": "Plan ổn chứ?",
-      "header": "Review plan",
-      "multiSelect": false,
-      "options": [
-        { "label": "Duyệt — lưu và tiếp tục", "description": "Lưu plan.json và tiếp tục /compass:run" },
-        { "label": "Tự điều chỉnh", "description": "Edit colleagues, dependencies, budget — hiện full picker" },
-        { "label": "Huỷ", "description": "Dừng ở đây — không lưu plan.json" }
-      ]
-    }
-  ]
-}
-```
-
 **In MINIMAL mode**, picking "Adjust manually" escalates to FULL mode's 5-option picker. Picking "Approve" proceeds directly to Step 7. Picking "Cancel" stops workflow.
 
-### FULL mode vi (existing):
-
-vi:
-```json
-{
-  "questions": [
-    {
-      "question": "DAG plan có đúng không?",
-      "header": "Review execution plan",
-      "multiSelect": false,
-      "options": [
-        { "label": "Duyệt — lưu và tiếp tục", "description": "Lưu plan.json, sẵn sàng chạy /compass:run" },
-        { "label": "Thêm Colleague", "description": "Thêm Colleague type khác vào plan" },
-        { "label": "Bỏ Colleague", "description": "Bỏ một Colleague hiện tại khỏi DAG" },
-        { "label": "Đổi dependency", "description": "Điều chỉnh Colleague nào depends_on Colleague nào" },
-        { "label": "Điều chỉnh scope/complexity", "description": "Đổi complexity hoặc budget cho 1 Colleague cụ thể" }
-      ]
-    }
-  ]
-}
-```
+AI translates labels per `$LANG` — see ux-rules Language Policy.
 
 If PO requests changes:
 - **Add Colleague**: prompt for type → insert into manifest lookup → recalculate depends_on and stages → re-validate DAG → show updated plan
@@ -378,14 +337,11 @@ compass-cli validate plan "$PROJECT_ROOT/.compass/.state/sessions/<slug>/plan.js
   3. A concrete fix (e.g. "Set `plan_version` to `\"1.0\"`", "Add at least 1 entry to `context_pointers` for C-03", "Ensure context_pointers reflect actual files").
   4. Loop back to Step 4/4a to regenerate, then re-validate — do NOT hand the plan off to `/compass:run` until `compass-cli validate plan` returns `0`.
 
-Confirm to user only after the validator passes:
+Confirm to user only after the validator passes (AI translates per `$LANG` — see ux-rules Language Policy):
 > "Plan saved to `sessions/<slug>/plan.json` and validated against schema v1.0."
 
-**Vietnamese prompt example:**
-> "Đã lưu plan.json và validate thành công theo schema v1.0."
-
-**Vietnamese — when validation fails:**
-> "Plan chưa hợp lệ theo schema v1.0 (lỗi: `<error_code>` ở trường `<field>`). Mình sẽ chỉnh lại theo gợi ý rồi validate lại trước khi bàn giao cho `/compass:run`."
+When validation fails, surface (AI translates per `$LANG` — see ux-rules Language Policy):
+> "Plan is not valid against schema v1.0 (error: `<error_code>` on field `<field>`). I will adjust per the guidance and re-validate before handing off to `/compass:run`."
 
 ---
 
@@ -395,9 +351,8 @@ Read `AUTO_MODE` from Step 1a.
 
 **If `AUTO_MODE = "auto"`** → skip gate below. Print `⚡ Auto-chain: invoking /compass:run...` and immediately invoke `/compass:run` inline (read and execute `~/.compass/core/workflows/run.md`). Do not stop.
 
-**If `AUTO_MODE = "manual"` (default) or `"stop"`** → show 3-option gate:
+**If `AUTO_MODE = "manual"` (default) or `"stop"`** → show 3-option gate (AI translates labels per `$LANG` — see ux-rules Language Policy):
 
-en:
 ```json
 {"questions": [{"question": "Plan ready. Next?", "header": "Next", "multiSelect": false, "options": [
   {"label": "Continue to /compass:run (Recommended)", "description": "Execute the DAG stage-by-stage — ask again at next checkpoint"},
@@ -406,19 +361,10 @@ en:
 ]}]}
 ```
 
-vi:
-```json
-{"questions": [{"question": "Plan xong. Next?", "header": "Next", "multiSelect": false, "options": [
-  {"label": "Tiếp tục /compass:run (Recommended)", "description": "Execute DAG stage-by-stage — sẽ hỏi lại ở checkpoint tiếp theo"},
-  {"label": "Auto-chain run → check", "description": "Chạy pipeline còn lại không hỏi thêm"},
-  {"label": "Dừng ở đây", "description": "Tự chạy /compass:run sau"}
-]}]}
-```
-
 **Branch**:
 - **Continue** → invoke `/compass:run` inline. Persist `auto_mode` unchanged.
 - **Auto-chain** → set `auto_mode="auto"` in context.json, invoke `/compass:run`.
-- **Stop** → print hand-off `✓ Run /compass:run when ready.` / `✓ Chạy /compass:run khi sẵn sàng.` and stop.
+- **Stop** → print hand-off `✓ Run /compass:run when ready.` (AI translates per `$LANG` — see ux-rules Language Policy) and stop.
 
 Persistence:
 ```bash

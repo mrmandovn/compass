@@ -140,7 +140,7 @@ If `$AVG_VELOCITY` is empty (no prior sprints or parse failed), skip the auto-de
 Use AskUserQuestion for sprint duration:
 
 ```json
-{"questions": [{"question": "How long is this sprint?\n(Tiếng Việt: Sprint này kéo dài bao lâu?)", "header": "Sprint duration", "multiSelect": false, "options": [{"label": "1 week", "description": "7 calendar days / 7 ngày lịch"}, {"label": "2 weeks (standard)", "description": "14 calendar days — most common / 14 ngày lịch — phổ biến nhất"}, {"label": "3 weeks", "description": "21 calendar days / 21 ngày lịch"}, {"label": "Custom — I'll specify", "description": "Tell me the exact start and end dates / Tôi sẽ chỉ định ngày bắt đầu và kết thúc"}]}]}
+{"questions": [{"question": "How long is this sprint?", "header": "Sprint duration", "multiSelect": false, "options": [{"label": "1 week", "description": "7 calendar days"}, {"label": "2 weeks (standard)", "description": "14 calendar days — most common"}, {"label": "3 weeks", "description": "21 calendar days"}, {"label": "Custom — I'll specify", "description": "Tell me the exact start and end dates"}]}]}
 ```
 
 ### 2c. Ask team capacity (Recommended option pre-filled from velocity)
@@ -157,11 +157,11 @@ STRETCH=$(awk -v v="$AVG_VELOCITY" 'BEGIN{ printf "%d", int(v*1.2+0.5) }')
 Then build the options with literal integers, not `<AVG_VELOCITY * 0.8>` expressions:
 
 ```json
-{"questions": [{"question": "Team capacity for this sprint?\n(Tiếng Việt: Năng lực của nhóm sprint này?)", "header": "Team capacity", "multiSelect": false, "options": [
-  {"label": "<AVG_VELOCITY>pt — last 3 sprints' avg (Recommended)", "description": "Matches recent velocity — safe baseline / Khớp velocity gần đây"},
-  {"label": "<CONSERVATIVE>pt — conservative (80%)", "description": "Leave buffer for unknowns / Để buffer cho rủi ro"},
-  {"label": "<STRETCH>pt — stretch (120%)", "description": "Sprint with confidence / Sprint tự tin hơn"},
-  {"label": "Custom — I'll specify points / days / stories", "description": "Override manually / Tự chỉ định"}
+{"questions": [{"question": "Team capacity for this sprint?", "header": "Team capacity", "multiSelect": false, "options": [
+  {"label": "<AVG_VELOCITY>pt — last 3 sprints' avg (Recommended)", "description": "Matches recent velocity — safe baseline"},
+  {"label": "<CONSERVATIVE>pt — conservative (80%)", "description": "Leave buffer for unknowns"},
+  {"label": "<STRETCH>pt — stretch (120%)", "description": "Sprint with confidence"},
+  {"label": "Custom — I'll specify points / days / stories", "description": "Override manually"}
 ]}]}
 ```
 
@@ -177,12 +177,10 @@ Substitute `<AVG_VELOCITY>`, `<CONSERVATIVE>`, `<STRETCH>` with the computed int
 ]}]}
 ```
 
-vi: regenerate with Vietnamese labels/descriptions for either block.
-
 Use AskUserQuestion for sprint goal:
 
 ```json
-{"questions": [{"question": "What is the sprint goal?\n(Tiếng Việt: Mục tiêu sprint là gì?)", "header": "Sprint goal", "multiSelect": false, "options": [{"label": "Ship a specific feature end-to-end", "description": "Focus the sprint on completing one feature / Tập trung sprint vào hoàn thành một tính năng"}, {"label": "Reduce technical debt and bugs", "description": "Hardening sprint — fix before building / Sprint ổn định — sửa trước khi xây"}, {"label": "Close out an epic", "description": "Finish remaining stories in an epic / Hoàn thành các story còn lại của một epic"}, {"label": "Mixed — I'll describe the goal", "description": "Custom sprint goal / Mục tiêu sprint tùy chỉnh"}]}]}
+{"questions": [{"question": "What is the sprint goal?", "header": "Sprint goal", "multiSelect": false, "options": [{"label": "Ship a specific feature end-to-end", "description": "Focus the sprint on completing one feature"}, {"label": "Reduce technical debt and bugs", "description": "Hardening sprint — fix before building"}, {"label": "Close out an epic", "description": "Finish remaining stories in an epic"}, {"label": "Mixed — I'll describe the goal", "description": "Custom sprint goal"}]}]}
 ```
 
 ---
@@ -226,7 +224,7 @@ BLOCKERS / RISKS:
 Use AskUserQuestion to let PO adjust the selection:
 
 ```json
-{"questions": [{"question": "Sprint board looks good?\n(Tiếng Việt: Bảng sprint trông ổn không?)", "header": "Adjust sprint", "multiSelect": false, "options": [{"label": "Looks good — save the sprint plan", "description": "Write the file / Lưu kế hoạch sprint"}, {"label": "Swap a story out", "description": "Remove one and add another / Thay một story"}, {"label": "Add a story (I'll accept the overcommit risk)", "description": "Force-add a story beyond capacity / Thêm story dù vượt năng lực"}, {"label": "Remove a story", "description": "Take one off the board / Bỏ một story khỏi danh sách"}]}]}
+{"questions": [{"question": "Sprint board looks good?", "header": "Adjust sprint", "multiSelect": false, "options": [{"label": "Looks good — save the sprint plan", "description": "Write the file"}, {"label": "Swap a story out", "description": "Remove one and add another"}, {"label": "Add a story (I'll accept the overcommit risk)", "description": "Force-add a story beyond capacity"}, {"label": "Remove a story", "description": "Take one off the board"}]}]}
 ```
 
 ---
@@ -297,10 +295,7 @@ compass-cli index add "<output-file-path>" "research" 2>/dev/null || true
 
 ## Final — Hand-off (plan mode)
 
-Print one of these closing messages (pick based on `$LANG`):
-
-- en: `✓ Sprint plan saved. Next: `/compass:run` to start execution, or `/compass:status` to track progress.`
-- vi: `✓ Sprint plan đã lưu. Tiếp: `/compass:run` để bắt đầu execute, hoặc `/compass:status` để track progress.`
+Print one closing message (in `$LANG`): `✓ Sprint plan saved. Next: /compass:run to start execution, or /compass:status to track progress.`
 
 Then stop. Do NOT auto-invoke the next workflow.
 
@@ -325,15 +320,12 @@ Apply `core/shared/template-resolver.md` with `TEMPLATE_NAME="sprint-review-temp
 
 Probe for `mcp__jira__jira_get_user_profile` tool. If NOT available in the current host's tool list:
 
-en:
 ```json
 {"questions": [{"question": "Jira MCP is not configured. How to proceed?", "header": "Jira", "multiSelect": false, "options": [
   {"label": "Manual entry", "description": "Fill the sprint review template interactively without Jira auto-fill"},
   {"label": "Cancel", "description": "Stop and run /compass:setup jira to configure Jira MCP first"}
 ]}]}
 ```
-
-vi: same shape, translated.
 
 - "Cancel" → stop, print `ℹ Run /compass:setup jira, then re-run /compass:sprint review.`
 - "Manual entry" → set `$JIRA_MODE=manual`, skip Steps R3–R4, jump to Step R5 with empty aggregated data.
@@ -509,10 +501,7 @@ echo "REVIEW_WRITTEN=$OUTPUT"
 
 ## Step R8 — Hand-off (review mode)
 
-Print:
-
-- en: `✓ Sprint review draft saved to sprint-reviews/<PREFIX>-sprint-<N>-review.md. Review demo results, then share with stakeholders.`
-- vi: `✓ Sprint review draft đã lưu vào sprint-reviews/<PREFIX>-sprint-<N>-review.md. Review demo results, rồi share với stakeholders.`
+Print (in `$LANG`): `✓ Sprint review draft saved to sprint-reviews/<PREFIX>-sprint-<N>-review.md. Review demo results, then share with stakeholders.`
 
 Then stop. Do NOT auto-invoke the next workflow.
 
@@ -549,15 +538,12 @@ fi
 
 Probe for `mcp__jira__jira_get_user_profile` tool in current host's tool list. If NOT available:
 
-en:
 ```json
 {"questions": [{"question": "Jira MCP is not configured. Import needs Jira to create/update tasks.", "header": "Jira MCP", "multiSelect": false, "options": [
   {"label": "Setup Jira now (Recommended)", "description": "Run /compass:setup jira then retry import"},
   {"label": "Cancel", "description": "Stop — configure Jira MCP manually"}
 ]}]}
 ```
-
-vi: translate.
 
 - "Setup Jira now" → redirect to `/compass:setup jira`, stop this workflow. User re-runs `/compass:sprint import` after setup.
 - "Cancel" → stop. Print `ℹ Configure Jira MCP, then re-run /compass:sprint import <url>.`
@@ -573,15 +559,12 @@ AUTHENTICATED=$(echo "$AUTH" | jq -r '.authenticated // false')
 
 If `$AUTHENTICATED != true` → AskUserQuestion (in `$LANG`):
 
-en:
 ```json
 {"questions": [{"question": "GDrive not authenticated. Authorize now?", "header": "Auth", "multiSelect": false, "options": [
   {"label": "Authorize now (Recommended)", "description": "Opens browser for Google login — one-time setup"},
   {"label": "Cancel", "description": "Stop — run compass-cli gdrive auth manually later"}
 ]}]}
 ```
-
-vi: translate.
 
 If user picks authorize → run `compass-cli gdrive auth` inline, wait for success, then continue.
 If cancel → stop.
@@ -612,7 +595,6 @@ ALL_SHEETS=$(echo "$LIST" | jq -r '.sheets[]' | grep -i "^sprint")
 
 Show detected sprints. AskUserQuestion (in `$LANG`):
 
-en:
 ```json
 {"questions": [{"question": "Which sprint to import?", "header": "Sprint", "multiSelect": false, "options": [
   {"label": "<LATEST> (Recommended)", "description": "Latest sprint detected"},
@@ -693,7 +675,6 @@ For each task in `$PARSED.tasks`:
 
 If ≥1 task has priority conflict:
 
-en:
 ```json
 {"questions": [{"question": "N tasks have priority differences. Apply sheet priority?", "header": "Priority", "multiSelect": false, "options": [
   {"label": "Apply sheet priority to all (Recommended)", "description": "Sheet is source of truth — overwrite Jira"},
@@ -701,8 +682,6 @@ en:
   {"label": "Pick per task", "description": "Show each conflict individually (detailed mode)"}
 ]}]}
 ```
-
-vi: translate.
 
 ### I6b — Assignee conflicts (parent)
 
@@ -804,7 +783,6 @@ WARNINGS
 
 ONLY AFTER printing the summary above, call AskUserQuestion. The `question` field must be SHORT — do NOT include the summary in it.
 
-en:
 ```json
 {"questions": [{"question": "Apply these changes to Jira?", "header": "Sync", "multiSelect": false, "options": [
   {"label": "Yes, sync all (Recommended)", "description": "Apply all updates + creates to Jira"},
@@ -817,8 +795,6 @@ en:
 - Put the summary inside the `question` field
 - Put the summary in any `description` field
 - Merge I7.a and I7.b into a single step
-
-vi: translate.
 
 If sync → iterate tasks:
 
@@ -894,7 +870,6 @@ Live progress: `✓ <task.key>` per completed task (show `(new)` suffix if creat
 
 Print (in `$LANG`):
 
-en:
 ```
 ✓ Sprint import complete
   Sheet:      <SPRINT_SHEET>
@@ -907,8 +882,6 @@ en:
 Next: review results at https://silvertiger.atlassian.net (or your Jira instance)
 ```
 
-vi: translate.
-
 Stop.
 
 ---
@@ -917,10 +890,10 @@ Stop.
 
 | Situation | Handling |
 |---|---|
-| URL không phải GDrive | I2 download fails → show error, suggest valid GDrive URL |
-| Sheet không có "Sprint N" pattern | I3 → show all sheets, AskUserQuestion pick one |
-| Task key không khớp regex `<PREFIX>-<N>` | Skip task + warn in report |
-| Jira task không tồn tại (Key không có trong Jira) | I6 report: `[CREATE PARENT]` before subtasks. Create parent first in I7. |
+| URL is not a GDrive link | I2 download fails → show error, suggest valid GDrive URL |
+| Sheet has no "Sprint N" pattern | I3 → show all sheets, AskUserQuestion pick one |
+| Task key does not match regex `<PREFIX>-<N>` | Skip task + warn in report |
+| Jira task does not exist (key not in Jira) | I6 report: `[CREATE PARENT]` before subtasks. Create parent first in I7. |
 | Member column header misspelled | I5 catches before sync. Stop or skip. |
 | Sheet priority empty + Jira has priority | Skip (don't clear Jira value) |
 | Subtask summary differs slightly from "Name - Parent" | Treat as no-match → create new. Extra Jira subtask ignored. |

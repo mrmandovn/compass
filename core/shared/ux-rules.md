@@ -20,10 +20,18 @@ This module defines the universal UX rules for all Compass workflows. Every work
 > Every call MUST have: `questions` (array), each with `question` (string), `header` (string), `multiSelect` (boolean), `options` (array of `{label, description}` objects). Missing any of these fields will cause "invalid arguments" errors.
 >
 > 7b. **Content language (question, header, labels, descriptions)**: must match `lang` from config.
->  - When the workflow provides **paired `en:` / `vi:` blocks**, pick the block matching `lang` and use it verbatim. Do not mix blocks.
->  - When the workflow provides a **single-language template** (typically English) and `lang=vi`, you MUST translate ALL user-visible text — question + header + EVERY label + EVERY description — to Vietnamese with full diacritics (dấu). Consistent direction: either fully EN or fully VI. Do NOT half-translate (e.g. English labels + Vietnamese descriptions); that creates a "mixed-language menu" bug.
+>  - Workflows provide a **single-language English template**. When `lang ≠ en`, you MUST translate ALL user-visible text — question + header + EVERY label + EVERY description — to the target language (with full diacritics for Vietnamese). Consistent direction: either fully EN or fully target-lang. Do NOT half-translate (e.g. English labels + Vietnamese descriptions); that creates a "mixed-language menu" bug.
 >  - **Keep in original form**: domain terms (`Colleague`, `DAG`, `plan.json`), command names (`/compass:<name>`), file paths, CLI flags (`--auto`), stack/framework names (`typescript`, `react`). Translate only action verbs, connectors, and explanatory text.
 >  - Structure (JSON field names, schema) is always literal — NEVER translate field names like `question`, `header`, `label`.
+
+---
+
+## Language Policy
+
+1. **English-only source.** All `AskUserQuestion` blocks in workflow files are authored in English ONLY. The legacy bilingual dual-block format (separate `en:` and `vi:` variants per question) is retired.
+2. **Runtime translation.** The AI host MUST translate every user-facing field (`question`, `header`, `label`, `description`) at runtime per `lang` in `$PROJECT_ROOT/.compass/.state/config.json`.
+3. **Header abbreviation.** When translating to a longer language (Vietnamese, German, etc.), the `header` field MUST stay within the 12-character limit. Do NOT truncate — pick a shorter equivalent word (e.g. "Confirm" → "OK" not "Xác nhận…").
+4. **User rules win.** Directives from the user's `CLAUDE.md` (e.g. "always full diacritics", custom term glossaries) take precedence over the AI host's default translation behavior.
 
 ---
 

@@ -77,43 +77,6 @@ If interaction_level is "standard":
 
 ---
 
-## Step 0a: Detect active pipeline session
-
-Before scanning for project context, check whether a pipeline session is active:
-
-```bash
-PIPELINE=$(find "$PROJECT_ROOT/.compass/.state/sessions/" -name "pipeline.json" -exec grep -l '"status": "active"' {} \; 2>/dev/null | sort | tail -1)
-```
-
-**If an active pipeline is found:**
-
-1. Read `pipeline.json` — extract the session `id` (slug) and `title` from the sibling `context.json`.
-2. Show (in `lang`):
-   - en: `"Active pipeline detected: <title>. Stories can be saved into this session."`
-   - vi: `"Phát hiện pipeline đang hoạt động: <title>. Stories có thể được lưu vào phiên này."`
-3. Use AskUserQuestion to confirm:
-   ```json
-   {"questions": [{"question": "Save stories in the active pipeline session?", "header": "Pipeline session", "multiSelect": false, "options": [{"label": "Yes — part of pipeline", "description": "Save stories in the session AND in the normal output folder"}, {"label": "No — standalone", "description": "Save only in the normal output folder, ignore the pipeline"}]}]}
-   ```
-   Vietnamese version (use when `lang=vi`):
-   ```json
-   {"questions": [{"question": "Lưu stories vào pipeline session đang hoạt động?", "header": "Pipeline session", "multiSelect": false, "options": [{"label": "Có — thuộc pipeline", "description": "Lưu stories vào session VÀ vào thư mục output bình thường"}, {"label": "Không — standalone", "description": "Chỉ lưu vào thư mục output bình thường, bỏ qua pipeline"}]}]}
-   ```
-4. If **Yes**:
-   - Set `pipeline_mode = true` and `pipeline_slug = <id>`.
-   - After Step 6 writes each story file, also copy it to `$PROJECT_ROOT/.compass/.state/sessions/<slug>/story-<slug>.md`.
-   - Append each story's file path to the `artifacts` array in `pipeline.json`:
-     ```json
-     { "type": "story", "path": "<output-file-path>", "session_path": "$PROJECT_ROOT/.compass/.state/sessions/<slug>/story-<slug>.md", "created_at": "<ISO>" }
-     ```
-   - When breaking a PRD into multiple stories (Step 4b), append each story individually as a separate artifact entry.
-5. If **No** → set `pipeline_mode = false`. Proceed as standalone (current behavior).
-
-**If no active pipeline found:** set `pipeline_mode = false`. Continue with current standalone behavior — no change.
-
----
-
-
 ## Step 0a — Pipeline + Project choice gate
 
 This workflow produces an artifact in the project, so apply Step 0d from `core/shared/resolve-project.md` after Step 0. The shared gate:
@@ -156,11 +119,8 @@ The module handles scanning, matching, and asking the user:
 
 Use AskUserQuestion to ask the user what this story is based on.
 
-English example question: "What is this story based on?"
-Vietnamese example question: "Story này dựa trên cơ sở nào?"
-
 ```json
-{"questions": [{"question": "What is this story based on?\n(Tiếng Việt: Story này dựa trên cơ sở nào?)", "header": "Story source", "multiSelect": false, "options": [{"label": "A PRD", "description": "Point me to the PRD path and I'll break it into stories / Chỉ cho tôi đường dẫn PRD, tôi sẽ chia thành các stories"}, {"label": "A new idea / feature (no PRD yet)", "description": "Start from scratch with a new concept / Bắt đầu từ ý tưởng mới chưa có PRD"}, {"label": "Refining an existing story", "description": "Point me to the story file to refine / Chỉ cho tôi file story cần chỉnh sửa"}]}]}
+{"questions": [{"question": "What is this story based on?", "header": "Story source", "multiSelect": false, "options": [{"label": "A PRD", "description": "Point me to the PRD path and I'll break it into stories"}, {"label": "A new idea / feature (no PRD yet)", "description": "Start from scratch with a new concept"}, {"label": "Refining an existing story", "description": "Point me to the story file to refine"}]}]}
 ```
 
 If (a — PRD) → read the PRD, propose how many stories it could break into, list them. Use AskUserQuestion to let the user pick which to write, or "all".
@@ -180,11 +140,8 @@ Build the options array from the epics found in Step 1. If zero epics exist, the
 1. `📚 Create Epic first (recommended)` — invokes `/compass:epic` inline, then returns to Step 3.
 2. `⏭ Skip Epic — write story directly` — marks the story as epic-less; output goes to the standalone story path (`.compass/Stories/STORY-{NNN}-{slug}.md`), frontmatter `epic: null`, Step 7 (update parent epic.md) is skipped.
 
-English example question: "Where should this story live?"
-Vietnamese example question: "Story này thuộc đâu?"
-
 ```json
-{"questions": [{"question": "Where should this story live?\n(Tiếng Việt: Story này thuộc đâu?)", "header": "Select epic", "multiSelect": false, "options": [{"label": "{PREFIX}-EPIC-01 — {Epic Name}", "description": "Add the story under this existing epic / Thêm story vào epic này"}, {"label": "📚 Create Epic first (recommended)", "description": "I'll run /compass:epic now, then continue writing this story / Tôi sẽ chạy /compass:epic trước, sau đó quay lại viết story"}, {"label": "⏭ Skip Epic — write story directly", "description": "Write a standalone story under .compass/Stories/ without a parent epic / Viết story đứng riêng trong .compass/Stories/ không thuộc epic nào"}]}]}
+{"questions": [{"question": "Where should this story live?", "header": "Select epic", "multiSelect": false, "options": [{"label": "{PREFIX}-EPIC-01 — {Epic Name}", "description": "Add the story under this existing epic"}, {"label": "📚 Create Epic first (recommended)", "description": "I'll run /compass:epic now, then continue writing this story"}, {"label": "⏭ Skip Epic — write story directly", "description": "Write a standalone story under .compass/Stories/ without a parent epic"}]}]}
 ```
 
 ### Step 3b — Route based on choice
@@ -264,8 +221,6 @@ If the PRD has REQs but **all are already covered by existing stories** (fully m
 ]}]}
 ```
 
-vi: translate.
-
 - Pick 1 → loop back to Question A REQ picker (all REQs shown, not just uncovered) — new story co-covers chosen REQ
 - Pick 2 → set mode = STANDALONE, skip Question A PRD_LINKED version, fall through to blank title prompt
 - Pick 3 → exit workflow gracefully
@@ -295,11 +250,6 @@ Use AskUserQuestion. Scan the PRD (if available) for feature name and user roles
 
 ```json
 {"questions": [{"question": "What's the story title?", "header": "Story Title", "multiSelect": false, "options": [{"label": "As a <role>, I want to <action>, so that <benefit>", "description": "Standard user story format — replace placeholders with your context"}, {"label": "As an Admin, I want to manage team members, so that I can control workspace access", "description": "Example admin story — adapt to your feature"}, {"label": "As a user, I want to upload files in bulk, so that I can save time on repetitive uploads", "description": "Example end-user story — adapt to your feature"}, {"label": "Type a custom title", "description": "Enter your own title or user story statement"}]}]}
-```
-
-Vietnamese example (used when `lang=vi`):
-```json
-{"questions": [{"question": "Tiêu đề story là gì?", "header": "Tiêu đề Story", "multiSelect": false, "options": [{"label": "Là một <vai trò>, tôi muốn <hành động>, để <lợi ích>", "description": "Định dạng user story chuẩn — thay thế placeholder bằng ngữ cảnh của bạn"}, {"label": "Là một Admin, tôi muốn quản lý thành viên nhóm, để kiểm soát quyền truy cập workspace", "description": "Ví dụ story admin — điều chỉnh theo tính năng của bạn"}, {"label": "Là một người dùng, tôi muốn tải lên file hàng loạt, để tiết kiệm thời gian cho các lần tải lên lặp lại", "description": "Ví dụ story người dùng cuối — điều chỉnh theo tính năng của bạn"}, {"label": "Nhập tiêu đề tùy chỉnh", "description": "Nhập tiêu đề hoặc phát biểu user story của bạn"}]}]}
 ```
 
 ### Question B: User context (STANDALONE mode only — skipped in PRD_LINKED mode)
@@ -351,15 +301,13 @@ Before calling, scan existing stories in the same epic to derive dependency cand
 ]}
 ```
 
-When `lang=vi`, regenerate all labels/descriptions in Vietnamese — do NOT make two separate calls.
+AI translates labels/descriptions per `$LANG` at runtime — see `core/shared/ux-rules.md` Language Policy. Do NOT make two separate AskUserQuestion calls.
 
 **Save-as-default prompt** (fires only in three-sub-Q path, after PO picks DoD):
 
 ```json
 {"questions": [{"question": "Save this DoD as project default? Future stories won't ask again.", "header": "Save DoD default", "multiSelect": false, "options": [{"label": "Yes — save to config.story.default_dod", "description": "All future stories in this project inherit this DoD silently"}, {"label": "No — one-time only", "description": "Use for this story, keep asking per-story"}]}]}
 ```
-
-vi: regenerate with Vietnamese labels.
 
 **On Yes** — persist to config:
 ```bash
@@ -554,9 +502,6 @@ Emit the final progress summary (Pattern 1 Step C from `core/shared/progress.md`
 
 Then use AskUserQuestion to offer next actions after showing the summary.
 
-English example question: "What would you like to do next?"
-Vietnamese example question: "Bạn muốn làm gì tiếp theo?"
-
 Show the summary first (in `lang`):
 
 ```
@@ -575,7 +520,7 @@ Notes:
 Then use AskUserQuestion:
 
 ```json
-{"questions": [{"question": "What would you like to do next?\n(Tiếng Việt: Bạn muốn làm gì tiếp theo?)", "header": "Next step", "multiSelect": false, "options": [{"label": "/compass:story", "description": "Write the next story / Viết story tiếp theo"}, {"label": "/compass:prioritize", "description": "Sort this batch of stories / Sắp xếp thứ tự ưu tiên cho batch stories này"}, {"label": "Done for now", "description": "I'm finished / Tôi đã xong"}]}]}
+{"questions": [{"question": "What would you like to do next?", "header": "Next step", "multiSelect": false, "options": [{"label": "/compass:story", "description": "Write the next story"}, {"label": "/compass:prioritize", "description": "Sort this batch of stories"}, {"label": "Done for now", "description": "I'm finished"}]}]}
 ```
 
 ## Save session

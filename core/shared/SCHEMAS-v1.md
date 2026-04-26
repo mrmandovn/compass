@@ -387,7 +387,7 @@ projects:
 
 ```yaml
 version: "1.0"
-lang: "vi" | "en" | null
+lang: string | null                    # free-string BCP-47-ish locale code (e.g. "en", "vi", "fr", "ja"); fallback "en"
 default_tech_stack: string[]
 default_review_style: "whole_document" | "section_by_section" | null
 default_domain: "ard" | "platform" | "communication" | "internal" | "access" | "ai" | null
@@ -400,8 +400,13 @@ updated_at: ISO-8601
 | Element | Constraint |
 |---------|------------|
 | All fields optional | Missing fields fall back to hardcoded defaults in `/compass:init`. |
+| `lang` | **Free-string** locale code, not an enum. Any non-empty string is accepted (examples: `"en"`, `"vi"`, `"fr"`, `"ja"`). Fallback when missing/null is `"en"`. The AI host translates user-facing output at runtime per `$LANG`; workflow source is single-language English. |
 | Project `config.json` overrides | Per-project fields (`lang`, `domain`, ...) take precedence over global when both set. |
 | File access | Same lock discipline as registry. |
+
+### Migration note (lang / spec_lang)
+
+Existing projects that previously persisted `lang=vi` and/or `spec_lang=vi` keep those saved values verbatim — no CLI migration is required. The schema is widened from the old `{en, vi}` enum to a free-string with fallback `"en"`, so old values continue to validate. User-facing output (prompts, summaries, colleague responses) is translated by the AI host at runtime based on `$LANG` / the persisted `lang`; the workflow source itself is English-only.
 
 ---
 
@@ -410,6 +415,20 @@ updated_at: ISO-8601
 **Location:** `$PROJECT_ROOT/.compass/.state/config.json`
 
 Beyond the core fields (`lang`, `spec_lang`, `project.*`, `mode`, etc.), the config MAY contain optional nested objects used by integrations. These are written by `/compass:setup` or `/compass:sprint review` when the PO first supplies them.
+
+### Core language fields (`lang`, `spec_lang`)
+
+Both fields are **free-string** locale codes — not enums. Any non-empty string is accepted (examples: `"en"`, `"vi"`, `"fr"`, `"ja"`). The fallback when either is missing or null is `"en"`.
+
+```yaml
+lang: string | null         # free-string locale (e.g. "en", "vi", "fr", "ja"); fallback "en"
+spec_lang: string | null    # free-string locale OR the literal "same" (mirror lang); fallback "en"
+```
+
+- `lang` — language used for user-facing AI output (prompts, summaries, colleague replies). Translated at runtime by the AI host per `$LANG` / persisted value; the workflow source is single-language English.
+- `spec_lang` — language for written specs/PRDs. Preserves the special literal value `"same"`, which means "mirror whatever `lang` is set to". Any other value is treated as a free-string locale code.
+
+**Migration note:** existing projects keep their saved values as-is — `lang=vi` and `spec_lang=vi` (or `spec_lang=same`) continue to validate against the widened free-string schema. No CLI migration is required; the AI host performs runtime translation per `$LANG`, so old configs need no rewrite.
 
 ### Jira integration fields
 

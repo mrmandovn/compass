@@ -58,7 +58,7 @@ Branch on current state:
 ]}]}
 ```
 
-vi: translate labels (`Stash, tạo branch`, `Commit trước rồi tạo branch`, `Cancel`).
+AI translates per `$LANG` — see ux-rules Language Policy.
 
 **Handler — execute ONLY the branch matching the user's selection**:
 
@@ -126,9 +126,8 @@ esac
 
 ### AskUserQuestion — Option C (hotfix on clean base — explicit confirm)
 
-Hotfix flow (`IS_HOTFIX=true`) never creates a branch silently. Even when the working tree is clean and we're on the base branch, ask first:
+Hotfix flow (`IS_HOTFIX=true`) never creates a branch silently. Even when the working tree is clean and we're on the base branch, ask first (AI translates per `$LANG` — see ux-rules Language Policy):
 
-en:
 ```json
 {"questions": [{"question": "Create hotfix branch $FEAT_BRANCH from $BASE_BRANCH?", "header": "Branch", "multiSelect": false, "options": [
   {"label": "Create branch (Recommended)", "description": "git checkout -b $FEAT_BRANCH — isolate the fix for PR + easy revert"},
@@ -136,8 +135,6 @@ en:
   {"label": "Cancel", "description": "Stop the workflow — don't create a branch or apply the fix"}
 ]}]}
 ```
-
-vi: translate (`Tạo branch (Khuyến nghị)`, `Ở lại $BASE_BRANCH`, `Huỷ`).
 
 **Handler — execute ONLY the branch matching the user's selection**:
 

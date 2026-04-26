@@ -196,8 +196,6 @@ Asking PRD type BEFORE reading the source is an anti-pattern — a PO updating a
 ]}]}
 ```
 
-vi: regenerate with Vietnamese labels/descriptions.
-
 ### 3b. Read the source (silent, unless "new idea")
 
 - Source = IDEA file → read the idea file, extract: problem, chosen direction, key constraints
@@ -242,9 +240,8 @@ Detect target sections from `$ARGUMENTS` keywords:
 **On HIGH confidence** — skip the AskUserQuestion (silent set):
 
 - Silent set `PRD_TYPE = <proposed>` and `PRD_TARGETS = [proposed targets]`
-- Print inline confirmation so PO sees what was derived:
-  - en: `→ Detected: <type> targeting [<sections>] (from <source>). Proceeding with Step 4. Review at Step 6.5 before write — you can edit any auto-derived section there.`
-  - vi: `→ Đã detect: <type> targeting [<sections>] (từ <source>). Tiếp tục Step 4. Review ở Step 6.5 trước khi ghi file — sửa được section auto-derive ở đó.`
+- Print inline confirmation so PO sees what was derived (AI translates per `$LANG` — see ux-rules Language Policy):
+  - `→ Detected: <type> targeting [<sections>] (from <source>). Proceeding with Step 4. Review at Step 6.5 before write — you can edit any auto-derived section there.`
 - Proceed directly to Step 3d. Skip the AskUserQuestion below.
 
 **On MEDIUM or LOW confidence** — confirm via AskUserQuestion:
@@ -425,7 +422,7 @@ PO can opt out by picking "Actually new-feature" at Step 3c, which forces `PRD_T
 - `$ARGUMENTS` — if a feature name is obvious, put it as `options[0]` of A1 with label `Auto-detected: <name>` (user accepts with 1 click)
 - Existing PRDs in project — if names follow a pattern, offer the pattern variant as an option
 
-Generate all labels and descriptions in `lang` (regenerate in Vietnamese when `lang=vi`).
+Generate all labels and descriptions in English; AI translates per `$LANG` at runtime (see ux-rules Language Policy).
 
 **Option assembly for A1** (same logic for default + detailed paths):
 - If `AUTOFILL.A1` has a value → options[0] = `{"label": "<AUTOFILL.A1>", "description": "Accept detected name"}`
@@ -449,7 +446,7 @@ Generate all labels and descriptions in `lang` (regenerate in Vietnamese when `l
 ]}
 ```
 
-When `lang=vi`, regenerate the chosen structure with Vietnamese labels/descriptions.
+AI translates labels/descriptions per `$LANG` at runtime (see ux-rules Language Policy).
 
 **Compose note for Step 6**: Always write `status: Draft`. For A2, use asked answer / pipeline-inherited value / `"TBD"` in that precedence.
 
@@ -493,7 +490,7 @@ Batched structure (English):
 
 Areas to cover across the 3 questions: user friction, business impact, evidence signals, cost of inaction, time sensitivity.
 
-When `lang=vi`, regenerate all labels/descriptions in Vietnamese.
+AI translates all labels/descriptions per `$LANG` at runtime (see ux-rules Language Policy).
 
 ### Section C: Users (adaptive per SECTION_CLARITY, conditional on PRD_TARGETS)
 
@@ -534,7 +531,7 @@ Batched structure (English):
 ]}
 ```
 
-When `lang=vi`, regenerate all labels/descriptions in Vietnamese.
+AI translates all labels/descriptions per `$LANG` at runtime (see ux-rules Language Policy).
 
 ### Section D: Goals and Non-goals (adaptive per SECTION_CLARITY, conditional on PRD_TARGETS)
 
@@ -572,7 +569,7 @@ Batched structure (English):
 ]}
 ```
 
-When `lang=vi`, regenerate all labels/descriptions in Vietnamese.
+AI translates all labels/descriptions per `$LANG` at runtime (see ux-rules Language Policy).
 
 **Validation after user answers**: check that no item appears in both D1 and D2 — if overlap, ask user to clarify.
 
@@ -617,7 +614,7 @@ Batched structure — simple case (English, 2 questions):
 
 Complex case (4 questions): same structure with E2 baseline + E3 target added between E1 and E4.
 
-When `lang=vi`, regenerate all labels/descriptions in Vietnamese.
+AI translates all labels/descriptions per `$LANG` at runtime (see ux-rules Language Policy).
 
 ### Section F: User flow and requirements (adaptive per SECTION_CLARITY, conditional on PRD_TARGETS)
 
@@ -663,7 +660,7 @@ Complex case (3 questions): add F3 dependencies question after F2.
 
 **After F1 is answered**: expand the chosen pattern into 5–8 numbered steps when composing the PRD (Step 6).
 
-When `lang=vi`, regenerate all labels/descriptions in Vietnamese.
+AI translates all labels/descriptions per `$LANG` at runtime (see ux-rules Language Policy).
 
 ### Diagrams (Mermaid)
 
@@ -821,8 +818,6 @@ Print a compact PRD summary (section bullets, NOT the full doc — that would sc
 ]}]}
 ```
 
-vi: regenerate with Vietnamese labels.
-
 **Only list sections that are both in `PRD_TARGETS` AND were derived (CLEAR) or partial-filled (PARTIAL)** — don't offer edit options for inherited or fully-interviewed sections.
 
 **On "All good"** → proceed to Step 7.
@@ -848,15 +843,10 @@ Create the output directory if it doesn't exist (`mkdir -p`).
 
 If `spec_lang` is `bilingual`, also generate the translated version. Apply the same naming pattern with a language suffix (`-vi` or `-en`) appended before `.md`.
 
-**Filename collision**: if a file with the same name exists, use AskUserQuestion:
+**Filename collision**: if a file with the same name exists, use AskUserQuestion (AI translates per `$LANG` at runtime — see ux-rules Language Policy):
 
 ```json
 {"questions": [{"question": "A file with this name already exists. What should I do?", "header": "Filename Conflict", "multiSelect": false, "options": [{"label": "Overwrite", "description": "Replace the existing file."}, {"label": "Create with suffix", "description": "Save as a new file with a version suffix (e.g. -v2)."}]}]}
-```
-
-Vietnamese example (used when `lang=vi`):
-```json
-{"questions": [{"question": "Đã tồn tại file với tên này. Bạn muốn làm gì?", "header": "Xung đột tên file", "multiSelect": false, "options": [{"label": "Ghi đè", "description": "Thay thế file hiện có."}, {"label": "Tạo file mới với hậu tố", "description": "Lưu dưới tên mới với hậu tố phiên bản (ví dụ: -v2)."}]}]}
 ```
 
 **After writing the file, update the project index:**
@@ -922,9 +912,8 @@ Consider syncing with these POs before sprint planning.
 
 ## Final — Hand-off
 
-Print one of these closing messages (pick based on `$LANG`):
+Print this closing message (AI translates per `$LANG` at runtime — see ux-rules Language Policy):
 
-- en: `✓ PRD saved. Next: `/compass:story` to break into user stories, or `/compass:check` to validate cross-refs.`
-- vi: `✓ PRD đã lưu. Tiếp: `/compass:story` để break thành user stories, hoặc `/compass:check` để validate cross-refs.`
+- `✓ PRD saved. Next: `/compass:story` to break into user stories, or `/compass:check` to validate cross-refs.`
 
 Then stop. Do NOT auto-invoke the next workflow.

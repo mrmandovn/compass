@@ -182,11 +182,11 @@ Read and follow `~/.compass/core/integrations/<name>.md` in `verify` mode.
 
 ### Action: Reset one
 
-1. Ask the PO to confirm using AskUserQuestion format (in `lang`):
+1. Ask the PO to confirm using AskUserQuestion format:
 
    ```json
    {
-     "header": "Reset <Name> Integration",
+     "header": "Reset <Name>",
      "questions": [
        {
          "id": "confirm_reset",
@@ -198,22 +198,9 @@ Read and follow `~/.compass/core/integrations/<name>.md` in `verify` mode.
    }
    ```
 
-   Vietnamese example (when `lang = "vi"`):
-   ```json
-   {
-     "header": "Đặt lại tích hợp <Name>",
-     "questions": [
-       {
-         "id": "confirm_reset",
-         "question": "Thao tác này sẽ xóa thông tin tích hợp <Name> khỏi Compass nhưng KHÔNG xóa cấu hình MCP server. Bạn có muốn tiếp tục không?",
-         "options": ["Có, đặt lại", "Hủy"],
-         "multiSelect": false
-       }
-     ]
-   }
-   ```
+   (AI translates per `$LANG` — see `core/shared/ux-rules.md` Language Policy.)
 
-2. If the PO selects "Yes" / "Có, đặt lại", overwrite the integration entry:
+2. If the PO selects "Yes, reset it", overwrite the integration entry:
    ```json
    { "status": "not-configured" }
    ```
@@ -260,20 +247,7 @@ All questions to the PO during setup or integration flows MUST use this JSON str
 - `options`: Predefined choices. MUST have ≥2 options — never use empty array. Provide concrete suggestions; the built-in "Type your own answer" handles custom input.
 - `multiSelect`: `true` if the PO may choose more than one option; `false` otherwise.
 
-**Vietnamese example** (general integration selection):
-```json
-{
-  "header": "Cài đặt tích hợp Compass",
-  "questions": [
-    {
-      "id": "select_integration",
-      "question": "Bạn muốn thiết lập tích hợp nào?",
-      "options": ["Jira", "Figma", "Confluence", "Vercel", "Bỏ qua"],
-      "multiSelect": false
-    }
-  ]
-}
-```
+(AI translates per `$LANG` — see `core/shared/ux-rules.md` Language Policy.)
 
 ---
 
@@ -297,9 +271,10 @@ Never include raw tokens in the transcript.
 
 ## Final — Hand-off
 
-Print one of these closing messages (pick based on `$LANG`):
+Print:
 
-- en: `✓ Setup complete. Next: `/compass:init` to set up a project (if you haven't), or `/compass:brief` to start work.`
-- vi: `✓ Setup xong. Tiếp: `/compass:init` để set up project (nếu chưa có), hoặc `/compass:brief` để bắt đầu.`
+`✓ Setup complete. Next: `/compass:init` to set up a project (if you haven't), or `/compass:brief` to start work.`
+
+(AI translates per `$LANG` — see `core/shared/ux-rules.md` Language Policy.)
 
 Then stop. Do NOT auto-invoke the next workflow.

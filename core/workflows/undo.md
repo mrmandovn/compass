@@ -45,9 +45,10 @@ After restoring, display (in `lang`):
 
 ## Final — Hand-off
 
-Print one of these closing messages (pick based on `$LANG`):
+Print:
 
-- en: `✓ Restore done. Re-run the original command to regenerate if needed, or leave as-is.`
-- vi: `✓ Restore xong. Re-run lệnh gốc để regenerate nếu cần, hoặc để y như vậy.`
+`✓ Restore done. Re-run the original command to regenerate if needed, or leave as-is.`
+
+(AI translates per `$LANG` — see `core/shared/ux-rules.md` Language Policy.)
 
 Then stop. Do NOT auto-invoke the next workflow.

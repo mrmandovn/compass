@@ -87,19 +87,7 @@ Found existing work related to "<topic>":
 <workflow-specific context line>
 ```
 
-**Vietnamese format:**
-```
-Tìm thấy tài liệu liên quan đến "<topic>":
-
-  📄 PRD:       prd/SV-2026-04-01-auth-system.md
-  📁 Epic:      epics/SV-EPIC-02-auth/epic.md (5 stories)
-  📖 Story:     epics/SV-EPIC-02-auth/user-stories/SV-STORY-003-login-flow.md
-  💡 Idea:      research/IDEA-SV-auth-flow-2026-01-15.md
-  🔬 Research:  research/SV-RESEARCH-auth-competitors.md
-  🔧 Technical: technical/auth-architecture.md
-
-<workflow-specific context line in Vietnamese>
-```
+(AI translates per `$LANG` — see `core/shared/ux-rules.md` Language Policy.)
 
 Icon legend:
 - `📄` PRD files
@@ -130,16 +118,7 @@ After showing the context map, use AskUserQuestion with workflow-specific option
 ]}]}
 ```
 
-**Vietnamese:**
-```json
-{"questions": [{"question": "Bạn muốn tiếp tục thế nào?", "header": "Tài liệu có sẵn", "multiSelect": false, "options": [
-  {"label": "Cập nhật PRD có sẵn", "description": "Mở và chỉnh sửa <prd-file>"},
-  {"label": "Tạo phiên bản mới (v2)", "description": "Tạo v2 dựa trên <prd-file>, kết hợp research và stories mới nhất"},
-  {"label": "PRD mới — dùng tài liệu có sẵn làm context", "description": "Tạo PRD mới nhưng ĐỌC tất cả files liên quan ở trên làm input"},
-  {"label": "PRD mới — bỏ qua tài liệu cũ", "description": "Bắt đầu hoàn toàn mới, tài liệu cũ không liên quan"},
-  {"label": "Cho xem files trước", "description": "Đọc tài liệu có sẵn trước khi quyết định"}
-]}]}
-```
+(AI translates per `$LANG` — see `core/shared/ux-rules.md` Language Policy.)
 
 **Result mapping:**
 - "Update" → return: `{action: "update", file: <prd-file>}`
@@ -163,16 +142,7 @@ After showing the context map, use AskUserQuestion with workflow-specific option
 ]}]}
 ```
 
-**Vietnamese:**
-```json
-{"questions": [{"question": "Bạn muốn tiếp tục thế nào?", "header": "Tài liệu có sẵn", "multiSelect": false, "options": [
-  {"label": "Chia PRD thành stories", "description": "Dùng <prd-file> làm nguồn — tôi sẽ đề xuất breakdown đầy đủ"},
-  {"label": "Dùng PRD/research có sẵn làm context", "description": "Đọc tất cả files liên quan và viết một story mới dựa trên đó"},
-  {"label": "Cập nhật story có sẵn", "description": "Mở và chỉnh sửa <story-file> thay vì tạo mới"},
-  {"label": "Story mới — bỏ qua tài liệu cũ", "description": "Bắt đầu hoàn toàn mới, tài liệu cũ không liên quan"},
-  {"label": "Cho xem files trước", "description": "Đọc tài liệu có sẵn trước khi quyết định"}
-]}]}
-```
+(AI translates per `$LANG` — see `core/shared/ux-rules.md` Language Policy.)
 
 Replace `<prd-file>` and `<story-file>` with ACTUAL filenames found.
 
@@ -198,16 +168,7 @@ Replace `<prd-file>` and `<story-file>` with ACTUAL filenames found.
 ]}]}
 ```
 
-**Vietnamese:**
-```json
-{"questions": [{"question": "Bạn muốn tiếp tục thế nào?", "header": "Tài liệu có sẵn", "multiSelect": false, "options": [
-  {"label": "Brainstorm trong phạm vi PRD có sẵn", "description": "Đã có PRD cho chủ đề này — brainstorm giải pháp hoặc cải tiến trong phạm vi đã định nghĩa"},
-  {"label": "Brainstorm ý tưởng mới", "description": "PRD có sẵn không liên quan — bắt đầu buổi ideation mới"},
-  {"label": "Cập nhật idea có sẵn", "description": "Mở và chỉnh sửa <idea-file> thay vì tạo mới"},
-  {"label": "Tạo phiên bản mới của idea", "description": "Tạo v2 dựa trên <idea-file>"},
-  {"label": "Cho xem files trước", "description": "Đọc tài liệu có sẵn trước khi quyết định"}
-]}]}
-```
+(AI translates per `$LANG` — see `core/shared/ux-rules.md` Language Policy.)
 
 Replace `<idea-file>` with ACTUAL filename found.
 
@@ -233,16 +194,7 @@ Replace `<idea-file>` with ACTUAL filename found.
 ]}]}
 ```
 
-**Vietnamese:**
-```json
-{"questions": [{"question": "Bạn muốn tiếp tục thế nào?", "header": "Tài liệu có sẵn", "multiSelect": false, "options": [
-  {"label": "Research hỗ trợ PRD có sẵn", "description": "Đọc <prd-file> và stories — tạo research lấp đầy khoảng trống hoặc xác thực giả định trong PRD"},
-  {"label": "Research độc lập", "description": "PRD có sẵn không liên quan — tiến hành research độc lập về chủ đề mới"},
-  {"label": "Cập nhật research có sẵn", "description": "Mở và chỉnh sửa <research-file> thay vì tạo mới"},
-  {"label": "Tạo phiên bản mới của research", "description": "Tạo v2 dựa trên <research-file>"},
-  {"label": "Cho xem files trước", "description": "Đọc tài liệu có sẵn trước khi quyết định"}
-]}]}
-```
+(AI translates per `$LANG` — see `core/shared/ux-rules.md` Language Policy.)
 
 Replace `<prd-file>` and `<research-file>` with ACTUAL filenames found.
 
@@ -271,15 +223,7 @@ Also scan existing sessions:
 ]}]}
 ```
 
-**Vietnamese:**
-```json
-{"questions": [{"question": "Bạn muốn tiếp tục thế nào?", "header": "Tài liệu có sẵn", "multiSelect": false, "options": [
-  {"label": "Bắt đầu brief — tải toàn bộ làm context cho Colleagues", "description": "Đưa <prd-file>, stories, research và tài liệu kỹ thuật vào session để Colleagues kế thừa"},
-  {"label": "Tiếp tục session có sẵn", "description": "Tiếp tục brief session cũ thay vì tạo mới"},
-  {"label": "Brief mới — bỏ qua tài liệu cũ", "description": "Bắt đầu hoàn toàn mới, tài liệu cũ không liên quan"},
-  {"label": "Cho xem files trước", "description": "Đọc tài liệu có sẵn trước khi quyết định"}
-]}]}
-```
+(AI translates per `$LANG` — see `core/shared/ux-rules.md` Language Policy.)
 
 Replace `<prd-file>` with the ACTUAL PRD filename found (or the most relevant document if no PRD exists).
 

@@ -142,18 +142,18 @@ Build `PERIOD_LABEL = "<SPRINT_NAME> (<SPRINT_START> → <SPRINT_END>)"`.
 ]}]}
 ```
 
-vi: regenerate both blocks in Vietnamese when `lang=vi`.
+AI translates per `$LANG` — see ux-rules Language Policy.
 
 Use AskUserQuestion for target audience:
 
 ```json
-{"questions": [{"question": "Who is the primary audience for these release notes?\n(Tiếng Việt: Đối tượng chính của release notes này là ai?)", "header": "Target audience", "multiSelect": false, "options": [{"label": "End users (non-technical)", "description": "Plain language, benefit-focused / Ngôn ngữ đơn giản, tập trung vào lợi ích"}, {"label": "Developers / technical users", "description": "Can include API changes, config updates / Có thể bao gồm thay đổi API, cập nhật cấu hình"}, {"label": "Internal stakeholders", "description": "Business impact, metrics context / Tác động kinh doanh, bối cảnh số liệu"}, {"label": "Public changelog (all audiences)", "description": "Balanced — clear for all / Cân bằng — rõ ràng cho mọi đối tượng"}]}]}
+{"questions": [{"question": "Who is the primary audience for these release notes?", "header": "Target audience", "multiSelect": false, "options": [{"label": "End users (non-technical)", "description": "Plain language, benefit-focused"}, {"label": "Developers / technical users", "description": "Can include API changes, config updates"}, {"label": "Internal stakeholders", "description": "Business impact, metrics context"}, {"label": "Public changelog (all audiences)", "description": "Balanced — clear for all"}]}]}
 ```
 
 Use AskUserQuestion for breaking changes:
 
 ```json
-{"questions": [{"question": "Does this release include any breaking changes?\n(Tiếng Việt: Lần phát hành này có thay đổi breaking không?)", "header": "Breaking changes", "multiSelect": false, "options": [{"label": "No breaking changes", "description": "Safe to upgrade without migration / An toàn khi nâng cấp không cần migration"}, {"label": "Yes — I'll describe them", "description": "I'll tell you what changed and what action users need / Tôi sẽ mô tả thay đổi và hành động cần thiết"}, {"label": "Yes — deprecations only (not yet breaking)", "description": "Warn users now, breaking in next major / Cảnh báo người dùng, breaking ở major tiếp theo"}]}]}
+{"questions": [{"question": "Does this release include any breaking changes?", "header": "Breaking changes", "multiSelect": false, "options": [{"label": "No breaking changes", "description": "Safe to upgrade without migration"}, {"label": "Yes — I'll describe them", "description": "I'll tell you what changed and what action users need"}, {"label": "Yes — deprecations only (not yet breaking)", "description": "Warn users now, breaking in next major"}]}]}
 ```
 
 ---
@@ -231,7 +231,7 @@ po: <from config>
 Use AskUserQuestion:
 
 ```json
-{"questions": [{"question": "Release notes look good?\n(Tiếng Việt: Release notes trông ổn không?)", "header": "Review release notes", "multiSelect": false, "options": [{"label": "Save the release notes", "description": "Write the file now / Lưu ngay"}, {"label": "Edit a section", "description": "I want to change the wording of a section / Tôi muốn chỉnh sửa diễn đạt của một phần"}, {"label": "Add a missing item", "description": "There's a completed item I want to include / Có một hạng mục đã hoàn thành tôi muốn thêm vào"}]}]}
+{"questions": [{"question": "Release notes look good?", "header": "Review release notes", "multiSelect": false, "options": [{"label": "Save the release notes", "description": "Write the file now"}, {"label": "Edit a section", "description": "I want to change the wording of a section"}, {"label": "Add a missing item", "description": "There's a completed item I want to include"}]}]}
 ```
 
 Save to `release-notes/{version}-{date}.md`. Create the folder if it doesn't exist.
@@ -259,9 +259,10 @@ compass-cli index add "release-notes/{version}-{date}.md" "research" 2>/dev/null
 
 ## Final — Hand-off
 
-Print one of these closing messages (pick based on `$LANG`):
+Print:
 
-- en: `✓ Release notes ready. Review above, then publish via your release channel.`
-- vi: `✓ Release notes sẵn sàng. Review ở trên, rồi publish qua release channel của bạn.`
+`✓ Release notes ready. Review above, then publish via your release channel.`
+
+(AI translates per `$LANG` — see `core/shared/ux-rules.md` Language Policy.)
 
 Then stop. Do NOT auto-invoke the next workflow.

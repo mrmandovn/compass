@@ -62,8 +62,6 @@ Apply `core/shared/git-context.md` Parts A + B. Session slug will be derived aft
 ]}]}
 ```
 
-vi: translate.
-
 Derive title (first 60 chars), store `$BUG_DESC`.
 
 ---
@@ -72,7 +70,6 @@ Derive title (first 60 chars), store `$BUG_DESC`.
 
 Ask the dev to narrow the scope — this routes the tracing logic:
 
-en:
 ```json
 {"questions": [{"question": "Bug scope?", "header": "Scope", "multiSelect": false, "options": [
   {"label": "UI / frontend", "description": "Component render, state, user interaction, styling"},
@@ -81,8 +78,6 @@ en:
   {"label": "Unclear — I'll trace", "description": "Not sure where — scan broadly (recent commits + error keywords)"}
 ]}]}
 ```
-
-vi: translate.
 
 Store `$SCOPE` (one of ui / api / config / unclear).
 
@@ -385,7 +380,6 @@ if [ "$AFFECTED_FILES" -gt 5 ] || [ "$AFFECTED_LAYERS" -gt 1 ]; then
 fi
 ```
 
-en:
 ```json
 {"questions": [{"question": "Scope beyond typical hotfix ($AFFECTED_FILES files, $AFFECTED_LAYERS layer(s)). Proceed?", "header": "Scope check", "multiSelect": false, "options": [
   {"label": "Continue hotfix flow", "description": "Accept scope; single-wave fix. Risky above 10 files — main agent will re-verify each file."},
@@ -393,8 +387,6 @@ en:
   {"label": "Cancel", "description": "Stop, rethink scope manually"}
 ]}]}
 ```
-
-vi: translate (`Tiếp tục hotfix`, `Chuyển sang spec flow (Khuyến nghị)`, `Huỷ`).
 
 On "Switch" → print: `ℹ Scope > hotfix. Run: /compass:spec "$BUG_DESC"` and stop.
 On "Cancel" → stop.
@@ -464,8 +456,6 @@ If any block is empty → do NOT proceed. Print `✗ FIX-PLAN missing "## <headi
   {"label": "Cancel", "description": "Abort — session dir kept for debug"}
 ]}]}
 ```
-
-vi: translate (`Triển khai`, `Xem FIX-PLAN đầy đủ`, `Tôi sẽ sửa plan`, `Sai root cause — trace lại`, `Huỷ`).
 
 - **"OK, implement"** → proceed to Step 10.
 - **"Show full FIX-PLAN"** → `cat "$SESSION_DIR/FIX-PLAN.md"` verbatim into chat, then re-render Step 9b (not 9a — the 3 blocks already shown).
@@ -596,7 +586,6 @@ Branch:
 - `needs_human` → AskUserQuestion below.
 - `partial` → AskUserQuestion below.
 
-en:
 ```json
 {"questions": [{"question": "Sub-agent reported '$WORKER_STATUS'. What now?", "header": "Worker result", "multiSelect": false, "options": [
   {"label": "Retry with guidance", "description": "Type a hint in Other — I'll re-spawn the sub-agent with your guidance appended"},
@@ -604,8 +593,6 @@ en:
   {"label": "Escalate to full spec flow", "description": "This bug needs more than a hotfix — run /compass:spec"}
 ]}]}
 ```
-
-vi: translate (`Retry với gợi ý`, `Huỷ fix`, `Chuyển sang spec flow`).
 
 Retry max 2 additional times. After 3 total attempts, force `Abort`.
 
@@ -644,7 +631,6 @@ Flag potentially destructive commands — any of: `rm `, `rm -`, `> `, `>>`, `dd
 ⚠ One or more commands look destructive or network-facing. Review carefully.
 ```
 
-en:
 ```json
 {"questions": [{"question": "Run these $VERIFY_COUNT verify command(s)?", "header": "Verify", "multiSelect": false, "options": [
   {"label": "Run all (Recommended)", "description": "Execute each command in $PROJECT_ROOT with 300s timeout"},
@@ -653,8 +639,6 @@ en:
   {"label": "Edit verify commands", "description": "Pause — edit '## Verify' in FIX-PLAN.md, then reply 'done'"}
 ]}]}
 ```
-
-vi: translate (`Chạy hết (Khuyến nghị)`, `Chạy từng lệnh`, `Bỏ qua verify`, `Sửa verify commands`).
 
 #### 10f-run — execute based on choice
 
@@ -730,7 +714,6 @@ fi
 
 If `VERIFY_FAILED=-1` (user chose "Skip verify" at Step 10f), ask explicit confirmation before committing an unverified fix:
 
-en:
 ```json
 {"questions": [{"question": "⚠ Fix was NOT verified. Commit anyway?", "header": "Unverified commit", "multiSelect": false, "options": [
   {"label": "Commit anyway", "description": "I accept the risk — no tests were run to confirm the fix works"},
@@ -739,23 +722,18 @@ en:
 ]}]}
 ```
 
-vi: translate (`Commit luôn`, `Chạy verify ngay`, `Huỷ commit`).
-
 - "Commit anyway" → proceed to 11b (tests chain still available).
 - "Run verify now" → jump back to Step 10f preview.
 - "Cancel commit" → stop.
 
 ### 11b. Chain to compass:test (optional)
 
-en:
 ```json
 {"questions": [{"question": "Run tests before committing?", "header": "Test", "multiSelect": false, "options": [
   {"label": "Run compass:test (Recommended)", "description": "Verify fix didn't break anything else"},
   {"label": "Skip tests", "description": "Commit without testing"}
 ]}]}
 ```
-
-vi: translate (`Chạy compass:test (Khuyến nghị)` / `Bỏ qua tests`).
 
 If "Run compass:test" → invoke `/compass:test` workflow inline (read and execute `~/.compass/core/workflows/test.md`). Wait for results. If test.md reports failures → re-gate 11a semantics (do not auto-commit).
 
@@ -832,7 +810,6 @@ echo ""
 
 Render the AskUserQuestion AFTER the preview is printed.
 
-en:
 ```json
 {"questions": [{"question": "Commit this fix?", "header": "Commit", "multiSelect": false, "options": [
   {"label": "Commit (Recommended)", "description": "Use the generated message shown above"},
@@ -842,8 +819,6 @@ en:
   {"label": "Cancel (keep staged)", "description": "Stop — changes stay staged, no commit"}
 ]}]}
 ```
-
-vi: translate (`Commit (Khuyến nghị)`, `Xem diff đầy đủ`, `Sửa commit message`, `Unstage + huỷ`, `Huỷ (giữ staged)`).
 
 - **"Commit"** → `compass-cli git commit "$MSG" || git -C "$PROJECT_ROOT" commit -m "$MSG"`.
 - **"Show full diff"** → `git -C "$PROJECT_ROOT" diff --cached` (verbatim), then re-render the AskUserQuestion (not the preview).
@@ -864,9 +839,8 @@ compass-cli state update "$SESSION_DIR" "$(jq -n \
 
 ## Step 12 — Hand-off
 
-Print (adapted to `$LANG`):
+Print (AI translates per `$LANG` — see ux-rules Language Policy):
 
-- en:
 ```
 ✓ Fix applied.
   Session:  <slug>
@@ -878,8 +852,6 @@ Print (adapted to `$LANG`):
     git push -u origin fix/<slug>
     gh pr create --title "fix: <summary>"
 ```
-
-- vi: same content, translated.
 
 Stop. Do NOT auto-push.
 

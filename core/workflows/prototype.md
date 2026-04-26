@@ -113,23 +113,13 @@ Collect into `$PROTOTYPE_BRIEF`: title + body/scope text. If the PO picked "A sp
 
 ## Step 3 — Scope
 
-Use AskUserQuestion:
+Use AskUserQuestion (AI translates per `$LANG` — see ux-rules Language Policy):
 
-en:
 ```json
 {"questions": [{"question": "What scope for this prototype?", "header": "Scope", "multiSelect": false, "options": [
   {"label": "Single screen", "description": "One page — fast, good for validating layout"},
   {"label": "Multi-screen flow", "description": "3-5 connected screens with navigation — good for user flow validation"},
   {"label": "Full clickable demo", "description": "Complete flow with interactions — good for stakeholder presentations"}
-]}]}
-```
-
-vi:
-```json
-{"questions": [{"question": "Phạm vi prototype?", "header": "Phạm vi", "multiSelect": false, "options": [
-  {"label": "Một màn hình", "description": "1 trang — nhanh, tốt để validate layout"},
-  {"label": "Luồng nhiều màn hình", "description": "3-5 màn hình liên kết — tốt để validate user flow"},
-  {"label": "Demo clickable đầy đủ", "description": "Luồng hoàn chỉnh có tương tác — tốt cho trình bày stakeholder"}
 ]}]}
 ```
 
@@ -224,15 +214,14 @@ Print a summary so the PO sees exactly what will feed the generator:
   Product types:    <match1, match2>
 ```
 
-Translate labels to `lang`.
+Labels rendered in `$LANG` (AI translates — see ux-rules Language Policy).
 
 ---
 
 ## Step 5 — Stack selection (NEW)
 
-Ask the PO to pick the stack — each option lists the trade-offs explicitly so this is an informed choice, not a guess.
+Ask the PO to pick the stack — each option lists the trade-offs explicitly so this is an informed choice, not a guess. AI translates labels per `$LANG` — see ux-rules Language Policy.
 
-en:
 ```json
 {"questions": [{"question": "Which stack for this prototype?", "header": "Stack", "multiSelect": false, "options": [
   {"label": "HTML + Tailwind + Alpine.js", "description": "Complexity: ⭐ zero build · Polish: ⭐⭐⭐⭐ · Preview: open index.html or Vercel static · Best for: landing pages, marketing, simple SaaS mockups, quick demos"},
@@ -241,8 +230,6 @@ en:
   {"label": "Mobile (SwiftUI or React Native)", "description": "Complexity: ⭐⭐⭐ Xcode or Expo · Polish: ⭐⭐⭐⭐ · Preview: Xcode Simulator or Expo Go · Best for: native iOS/Android app concept with real touch interactions"}
 ]}]}
 ```
-
-vi: same structure, translate labels (`Phức tạp`, `Polish`, `Preview`, `Tốt cho`).
 
 Map the pick to `$STACK` (skill-compatible value):
 - HTML + Tailwind + Alpine.js → `html-tailwind`
@@ -467,9 +454,8 @@ compass-cli index add "$PROTO_DIR" "prototype" 2>/dev/null || true
 
 ## Step 10 — Review gate (NEW)
 
-Single AskUserQuestion so the PO can iterate without re-running the whole workflow.
+Single AskUserQuestion so the PO can iterate without re-running the whole workflow. AI translates labels per `$LANG` — see ux-rules Language Policy.
 
-en:
 ```json
 {"questions": [{"question": "Prototype looks right? Pick the next action.", "header": "Review", "multiSelect": false, "options": [
   {"label": "OK, share", "description": "Proceed to Vercel deploy question (Step 11)"},
@@ -478,8 +464,6 @@ en:
   {"label": "Cancel", "description": "Abort — keep files on disk for debug, print the path"}
 ]}]}
 ```
-
-vi: translate labels (`OK, chia sẻ`, `Refine tokens`, `Thêm màn hình`, `Cancel`).
 
 Branch:
 
@@ -548,9 +532,8 @@ Print the preview URL.
 
 ## Final — Hand-off
 
-Print one closing message (pick based on `$LANG`):
+Print one closing message (AI translates per `$LANG` — see ux-rules Language Policy):
 
-- en: `✓ Prototype done at $PROTO_DIR. Design system locked at design-system/MASTER.md. Next: share with stakeholders, or iterate via /compass:prototype to add screens.`
-- vi: `✓ Prototype xong tại $PROTO_DIR. Design system khoá tại design-system/MASTER.md. Tiếp: chia sẻ stakeholder, hoặc iterate thêm qua /compass:prototype.`
+> `✓ Prototype done at $PROTO_DIR. Design system locked at design-system/MASTER.md. Next: share with stakeholders, or iterate via /compass:prototype to add screens.`
 
 Then stop. Do NOT auto-invoke the next workflow.

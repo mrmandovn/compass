@@ -35,13 +35,13 @@ UNTRACKED=$(git ls-files --others --exclude-standard)
 ## Step 2 — Smart staging
 
 - **If `$STAGED` is non-empty** → files are already staged, skip to Step 3.
-- **If `$STAGED` is empty but `$CHANGED` or `$UNTRACKED` is non-empty** → AskUserQuestion:
-  - vi: `"Chưa có file nào được stage. Bạn muốn làm gì?"` / en: `"No files staged yet. What would you like to do?"`
+- **If `$STAGED` is empty but `$CHANGED` or `$UNTRACKED` is non-empty** → AskUserQuestion (AI translates per `$LANG` — see ux-rules Language Policy):
+  - Question: `"No files staged yet. What would you like to do?"`
   - Options:
-    - **"Stage all changed files"** (vi: `"Stage tất cả"`) → run `git add -A`
-    - **"Pick files to stage"** (vi: `"Chọn file để stage"`) → show combined list of `$CHANGED` + `$UNTRACKED` as a multiSelect AskUserQuestion. Stage only selected files via `git add <file>...`
-    - **"Cancel"** (vi: `"Hủy"`) → stop workflow, print cancellation message.
-- **If all three are empty** → print (vi: `"Không có gì để commit."` / en: `"Nothing to commit."`) and stop.
+    - **"Stage all changed files"** → run `git add -A`
+    - **"Pick files to stage"** → show combined list of `$CHANGED` + `$UNTRACKED` as a multiSelect AskUserQuestion. Stage only selected files via `git add <file>...`
+    - **"Cancel"** → stop workflow, print cancellation message.
+- **If all three are empty** → print `"Nothing to commit."` and stop.
 
 ---
 
@@ -80,12 +80,12 @@ Build a message in the format `<type>(<scope>): <description>`:
 
 ## Step 5 — Confirm and commit
 
-Show the generated message and AskUserQuestion:
-- vi: `"Message: <message>. Bạn muốn làm gì?"` / en: `"Message: <message>. What would you like to do?"`
+Show the generated message and AskUserQuestion (AI translates per `$LANG` — see ux-rules Language Policy):
+- Question: `"Message: <message>. What would you like to do?"`
 - Options:
   - **"Commit"** → run `git commit -m "<message>"`
-  - **"Edit message"** (vi: `"Sửa message"`) → AskUserQuestion with a free-text input asking for the custom message, then `git commit -m "<custom_message>"`
-  - **"Cancel"** (vi: `"Hủy"`) → run `git reset HEAD` to unstage, print cancellation message, stop.
+  - **"Edit message"** → AskUserQuestion with a free-text input asking for the custom message, then `git commit -m "<custom_message>"`
+  - **"Cancel"** → run `git reset HEAD` to unstage, print cancellation message, stop.
 
 ---
 
@@ -96,5 +96,4 @@ After a successful commit, print:
 - The number of files committed
 - The commit message used
 
-vi: `"Đã commit <SHA> — <N> file(s): <message>"`
-en: `"Committed <SHA> — <N> file(s): <message>"`
+Print: `"Committed <SHA> — <N> file(s): <message>"` (AI translates per `$LANG` — see ux-rules Language Policy).
