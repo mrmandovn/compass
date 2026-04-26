@@ -25,42 +25,6 @@ Apply the shared snippet from `core/shared/resolve-project.md`. It sets up `$PRO
 
 From `$CONFIG`, extract: `lang`, `spec_lang`, `mode`, `prefix`, `output_paths`, `naming`, `research_mode`, `research_scope`. If missing → tell user to run `/compass:init` first.
 
-## Step 0a: Detect active pipeline session
-
-Before scanning for project context, check whether a pipeline session is active:
-
-```bash
-PIPELINE=$(find "$PROJECT_ROOT/.compass/.state/sessions/" -name "pipeline.json" -exec grep -l '"status": "active"' {} \; 2>/dev/null | sort | tail -1)
-```
-
-**If an active pipeline is found:**
-
-1. Read `pipeline.json` — extract the session `id` (slug) and `title` from the sibling `context.json`.
-2. Show (in `lang`):
-   - en: `"Active pipeline detected: <title>. Research output can be saved into this session."`
-   - vi: `"Phát hiện pipeline đang hoạt động: <title>. Kết quả nghiên cứu có thể được lưu vào phiên này."`
-3. Use AskUserQuestion to confirm:
-   ```json
-   {"questions": [{"question": "Save research in the active pipeline session?", "header": "Pipeline session", "multiSelect": false, "options": [{"label": "Yes — part of pipeline", "description": "Save research in the session AND in the normal research/ folder"}, {"label": "No — standalone", "description": "Save only in the normal research/ folder, ignore the pipeline"}]}]}
-   ```
-   Vietnamese version (use when `lang=vi`):
-   ```json
-   {"questions": [{"question": "Lưu nghiên cứu vào pipeline session đang hoạt động?", "header": "Pipeline session", "multiSelect": false, "options": [{"label": "Có — thuộc pipeline", "description": "Lưu nghiên cứu vào session VÀ vào thư mục research/ bình thường"}, {"label": "Không — standalone", "description": "Chỉ lưu vào thư mục research/ bình thường, bỏ qua pipeline"}]}]}
-   ```
-4. If **Yes**:
-   - Set `pipeline_mode = true` and `pipeline_slug = <id>`.
-   - After Step 8 writes the research file, also copy it to `$PROJECT_ROOT/.compass/.state/sessions/<slug>/research-<slug>.md`.
-   - Append the research file path to the `artifacts` array in `pipeline.json`:
-     ```json
-     { "type": "research", "path": "<output-file-path>", "session_path": "$PROJECT_ROOT/.compass/.state/sessions/<slug>/research-<slug>.md", "created_at": "<ISO>" }
-     ```
-5. If **No** → set `pipeline_mode = false`. Proceed as standalone (current behavior).
-
-**If no active pipeline found:** set `pipeline_mode = false`. Continue with current standalone behavior — no change.
-
----
-
-
 ## Step 0a — Pipeline + Project choice gate
 
 This workflow produces an artifact in the project, so apply Step 0d from `core/shared/resolve-project.md` after Step 0. The shared gate:
@@ -130,7 +94,7 @@ Use AskUserQuestion with suggestions derived from project context:
 ]}]}
 ```
 
-Generate options in `lang`. Derive from: recent PRDs, domain.yaml keywords, existing research gaps.
+Generate options in `$LANG`. Derive from: recent PRDs, domain.yaml keywords, existing research gaps.
 
 **After inferring or confirming:**
 - Show a 1-line confirmation of what you understood: type + scope + topic
@@ -143,9 +107,7 @@ Read `research_mode` from `$CONFIG` (or re-read `$PROJECT_ROOT/.compass/.state/c
 
 **If `research_mode` is missing**, ask once then save:
 
-Use AskUserQuestion (pick version matching `lang`):
-- en: "How should research run?" → Auto (fastest) / Confirm (pause for review)
-- vi: "Chế độ nghiên cứu?" → Tự động (nhanh nhất) / Xác nhận (dừng để review)
+Use AskUserQuestion: "How should research run?" → Auto (fastest) / Confirm (pause for review)
 
 Write to config. Never ask again — use saved value silently.
 
@@ -201,7 +163,7 @@ Use AskUserQuestion with 3–4 project-specific options derived above PLUS a fre
 
 Options labels must be RESOLVED — no placeholders. Descriptions explain why this angle is relevant given `RESEARCH_TYPE` + project state.
 
-Generate options in `lang`. If `lang=vi`, Vietnamese labels/descriptions with full diacritics.
+Generate options in `$LANG`.
 
 ---
 
@@ -288,15 +250,6 @@ What would you like to do?
   {"label": "OK — synthesize report", "description": "Generate the full structured report now"},
   {"label": "Research more on a subtopic", "description": "Dig deeper into a specific area first"},
   {"label": "Add external sources", "description": "Provide additional URLs or references to include"}
-]}]}
-```
-
-Vietnamese:
-```json
-{"questions": [{"question": "Sẵn sàng tổng hợp báo cáo chưa?", "header": "Xem lại", "multiSelect": false, "options": [
-  {"label": "OK — tổng hợp báo cáo", "description": "Tạo báo cáo đầy đủ ngay bây giờ"},
-  {"label": "Nghiên cứu thêm về một chủ đề con", "description": "Tìm hiểu sâu hơn trước"},
-  {"label": "Thêm nguồn bên ngoài", "description": "Cung cấp URL hoặc tài liệu tham khảo bổ sung"}
 ]}]}
 ```
 
@@ -662,9 +615,8 @@ This keeps the index fresh for the next workflow — instant, no full rebuild ne
 
 ## Final — Hand-off
 
-Print one of these closing messages (pick based on `$LANG`):
+Print this closing message:
 
-- en: `✓ Research saved. Next: `/compass:prd` to write a PRD with this research, or `/compass:ideate` to brainstorm features.`
-- vi: `✓ Research đã lưu. Tiếp: `/compass:prd` để viết PRD với research này, hoặc `/compass:ideate` để brainstorm features.`
+`✓ Research saved. Next: `/compass:prd` to write a PRD with this research, or `/compass:ideate` to brainstorm features.`
 
 Then stop. Do NOT auto-invoke the next workflow.

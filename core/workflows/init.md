@@ -55,20 +55,28 @@ Runs when `STATE=fresh` AND `$ARGUMENTS` contains "dev" (case-insensitive). Ligh
 
 ### Step 1-DEV.0 — Language setup
 
+**Skip-fast-path:** If `~/.compass/global-config.json` exists AND `lang` is already set, skip this step entirely and jump to Step 1-DEV.a. Dev re-init must stay frictionless when the PO already configured language globally.
+
 If `~/.compass/global-config.json` is missing OR `lang` is not set, ask language only (do NOT run Step 1A — it includes PM-specific questions like review_style that dev doesn't need; `/compass:spec` handles review_style lazily on first run):
 
 ```json
 {"questions": [
-  {"question": "Which language combination?", "header": "Language", "multiSelect": false, "options": [
-    {"label": "Both Vietnamese", "description": "Chat + documents in Vietnamese"},
-    {"label": "Both English", "description": "Chat + documents in English"},
-    {"label": "Chat VN + Docs EN", "description": "Conversations in Vietnamese, artifacts in English"},
-    {"label": "Chat EN + Docs VN", "description": "Conversations in English, artifacts in Vietnamese"}
+  {"question": "Which language for Compass?", "header": "Language", "multiSelect": false, "options": [
+    {"label": "English (Recommended)", "description": "Default — best-tested path; sets lang=en"},
+    {"label": "Type your own language", "description": "e.g. Vietnamese, French, Japanese, or a BCP-47 code like vi / fr / ja"}
   ]}
 ]}
 ```
 
-Map and save to global config (same mapping as Step 1A.1b). If global config already has `lang` set, skip to Step 1-DEV.a.
+**AI validates the language answer** before persisting. Accept either a recognised language name (e.g. "English", "Vietnamese", "French") or a BCP-47 code (e.g. "en", "vi", "fr"). Normalise to the BCP-47 code (lowercase). On empty/unrecognised input, fall back to `lang=en` silently — do NOT block the user with a re-prompt.
+
+Persist via:
+
+```bash
+compass-cli project global-config set --key lang --value "<bcp-47 code, default en>"
+```
+
+Then continue to Step 1-DEV.a.
 
 ### Step 1-DEV.a — Project name
 
@@ -84,22 +92,11 @@ echo "DEV_DETECT: NAME=$DETECTED_NAME"
 
 Send 1 AskUserQuestion (in `$LANG`):
 
-en:
 ```json
 {"questions": [
   {"question": "Project name?", "header": "Project", "multiSelect": false, "options": [
     {"label": "<DETECTED_NAME>", "description": "From folder name"},
     {"label": "<title-cased DETECTED_NAME>", "description": "Title-cased variant"}
-  ]}
-]}
-```
-
-vi:
-```json
-{"questions": [
-  {"question": "Tên project?", "header": "Project", "multiSelect": false, "options": [
-    {"label": "<DETECTED_NAME>", "description": "Từ tên thư mục"},
-    {"label": "<title-cased DETECTED_NAME>", "description": "Biến thể title-case"}
   ]}
 ]}
 ```
@@ -161,17 +158,9 @@ Branch on detection result:
 
 - **No stacks detected** → AskUserQuestion:
 
-en:
 ```json
 {"questions": [{"question": "No stack detected. What's your tech stack?", "header": "Tech Stack", "multiSelect": false, "options": [
   {"label": "Type your own answer", "description": "e.g. typescript, python, rust"}
-]}]}
-```
-
-vi:
-```json
-{"questions": [{"question": "Không phát hiện stack. Tech stack của bạn?", "header": "Tech Stack", "multiSelect": false, "options": [
-  {"label": "Type your own answer", "description": "vd: typescript, python, rust"}
 ]}]}
 ```
 
@@ -232,7 +221,6 @@ If either CLI call fails, surface the error to the user — never silently swall
 
 Print (in `$LANG`):
 
-en:
 ```
 ✅ Dev project ready!
    Project:  <name> (<TARGET>)
@@ -240,16 +228,6 @@ en:
    GitNexus: synced / skipped
 
    Next: /compass:help dev
-```
-
-vi:
-```
-✅ Dev project sẵn sàng!
-   Project:  <name> (<TARGET>)
-   Stack:    [<tech_stack list>]
-   GitNexus: đã sync / bỏ qua
-
-   Tiếp theo: /compass:help dev
 ```
 
 Stop. Do NOT auto-invoke any other workflow.
@@ -293,37 +271,22 @@ CURRENT_SPEC_LANG=$(echo "$CONFIG" | jq -r '.spec_lang // "en"')
 
 AskUserQuestion (in `$LANG`):
 
-en:
 ```json
 {"questions": [{"question": "Change language settings?", "header": "Language", "multiSelect": false, "options": [
-  {"label": "Keep current (lang=<CURRENT_LANG>, spec_lang=<CURRENT_SPEC_LANG>)", "description": "No change"},
-  {"label": "Both Vietnamese", "description": "Chat + docs in Vietnamese"},
-  {"label": "Both English", "description": "Chat + docs in English"},
-  {"label": "Chat VN + Docs EN", "description": "Conversations in Vietnamese, artifacts in English"},
-  {"label": "Chat EN + Docs VN", "description": "Conversations in English, artifacts in Vietnamese"}
+  {"label": "Keep current (lang=<CURRENT_LANG>)", "description": "No change"},
+  {"label": "English (Recommended)", "description": "Switch to lang=en"},
+  {"label": "Type your own language", "description": "e.g. Vietnamese, French, Japanese, or a BCP-47 code like vi / fr / ja"}
 ]}]}
 ```
 
-vi:
-```json
-{"questions": [{"question": "Đổi cài đặt ngôn ngữ?", "header": "Ngôn ngữ", "multiSelect": false, "options": [
-  {"label": "Giữ nguyên (lang=<CURRENT_LANG>, spec_lang=<CURRENT_SPEC_LANG>)", "description": "Không đổi"},
-  {"label": "Cả hai Tiếng Việt", "description": "Chat + docs Tiếng Việt"},
-  {"label": "Cả hai English", "description": "Chat + docs English"},
-  {"label": "Chat VN + Docs EN", "description": "Conversations Tiếng Việt, artifacts English"},
-  {"label": "Chat EN + Docs VN", "description": "Conversations English, artifacts Tiếng Việt"}
-]}]}
-```
-
-Map answer → `lang` + `spec_lang` (same mapping as Step 1A.1b). Persist via `jq` if changed:
+**AI validates the free-text answer** — accept a recognised language name or BCP-47 code, normalise to the lowercase BCP-47 code. Empty/unrecognised input → fall back silently to `lang=en`. Persist via `jq` if changed:
 
 ```bash
 TMP=$(mktemp)
-echo "$CONFIG" | jq --arg lang "<new_lang>" --arg spec "<new_spec_lang>" '.lang = $lang | .spec_lang = $spec' > "$TMP" && mv "$TMP" "$CONFIG_PATH"
+echo "$CONFIG" | jq --arg lang "<new_lang>" '.lang = $lang' > "$TMP" && mv "$TMP" "$CONFIG_PATH"
 # Also update global-config so next init uses new default
 compass-cli project global-config set --key lang --value "<new_lang>"
-compass-cli project global-config set --key spec_lang --value "<new_spec_lang>"
-echo "LANG_UPDATED=$new_lang $new_spec_lang"
+echo "LANG_UPDATED=$new_lang"
 ```
 
 If "Keep current" → skip write, continue to 2-DEV.c.
@@ -355,7 +318,6 @@ If `GITNEXUS_MISSING` → offer sync using the same AskUserQuestion as Step 1-DE
 
 Print (in `$LANG`):
 
-en:
 ```
 ✓ Config updated for dev persona.
    Project:  <name> (<path>)
@@ -364,17 +326,6 @@ en:
    GitNexus: synced / skipped / already available
 
    Next: /compass:help dev
-```
-
-vi:
-```
-✓ Đã cập nhật cấu hình cho dev persona.
-   Project:  <name> (<path>)
-   Persona:  dev
-   Stack:    [<tech_stack list>]
-   GitNexus: đã sync / bỏ qua / đã có sẵn
-
-   Tiếp theo: /compass:help dev
 ```
 
 Stop. Do NOT auto-invoke any other workflow.
@@ -397,15 +348,13 @@ The aim: capture the PO's defaults once so subsequent project creates pre-fill c
 
 Compass is a Product Management toolkit — no code is produced here, so we don't ask about tech stacks. Domain is a per-project concept (Silver Tiger enum: `ard`/`platform`/`access`/`communication`/`internal`/`ai`) and is asked in Step 1g when the project is being created, not globally.
 
-Use a single `AskUserQuestion` call with exactly 2 questions:
+Use a single `AskUserQuestion` call with exactly 2 questions. The language question offers `English (Recommended)` plus the implicit free-text "Other" affordance — the user may type any language name (e.g. "Vietnamese", "French") or BCP-47 code (e.g. "en", "vi", "fr"):
 
 ```json
 {"questions": [
-  {"question": "Which language combination?", "header": "Language", "multiSelect": false, "options": [
-    {"label": "Both Vietnamese", "description": "Chat + documents in Vietnamese"},
-    {"label": "Both English", "description": "Chat + documents in English"},
-    {"label": "Chat VN + Docs EN", "description": "Conversations in Vietnamese, artifacts in English"},
-    {"label": "Chat EN + Docs VN", "description": "Conversations in English, artifacts in Vietnamese"}
+  {"question": "Which language for Compass?", "header": "Language", "multiSelect": false, "options": [
+    {"label": "English (Recommended)", "description": "Default — best-tested path; sets lang=en"},
+    {"label": "Type your own language", "description": "e.g. Vietnamese, French, Japanese, or a BCP-47 code like vi / fr / ja"}
   ]},
   {"question": "Default review style for documents?", "header": "Review style", "multiSelect": false, "options": [
     {"label": "Whole document", "description": "Review the full doc end-to-end in one pass"},
@@ -414,24 +363,26 @@ Use a single `AskUserQuestion` call with exactly 2 questions:
 ]}
 ```
 
+**AI validates the language answer** before persisting. Accept either a recognised language name (e.g. "English", "Vietnamese", "French", "Japanese") or a BCP-47 code (e.g. "en", "vi", "fr", "ja"). Normalise to the BCP-47 code (lowercase). If the input is empty, unrecognised, or not a valid language token, fall back to `lang=en` silently — do NOT block the user with a re-prompt.
+
 ### 1b. Map answers and persist via the CLI
 
-Map display labels → schema values before writing (schema values are lowercase identifiers, see `core/shared/SCHEMAS-v1.md`):
+Map display labels → schema values before writing (schema values are lowercase BCP-47 codes, see `core/shared/SCHEMAS-v1.md`):
 
 | Label (display) | Mapped fields |
 |-----------------|---------------|
-| "Both Vietnamese" | `lang=vi`, `spec_lang=vi` |
-| "Both English" | `lang=en`, `spec_lang=en` |
-| "Chat VN + Docs EN" | `lang=vi`, `spec_lang=en` |
-| "Chat EN + Docs VN" | `lang=en`, `spec_lang=vi` |
+| "English (Recommended)" | `lang=en` |
+| Free text — valid language name or BCP-47 code | `lang=<normalised BCP-47 code>` (e.g. "Vietnamese" → `vi`, "fr" → `fr`) |
+| Free text — invalid / empty | `lang=en` (silent fallback) |
 | "Whole document" | `review_style=whole_document` |
 | "Section by section" | `review_style=section_by_section` |
 
-Persist 3 keys (no longer writes `default_tech_stack` or `default_domain`):
+`spec_lang` is no longer asked separately — it inherits from `lang` by default. Downstream workflows treat `spec_lang` as "same as lang" unless the PO explicitly overrides it via `/compass:init` Step 2.
+
+Persist 2 keys (no longer writes `spec_lang`, `default_tech_stack`, or `default_domain`):
 
 ```bash
-compass-cli project global-config set --key lang --value "<vi|en>"
-compass-cli project global-config set --key spec_lang --value "<vi|en>"
+compass-cli project global-config set --key lang --value "<bcp-47 code, default en>"
 compass-cli project global-config set --key review_style --value "<whole_document|section_by_section>"
 ```
 
@@ -441,28 +392,17 @@ Existing configs from older Compass versions that carry `default_tech_stack` or 
 
 ### 1c. Echo summary (in the just-saved `lang`)
 
-en:
 ```
 ✓ Global preferences saved to ~/.compass/global-config.json
-   Chat language:   <lang>
-   Docs language:   <spec_lang>
+   Language:        <lang>
    Review style:    <review_style>
-```
-
-vi:
-```
-✓ Đã lưu cấu hình toàn cục vào ~/.compass/global-config.json
-   Ngôn ngữ chat:   <lang>
-   Ngôn ngữ docs:   <spec_lang>
-   Kiểu review:     <review_style>
 ```
 
 ### 1d. Fall through to project create
 
 cwd has no project yet — the natural next step is to create one. Print:
 
-- en: `→ Now let's set up a project at $(pwd)...`
-- vi: `→ Tiếp theo, tạo project tại $(pwd)...`
+`→ Now let's set up a project at $(pwd)...`
 
 Continue to Step 1e.
 
@@ -586,7 +526,6 @@ Decide whether to ask the domain question:
 
 Send 3 or 4 questions in one AskUserQuestion call. Example with all 4 (domain included):
 
-en:
 ```json
 {"questions": [
   {"question": "Project name?", "header": "Project", "multiSelect": false, "options": [
@@ -608,32 +547,6 @@ en:
     {"label": "communication", "description": "Messaging and communication"},
     {"label": "internal", "description": "Internal tooling and shared infra"},
     {"label": "ai", "description": "AI-powered features and automation"}
-  ]}
-]}
-```
-
-vi (same shape, translated):
-```json
-{"questions": [
-  {"question": "Tên project?", "header": "Project", "multiSelect": false, "options": [
-    {"label": "<DETECTED_NAME>", "description": "Từ tên thư mục"},
-    {"label": "<title-cased DETECTED_NAME>", "description": "Biến thể title-case"}
-  ]},
-  {"question": "PO phụ trách?", "header": "PO", "multiSelect": false, "options": [
-    {"label": "@<DETECTED_USER>", "description": "Từ git config / $USER"},
-    {"label": "@me", "description": "Tự assign tạm, đổi sau"}
-  ]},
-  {"question": "Prefix ticket? (2–5 chữ cái viết hoa)", "header": "Prefix", "multiSelect": false, "options": [
-    {"label": "<DETECTED_PREFIX>", "description": "Suy ra từ tên project"},
-    {"label": "<DETECTED_PREFIX[0:3]>", "description": "Biến thể ngắn hơn"}
-  ]},
-  {"question": "Domain sản phẩm?", "header": "Domain", "multiSelect": false, "options": [
-    {"label": "ard", "description": "Anti-Raid Defense — sản phẩm security / mã hoá"},
-    {"label": "platform", "description": "Platform services — identity, workspace, credentials"},
-    {"label": "access", "description": "Access control + threat detection"},
-    {"label": "communication", "description": "Messaging và truyền thông"},
-    {"label": "internal", "description": "Công cụ nội bộ và hạ tầng chung"},
-    {"label": "ai", "description": "AI-powered features và automation"}
   ]}
 ]}
 ```
@@ -677,19 +590,10 @@ fi
 - `SHARED_EXISTS_NO_GIT=...` → print `⚠ $SHARED_DIR exists but not a git repo. Manual review recommended — downstream workflows may miss updates.` Continue to Step 1i.
 - `SHARED_MISSING=...` → AskUserQuestion (in `$LANG`):
 
-en:
 ```json
 {"questions": [{"question": "Silver Tiger shared/ not found at $SHARED_DIR. Clone it now?", "header": "Shared", "multiSelect": false, "options": [
   {"label": "Yes — clone from GitLab", "description": "git clone https://gitlab.silvertiger.tech/product-owner/shared"},
   {"label": "Skip — configure manually later", "description": "Proceed without shared/ — domain rules and capability-registry will be unavailable until you clone it"}
-]}]}
-```
-
-vi:
-```json
-{"questions": [{"question": "Chưa có Silver Tiger shared/ tại $SHARED_DIR. Clone ngay?", "header": "Shared", "multiSelect": false, "options": [
-  {"label": "Có — clone từ GitLab", "description": "git clone https://gitlab.silvertiger.tech/product-owner/shared"},
-  {"label": "Bỏ qua — config thủ công sau", "description": "Tiếp tục không có shared/ — domain rules và capability-registry sẽ unavailable tới khi clone"}
 ]}]}
 ```
 
@@ -851,7 +755,6 @@ If either CLI call fails, surface the error to the user — never silently swall
 
 ### 1n. Success summary
 
-en:
 ```
 ✓ Compass project ready.
    Name:    <project-name>
@@ -862,24 +765,12 @@ en:
    Active:  yes (set as last_active)
 ```
 
-vi:
-```
-✓ Project Compass đã sẵn sàng.
-   Tên:     <project-name>
-   Đường dẫn: <TARGET>
-   PO:      <po>
-   Prefix:  <PREFIX>
-   Domain:  <domain hoặc "(không có)">
-   Active:  có (đặt làm last_active)
-```
-
 Continue to Step 1o.
 
 ### 1o. Integrations wizard (optional)
 
 Ask the PO whether to connect integrations now. Adapt wording to `$LANG`:
 
-en:
 ```json
 {"questions": [{"question": "Connect integrations now?", "header": "Integrations", "multiSelect": false, "options": [
   {"label": "Skip for now", "description": "Configure later via /compass:setup <name>"},
@@ -888,20 +779,11 @@ en:
 ]}]}
 ```
 
-vi:
-```json
-{"questions": [{"question": "Kết nối integrations ngay?", "header": "Integrations", "multiSelect": false, "options": [
-  {"label": "Bỏ qua", "description": "Config sau qua /compass:setup <name>"},
-  {"label": "Chọn một vài", "description": "Chọn integrations muốn config ngay"},
-  {"label": "Config tất cả", "description": "Đi qua Jira, Figma, Confluence, Vercel theo thứ tự"}
-]}]}
-```
-
 **Branch:**
 
-- **"Skip for now" / "Bỏ qua"** → proceed to Final hand-off.
+- **"Skip for now"** → proceed to Final hand-off.
 
-- **"Pick some" / "Chọn một vài"** → secondary AskUserQuestion (multiSelect):
+- **"Pick some"** → secondary AskUserQuestion (multiSelect):
 
   en:
   ```json
@@ -948,22 +830,12 @@ echo "INTEGRATIONS_DONE=$(echo $PICKED | tr ' ' ',')"
 
 **Important:** One integration failing MUST NOT abort the wizard. Print a concise `⚠` warning and continue with the next. After the loop, print a summary:
 
-en:
 ```
 ✓ Integrations step complete.
    Configured: <comma-list>
    Skipped:    <comma-list of any that failed>
 
    Re-run /compass:setup <name> any time to add or reconfigure.
-```
-
-vi:
-```
-✓ Bước integrations xong.
-   Đã config:  <list>
-   Bỏ qua:     <list nếu có thất bại>
-
-   Chạy /compass:setup <name> bất cứ lúc nào để thêm hoặc đổi config.
 ```
 
 Continue to the Final hand-off block.
@@ -986,7 +858,6 @@ All Step 2 user-facing chat uses this `$LANG`.
 
 Use AskUserQuestion (multi-select). Build options dynamically from the keys actually present in the config — typical set: `lang`, `spec_lang`, `prefix` (under `project.prefix`), `domain` (under `project.domain`), `po` (under `project.po`). Always add a `Cancel — no changes` escape hatch.
 
-en:
 ```json
 {"questions": [{"question": "Which fields would you like to update?", "header": "Update", "multiSelect": true, "options": [
   {"label": "lang", "description": "UI/chat language (current: <lang>)"},
@@ -995,18 +866,6 @@ en:
   {"label": "domain", "description": "Product domain (current: <domain>)"},
   {"label": "po", "description": "Product Owner handle (current: <po>)"},
   {"label": "Cancel — no changes", "description": "Exit without modifying anything"}
-]}]}
-```
-
-vi:
-```json
-{"questions": [{"question": "Bạn muốn cập nhật trường nào?", "header": "Update", "multiSelect": true, "options": [
-  {"label": "lang", "description": "Ngôn ngữ chat/UI (hiện tại: <lang>)"},
-  {"label": "spec_lang", "description": "Ngôn ngữ tài liệu/spec (hiện tại: <spec_lang>)"},
-  {"label": "prefix", "description": "Prefix ticket (hiện tại: <prefix>)"},
-  {"label": "domain", "description": "Domain sản phẩm (hiện tại: <domain>)"},
-  {"label": "po", "description": "Handle PO (hiện tại: <po>)"},
-  {"label": "Huỷ — không đổi gì", "description": "Thoát, không cập nhật"}
 ]}]}
 ```
 
@@ -1040,19 +899,13 @@ compass-cli project use "$(pwd)"   # idempotent — refreshes last_used
 
 ### 2e. Summary of changes
 
-en:
 ```
 ✓ Config updated.
    <field-1>: <old> → <new>
    <field-2>: <old> → <new>
 ```
 
-vi:
-```
-✓ Đã cập nhật cấu hình.
-   <field-1>: <old> → <new>
-   <field-2>: <old> → <new>
-```
+(AI translates output per `$LANG` — see `core/shared/ux-rules.md` Language Policy.)
 
 ---
 
@@ -1062,18 +915,12 @@ vi:
 
 After Step 1B success or Step 2 summary (Step 1A always falls through to 1B and exits via 1B's hand-off), print:
 
-en:
 ```
 ✓ Compass ready.
    Active project: <name> (<path>)
    Next: /compass:brief <task>  or  /compass:prd
 ```
 
-vi:
-```
-✓ Compass đã sẵn sàng.
-   Project active: <name> (<path>)
-   Tiếp theo: /compass:brief <task>  hoặc  /compass:prd
-```
+(AI translates output per `$LANG` — see `core/shared/ux-rules.md` Language Policy.)
 
 Stop. Do NOT auto-invoke any other workflow.
