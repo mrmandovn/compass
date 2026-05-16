@@ -92,7 +92,7 @@ dependencies = [
 
 [[package]]
 name = "compass-cli"
-version = "1.0.30"
+version = "1.0.31"
 dependencies = [
  "base64",
  "calamine",
