@@ -1,0 +1,35 @@
+{
+  "plan_version": "1.0",
+  "session_id": "test-dev-waves",
+  "name": "test waves dev plan",
+  "workspace_dir": "/tmp/test",
+  "waves": [
+    {
+      "wave_id": 1,
+      "tasks": [
+        {
+          "task_id": "T1",
+          "name": "Sample dev task 1",
+          "colleague": null,
+          "files_affected": ["Cargo.toml"],
+          "context_pointers": ["Cargo.toml"],
+          "acceptance": "manual"
+        }
+      ]
+    },
+    {
+      "wave_id": 2,
+      "tasks": [
+        {
+          "task_id": "T2",
+          "name": "Sample dev task 2",
+          "colleague": null,
+          "files_affected": ["build.rs"],
+          "context_pointers": ["build.rs"],
+          "depends_on": ["T1"],
+          "acceptance": "manual"
+        }
+      ]
+    }
+  ]
+}
