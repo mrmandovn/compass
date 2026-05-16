@@ -270,18 +270,39 @@ fn validate_task_v1(task: &serde_json::Value, errors: &mut Vec<serde_json::Value
     }
 }
 
-/// Detect dev plan: flat `tasks` array where any task has `colleague: null`
-/// or uses `task_id` (instead of `id`) or `files_affected` (instead of `files`).
-fn is_dev_plan(data: &serde_json::Value) -> bool {
-    let tasks = data.get("tasks").and_then(|t| t.as_array());
-    match tasks {
-        Some(arr) => arr.iter().any(|t| {
-            t.get("colleague").map_or(false, |c| c.is_null())
-                || t.get("task_id").is_some()
-                || t.get("files_affected").is_some()
-        }),
-        None => false,
+/// Collect dev-shaped tasks from either flat `data.tasks[]` or waves-based
+/// `data.waves[].tasks[]`. Returns references in source order (flat first,
+/// else waves flattened by wave order).
+fn collect_dev_tasks(data: &serde_json::Value) -> Vec<&serde_json::Value> {
+    if let Some(arr) = data.get("tasks").and_then(|t| t.as_array()) {
+        return arr.iter().collect();
     }
+    if let Some(waves) = data.get("waves").and_then(|w| w.as_array()) {
+        let mut out: Vec<&serde_json::Value> = Vec::new();
+        for wave in waves {
+            if let Some(tasks) = wave.get("tasks").and_then(|t| t.as_array()) {
+                for task in tasks {
+                    out.push(task);
+                }
+            }
+        }
+        return out;
+    }
+    Vec::new()
+}
+
+/// Detect dev plan: flat `tasks` array or waves-based where any task has
+/// `colleague: null` or `files_affected`. Note: `task_id` alone is NOT a
+/// dev signal — PM v1 plans also use `task_id`.
+fn is_dev_plan(data: &serde_json::Value) -> bool {
+    let tasks = collect_dev_tasks(data);
+    if tasks.is_empty() {
+        return false;
+    }
+    tasks.iter().any(|t| {
+        t.get("colleague").map_or(false, |c| c.is_null())
+            || t.get("files_affected").is_some()
+    })
 }
 
 fn validate_plan_dev(
@@ -299,17 +320,17 @@ fn validate_plan_dev(
         }
     }
 
-    let tasks = match data.get("tasks").and_then(|t| t.as_array()) {
-        Some(arr) if !arr.is_empty() => arr,
-        Some(_) => {
-            errors.push(violation("EMPTY_TASKS", None, Some("tasks"), "tasks must be non-empty"));
-            return;
-        }
-        None => {
-            errors.push(violation("MISSING_FIELD", None, Some("tasks"), "Missing tasks array"));
-            return;
-        }
-    };
+    // Build the task list — accept either flat `tasks` or waves-based `waves[].tasks`.
+    let tasks: Vec<&serde_json::Value> = collect_dev_tasks(data);
+    if tasks.is_empty() {
+        errors.push(violation(
+            "MISSING_FIELD",
+            None,
+            Some("tasks"),
+            "Missing tasks (neither flat tasks[] nor waves[].tasks[] found)",
+        ));
+        return;
+    }
 
     // Collect IDs (accept both `id` and `task_id`).
     let ids: std::collections::HashSet<&str> = tasks.iter().filter_map(|t| {
@@ -543,6 +564,83 @@ mod tests {
         assert!(errs.iter().any(|e| e["rule"] == "TOO_MANY_POINTERS"));
     }
 
+    #[test]
+    fn test_is_dev_plan_detects_waves_based() {
+        let data = serde_json::json!({
+            "waves": [{
+                "wave_id": 1,
+                "tasks": [{
+                    "task_id": "T1",
+                    "name": "x",
+                    "colleague": null,
+                    "files_affected": ["a.rs"]
+                }]
+            }]
+        });
+        assert!(super::is_dev_plan(&data), "waves-based dev shape should be detected");
+    }
+
+    #[test]
+    fn test_is_dev_plan_still_detects_flat() {
+        let data = serde_json::json!({
+            "tasks": [{ "task_id": "T1", "files_affected": ["a.rs"] }]
+        });
+        assert!(super::is_dev_plan(&data), "flat dev shape should still be detected");
+    }
+
+    #[test]
+    fn test_is_dev_plan_false_for_pm_plan() {
+        let data = serde_json::json!({
+            "plan_version": "1.0",
+            "session_id": "s1",
+            "colleagues_selected": [],
+            "memory_ref": ".compass/.state/project-memory.json",
+            "waves": [{
+                "wave_id": 1,
+                "tasks": [{ "id": "T1", "context_pointers": ["foo.md"] }]
+            }]
+        });
+        assert!(!super::is_dev_plan(&data), "PM v1 plan must not be detected as dev");
+    }
+
+    #[test]
+    fn test_collect_dev_tasks_flattens_waves_in_order() {
+        let data = serde_json::json!({
+            "waves": [
+                { "wave_id": 1, "tasks": [{"task_id": "t1"}, {"task_id": "t2"}] },
+                { "wave_id": 2, "tasks": [{"task_id": "t3"}] }
+            ]
+        });
+        let got: Vec<&str> = super::collect_dev_tasks(&data).iter()
+            .filter_map(|t| t.get("task_id").and_then(|v| v.as_str()))
+            .collect();
+        assert_eq!(got, vec!["t1", "t2", "t3"]);
+    }
+
+    #[test]
+    fn test_validate_plan_v1_still_requires_memory_ref() {
+        use std::io::Write;
+        let tmp = tempfile::NamedTempFile::new().expect("tmp");
+        let plan = serde_json::json!({
+            "plan_version": "1.0",
+            "session_id": "s1",
+            "colleagues_selected": [],
+            "waves": [{
+                "wave_id": 1,
+                "tasks": [{ "id": "T1", "context_pointers": ["foo.md"] }]
+            }]
+        });
+        write!(tmp.as_file(), "{}", plan).unwrap();
+        let out = super::validate_plan(tmp.path()).expect("validate ran");
+        let v: serde_json::Value = serde_json::from_str(&out).unwrap();
+        assert_eq!(v["valid"], false);
+        let violations = v["violations"].as_array().unwrap();
+        assert!(
+            violations.iter().any(|x| x["field"] == "memory_ref" && x["rule"] == "MISSING_FIELD"),
+            "expected memory_ref MISSING_FIELD violation, got: {:?}",
+            violations
+        );
+    }
 }
 
 #[cfg(test)]

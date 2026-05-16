@@ -2,6 +2,36 @@ use crate::helpers;
 use serde_json::json;
 use std::path::Path;
 
+/// Find a task by `task_id` or `id` in a plan, scanning flat `tasks[]`,
+/// `colleagues[]`, then `waves[].tasks[]` in that priority order.
+fn find_task<'a>(plan: &'a serde_json::Value, task_id: &str) -> Option<&'a serde_json::Value> {
+    let matches = |t: &&serde_json::Value| {
+        t.get("id").and_then(|v| v.as_str()) == Some(task_id)
+            || t.get("task_id").and_then(|v| v.as_str()) == Some(task_id)
+    };
+
+    if let Some(arr) = plan.get("tasks").and_then(|t| t.as_array()) {
+        if let Some(t) = arr.iter().find(matches) {
+            return Some(t);
+        }
+    }
+    if let Some(arr) = plan.get("colleagues").and_then(|t| t.as_array()) {
+        if let Some(t) = arr.iter().find(matches) {
+            return Some(t);
+        }
+    }
+    if let Some(waves) = plan.get("waves").and_then(|w| w.as_array()) {
+        for wave in waves {
+            if let Some(tasks) = wave.get("tasks").and_then(|t| t.as_array()) {
+                if let Some(t) = tasks.iter().find(matches) {
+                    return Some(t);
+                }
+            }
+        }
+    }
+    None
+}
+
 pub fn run(args: &[String]) -> Result<String, String> {
     if args.len() < 3 { return Err("Usage: compass-cli context pack <session_dir> <task_id>".into()); }
     if args[0] != "pack" && args[0] != "get" {
@@ -15,12 +45,7 @@ pub fn run(args: &[String]) -> Result<String, String> {
     if !plan_path.exists() { return Err("plan.json not found in session dir".into()); }
     let plan = helpers::read_json(&plan_path)?;
 
-    let tasks_key = if plan.get("colleagues").is_some() { "colleagues" } else { "tasks" };
-    let tasks = plan.get(tasks_key).and_then(|t| t.as_array())
-        .ok_or("No tasks array in plan")?;
-
-    let task = tasks.iter()
-        .find(|t| t["id"].as_str() == Some(task_id) || t["task_id"].as_str() == Some(task_id))
+    let task = find_task(&plan, task_id)
         .ok_or(format!("Task {} not found", task_id))?;
 
     let mut files: serde_json::Map<String, serde_json::Value> = serde_json::Map::new();
@@ -71,4 +96,51 @@ pub fn run(args: &[String]) -> Result<String, String> {
     }
 
     Ok(serde_json::to_string_pretty(&output).unwrap())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn test_find_task_in_flat_tasks() {
+        let plan = json!({
+            "tasks": [
+                { "task_id": "T1", "context_pointers": ["a.rs"] },
+                { "task_id": "T2", "context_pointers": ["b.rs"] }
+            ]
+        });
+        let t = find_task(&plan, "T2").expect("T2 should be found");
+        assert_eq!(t["task_id"], "T2");
+    }
+
+    #[test]
+    fn test_find_task_in_colleagues() {
+        let plan = json!({
+            "colleagues": [
+                { "id": "C1", "context_pointers": ["x.md"] }
+            ]
+        });
+        let t = find_task(&plan, "C1").expect("C1 should be found");
+        assert_eq!(t["id"], "C1");
+    }
+
+    #[test]
+    fn test_find_task_in_waves() {
+        let plan = json!({
+            "waves": [
+                { "wave_id": 1, "tasks": [{ "task_id": "T1" }] },
+                { "wave_id": 2, "tasks": [{ "task_id": "T2", "context_pointers": ["a.rs"] }] }
+            ]
+        });
+        let t = find_task(&plan, "T2").expect("T2 in wave 2 should be found");
+        assert_eq!(t["task_id"], "T2");
+    }
+
+    #[test]
+    fn test_find_task_not_found() {
+        let plan = json!({ "tasks": [{ "task_id": "X" }] });
+        assert!(find_task(&plan, "Y").is_none());
+    }
 }

@@ -237,17 +237,25 @@ Each task object follows the shape defined in Step 3. Write to `$SESSION_DIR/pla
 
 ## Step 7 — Validate
 
-CLI validation:
+`dag check` is the **hard gate** — fail = stop and loop back to Step 3. `validate plan` is **advisory** in experimental v0: print output as warnings, do NOT block.
 
 ```bash
-compass-cli dag check "$SESSION_DIR/plan.json" 2>&1
-compass-cli dag waves "$SESSION_DIR/plan.json" 2>&1   # sanity extract
-compass-cli validate plan "$SESSION_DIR/plan.json" 2>&1
+# Hard gate — DAG integrity (cycles, dangling deps)
+if ! compass-cli dag check "$SESSION_DIR/plan.json" 2>&1; then
+  echo "✗ DAG check failed — loop back to Step 3 to fix."
+  exit 1
+fi
+
+# Sanity extract (informational)
+compass-cli dag waves "$SESSION_DIR/plan.json" 2>&1
+
+# Advisory — schema check; prefix output and continue regardless
+compass-cli validate plan "$SESSION_DIR/plan.json" 2>&1 | sed 's/^/⚠ CLI validate (advisory): /'
 ```
 
-The CLI auto-detects dev plans (flat tasks with `colleague: null` / `task_id` / `files_affected`) and applies dev-appropriate rules — no fallback needed.
+Rationale: experimental CLI may reject waves-based dev plans on schema gaps (e.g. missing `memory_ref` — a PM-plan field). DAG integrity is what actually gates execution; schema enforcement is noise in v0. Once the CLI catches up, the advisory output becomes empty and the wording stays accurate.
 
-If validation fails, show the violations and loop back to Step 3 to fix.
+If `dag check` itself fails, fix in Step 3. Schema warnings alone do NOT loop back.
 
 ---
 
@@ -335,7 +343,7 @@ Print: `✓ Plan ready at $SESSION_DIR/plan.json. Next: /compass:cook to execute
 | Status not reviewed/prepared | Step 1 blocks, explains current status |
 | REQ has no test coverage | Step 2 warns, continues |
 | Dependency cycle in task graph | Step 4 algorithm detects, prints cycle, asks dev to fix |
-| plan.json rejected by CLI validate | Step 7 falls back to inline validate, prints CLI errors as warnings |
+| `compass-cli validate plan` reports schema mismatch | Step 7 prints output as ⚠ advisory warnings; does NOT block. `dag check` remains the hard gate. |
 | Budget > 4h | Step 5 asks confirm / split / cancel |
 | PO adjusts waves mid-review | Loop back to Step 4 |
 | Session already prepared (re-run prepare) | Step 1 lets it through; Step 6 silently overwrites plan.json (dev re-run is intentional) |
