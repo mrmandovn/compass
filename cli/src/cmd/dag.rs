@@ -6,13 +6,22 @@ use std::path::Path;
 pub fn run(args: &[String]) -> Result<String, String> {
     if args.len() < 2 { return Err("Usage: compass-cli dag <check|waves> <path>".into()); }
     let data = helpers::read_json(Path::new(&args[1]))?;
-    let tasks_key = if data.get("colleagues").is_some() { "colleagues" } else { "tasks" };
-    let tasks = data.get(tasks_key).and_then(|t| t.as_array())
-        .ok_or("Missing tasks/colleagues array")?;
+    let tasks: Vec<serde_json::Value> = if let Some(arr) = data.get("colleagues").and_then(|t| t.as_array()) {
+        arr.clone()
+    } else if let Some(arr) = data.get("tasks").and_then(|t| t.as_array()) {
+        arr.clone()
+    } else if let Some(waves) = data.get("waves").and_then(|w| w.as_array()) {
+        waves.iter()
+            .filter_map(|w| w.get("tasks").and_then(|t| t.as_array()))
+            .flat_map(|arr| arr.iter().cloned())
+            .collect()
+    } else {
+        return Err("Missing tasks/colleagues/waves array".into());
+    };
 
     match args[0].as_str() {
-        "check" => dag_check(tasks),
-        "waves" => dag_waves(tasks),
+        "check" => dag_check(&tasks),
+        "waves" => dag_waves(&tasks),
         _ => Err(format!("Unknown dag command: {}", args[0])),
     }
 }
@@ -130,4 +139,83 @@ fn dag_waves(tasks: &[serde_json::Value]) -> Result<String, String> {
         "wave_count": waves.len(),
         "waves": waves,
     })).unwrap())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+    use std::io::Write;
+
+    fn run_with(plan: &serde_json::Value, subcmd: &str) -> Result<String, String> {
+        let tmp = tempfile::NamedTempFile::new().expect("tmp");
+        write!(tmp.as_file(), "{}", plan).expect("write plan");
+        let args = vec![subcmd.to_string(), tmp.path().to_str().unwrap().to_string()];
+        run(&args)
+    }
+
+    #[test]
+    fn test_dag_check_flat_tasks() {
+        let plan = json!({
+            "tasks": [
+                { "task_id": "T1" },
+                { "task_id": "T2", "depends_on": ["T1"] }
+            ]
+        });
+        let out = run_with(&plan, "check").expect("ok");
+        let v: serde_json::Value = serde_json::from_str(&out).unwrap();
+        assert_eq!(v["valid"], true);
+        assert_eq!(v["cycles"].as_array().unwrap().len(), 0);
+        assert_eq!(v["dangling"].as_array().unwrap().len(), 0);
+    }
+
+    #[test]
+    fn test_dag_check_waves_based() {
+        let plan = json!({
+            "waves": [
+                { "wave_id": 1, "tasks": [{ "task_id": "T1" }, { "task_id": "T2" }] },
+                { "wave_id": 2, "tasks": [{ "task_id": "T3", "depends_on": ["T1"] }] }
+            ]
+        });
+        let out = run_with(&plan, "check").expect("ok");
+        let v: serde_json::Value = serde_json::from_str(&out).unwrap();
+        assert_eq!(v["valid"], true, "expected valid:true, got: {}", out);
+    }
+
+    #[test]
+    fn test_dag_check_waves_with_dangling_dep() {
+        let plan = json!({
+            "waves": [
+                { "wave_id": 1, "tasks": [{ "task_id": "T1", "depends_on": ["MISSING"] }] }
+            ]
+        });
+        let out = run_with(&plan, "check").expect("ok");
+        let v: serde_json::Value = serde_json::from_str(&out).unwrap();
+        assert_eq!(v["valid"], false);
+        assert!(!v["dangling"].as_array().unwrap().is_empty());
+    }
+
+    #[test]
+    fn test_dag_waves_extracts_from_waves_based_plan() {
+        let plan = json!({
+            "waves": [
+                { "wave_id": 1, "tasks": [{ "task_id": "T1" }] },
+                { "wave_id": 2, "tasks": [{ "task_id": "T2", "depends_on": ["T1"] }] }
+            ]
+        });
+        let out = run_with(&plan, "waves").expect("ok");
+        let v: serde_json::Value = serde_json::from_str(&out).unwrap();
+        assert_eq!(v["wave_count"], 2);
+    }
+
+    #[test]
+    fn test_dag_run_returns_err_for_missing_arrays() {
+        let plan = json!({ "plan_version": "1.0" }); // no tasks, no colleagues, no waves
+        let err = run_with(&plan, "check").unwrap_err();
+        assert!(
+            err.contains("Missing"),
+            "expected error mentioning Missing, got: {}",
+            err
+        );
+    }
 }

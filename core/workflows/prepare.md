@@ -218,6 +218,7 @@ Fill the schema:
 {
   "plan_version": "1.0",
   "session_id": "<slug>",
+  "name": "<one-line plan title — usually the session input title>",
   "workspace_dir": "<PROJECT_ROOT>",
   "created_at": "<now>",
   "task_type": "dev",
@@ -230,6 +231,10 @@ Fill the schema:
   ]
 }
 ```
+
+Field notes:
+- `name` is **required** for dev plans (validated by `compass-cli validate plan` via `validate_plan_dev`). Use the spec title from the session as the value. For PM plans (non-empty `colleagues_selected`), `name` is optional but recommended.
+- `workspace_dir` is the project root (`$PROJECT_ROOT`), used by sub-agent workers to scope file ops.
 
 Each task object follows the shape defined in Step 3. Write to `$SESSION_DIR/plan.json`.
 
