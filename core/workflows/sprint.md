@@ -656,12 +656,15 @@ For each task in `$PARSED.tasks`:
 
 1. Query `jira_get_issue($task.key, fields=summary,priority,customfield_10016,subtasks,assignee)` (404 → missing, see I6c)
 2. Compute diff:
-   - **Parent fields:** priority, story_points, assignee
+   - **Parent fields — sheet-authoritative (auto-apply, never ask):** `summary` (name), `story_points`. The sheet is always correct for these two; if either differs from Jira, mark UPDATE unconditionally — do not add them to any AskUserQuestion.
+   - **Parent fields — adaptive (may ask):** priority, assignee. Follow the adaptive rule table below.
    - **Subtasks to create:** for each sheet member, check if subtask with summary `"<member> - <parent summary>"` exists. If not → mark CREATE.
-   - **Subtasks to update:** if exists but points differ → mark UPDATE.
-   - **Extra Jira subtasks** (not matching sheet members) → IGNORE by default (don't delete).
+   - **Subtasks to update:** if exists but points differ from the sheet → mark UPDATE (`story_points` is sheet-authoritative here too — auto-apply, no ask).
+   - **Extra Jira subtasks** (not matching any current sheet member) → orphans. Never delete the ticket, but see I6d — their story points must be zeroed so Jira/Excel totals reconcile.
 
 ### Adaptive rule — only ask when conflict
+
+Applies to **priority** and **assignee** only. `summary` and `story_points` are sheet-authoritative and always auto-apply per the rule above — they are never subject to this table.
 
 | Scenario | Action |
 |---|---|
@@ -691,6 +694,8 @@ If ≥1 task has priority conflict:
 
 ### I6c — Tasks missing in Jira
 
+Covers BOTH cases: a sheet task with `key: null` (never ticketed) AND a sheet task whose key returned 404 (ticketed once, key no longer resolves — e.g. deleted, moved project, typo'd in a prior import). Mark both `task.action = "create"`. For the 404 case, keep the original sheet key only for display in the report ("was: <old_key>") — it CANNOT be reused as the new Jira key.
+
 ```json
 {"questions": [{"question": "N sheet tasks don't exist in Jira. How to handle?", "header": "Missing tasks", "multiSelect": false, "options": [
   {"label": "Create new parents + subtasks (Recommended)", "description": "Create parent Task then subtasks for each"},
@@ -699,9 +704,11 @@ If ≥1 task has priority conflict:
 ]}]}
 ```
 
+If "Create new parents + subtasks" → every task marked `create` in this step (both keyless and 404-keyed) MUST be handled by the CREATE PARENT branch in Step I7's sync loop — do not silently drop the 404-keyed ones just because `task.key` is non-null. See Step I7 sync pseudocode.
+
 ### I6d — Orphan Jira subtasks (not in sheet)
 
-Auto-ignore (never delete). Surface in summary only if `detailed` mode.
+Never delete the ticket itself — the team may still want it for reference/history. But its story points ARE stale: the sheet no longer allocates that member to this task, so its points must not keep counting toward the sprint total (Excel is the authoritative point source — see complaint that totals silently drift). Auto-mark it `orphan_zero_points` when its current `story_points` is non-null/non-zero: during sync (Step I7), set its `customfield_10016` to `0` (status, assignee, summary untouched). Surface every zeroed orphan in the summary report regardless of mode (not just `detailed`), since it's a Jira write the user should see.
 
 ### Validation warnings (non-blocking)
 
@@ -759,13 +766,15 @@ POINTS PER MEMBER
 
 CHANGES TO APPLY (not executed in dry-run)
   Parent tasks updated:   {summary.keyed_count}   (or diff from Jira fetch)
+  Names updated (Jira ≠ Excel summary): {count from Step I6}
   Subtasks created:       {count from Step I6}
   Subtasks updated:       {count from Step I6}
-  New Jira tickets:       {summary.keyless_count}
+  New Jira tickets:       {summary.keyless_count} (includes {count of 404-keyed tasks recreated, see I6c})
+  Orphan subtasks zeroed: {count from I6d} (points set to 0, ticket kept)
   Already synced:         {count from Step I6}
 
-NEW TICKETS (keyless tasks from sheet — list tasks where key == null)
-  {story_points}pt  {name}  → assignees: <member names from members[] array>
+NEW TICKETS (keyless tasks from sheet, plus 404-keyed tasks being recreated — list both)
+  {story_points}pt  {name}  → assignees: <member names from members[] array>  [was: <old_key> — no longer resolves]
   ...
 
 WARNINGS
@@ -813,8 +822,10 @@ For each task in $PARSED.tasks:
   Else:
     parent_assignee = None
 
-  # --- CREATE PARENT for keyless tasks (task.key == null) ---
-  If task.key is null:
+  # --- CREATE PARENT: covers BOTH task.key == null (never ticketed) AND
+  #     task.action == "create" from I6c (had a key, but it 404'd) ---
+  If task.key is null OR task.action == "create":
+    old_key = task.key   # keep for the "was: <old_key>" report line; null for genuinely new tasks
     fields = {
       customfield_10016: task.story_points,
       priority: {name: task.priority or "Medium"}
@@ -832,6 +843,8 @@ For each task in $PARSED.tasks:
   # --- UPDATE parent (existing task) ---
   Elif parent has UPDATE:
     fields = {
+      # summary + story_points are sheet-authoritative: apply whenever they differ, unconditionally
+      summary: task.name,
       customfield_10016: task.story_points,
       priority: {name: task.priority}
     }
@@ -855,9 +868,16 @@ For each task in $PARSED.tasks:
         }
       )
 
-  # --- UPDATE subtasks (existing subtask story_points changed) ---
+  # --- UPDATE subtasks (existing subtask story_points OR name changed) ---
   For each existing subtask in UPDATE set:
-    jira_update_issue(subtask.key, fields={customfield_10016: member.points})
+    jira_update_issue(subtask.key, fields={customfield_10016: member.points, summary: "<member.name> - <task.name>"})
+
+# --- ZERO OUT orphan subtasks (I6d): sheet no longer allocates this member to this task ---
+# Never delete — only strip the stale points so the sprint total reconciles with Excel.
+For each orphan subtask marked `orphan_zero_points` in Step I6d:
+  If orphan.current_points not in (null, 0):
+    jira_update_issue(orphan.key, fields={customfield_10016: 0})
+    Record in report: `⚠ {orphan.key}: zeroed {orphan.current_points}pt → 0 (not in sheet)`
 ```
 
 **Resolve display_name to Jira account**: use `jira_get_user_profile(user_identifier=<display_name>)` or JQL `assignee in membersOf(<project>)` to verify the assignee exists before PATCH. If not found, warn and skip assignee field for that task (don't fail the whole sync).
@@ -866,7 +886,38 @@ Live progress: `✓ <task.key>` per completed task (show `(new)` suffix if creat
 
 ---
 
-## Step I8 — Summary + hand-off
+## Step I8 — Verify sprint total points vs Excel
+
+After the sync loop finishes (skip entirely if I7.b picked dry-run), re-fetch the sprint's actual state from Jira and confirm the total reconciles with Excel — do not just trust that every write in I7 succeeded.
+
+```bash
+# Re-query all issues in the target sprint (board/sprint already resolved earlier in the workflow;
+# reuse $SP_FIELD from Step R3b-style resolution, or resolve it now if this is a fresh session).
+SPRINT_ISSUES=$(jira_search or jira_get_sprint_issues for the sprint containing $JIRA_PROJECT tasks)
+JIRA_TOTAL=$(sum of issue.fields[$SP_FIELD] across $SPRINT_ISSUES, treating null as 0)
+```
+
+`EXCEL_TOTAL = summary.total_story_points` (from Step I4/I7.a — the parsed sheet, never recomputed by hand).
+
+- **If `JIRA_TOTAL == EXCEL_TOTAL`** → print `✓ Points reconciled: <N>pt matches Excel` and continue to Step I9.
+- **If they differ** → do NOT silently continue. Diff `$SPRINT_ISSUES` against `$PARSED.tasks[].key`:
+  - Any sprint issue whose key is NOT in the sheet and still carries non-zero points is a leftover point source (e.g. new orphan surfaced after sync, a subtask created outside this import, an issue added to the sprint manually). List each: `⚠ {key}  {summary}  {points}pt — not in Excel sheet`.
+  - Any sheet task whose Jira points still don't match `task.story_points` post-sync indicates a failed write in Step I7 (custom field permissions, workflow screen restrictions, etc.) — list each: `⚠ {key}: expected {task.story_points}pt, Jira shows {actual}pt`.
+
+  AskUserQuestion (in `$LANG`):
+  ```json
+  {"questions": [{"question": "Sprint total (<JIRA_TOTAL>pt) still doesn't match Excel (<EXCEL_TOTAL>pt). How to proceed?", "header": "Reconcile", "multiSelect": false, "options": [
+    {"label": "Zero out the extra issues (Recommended)", "description": "Set story points to 0 on every extra/leftover issue listed above — never deletes tickets"},
+    {"label": "Show me the list, I'll fix manually", "description": "Stop here — no further writes. Diff already printed above."},
+    {"label": "Ignore — leave as-is", "description": "Accept the mismatch and continue"}
+  ]}]}
+  ```
+  - "Zero out" → `jira_update_issue(key, fields={$SP_FIELD: 0})` for each extra-issue listed (not for the failed-write list — those need investigation, not zeroing), then re-run the `JIRA_TOTAL` sum once more and print the final number. Do not loop more than once automatically; if it still mismatches after this single retry, stop and report — don't keep asking in a cycle.
+  - "Show me the list" or "Ignore" → stop retrying, continue to Step I9 with the mismatch noted in the final summary.
+
+---
+
+## Step I9 — Summary + hand-off
 
 Print (in `$LANG`):
 
@@ -875,9 +926,13 @@ Print (in `$LANG`):
   Sheet:      <SPRINT_SHEET>
   Tasks:      <N>
   Parent updates: <count>
+  Names updated: <count>
   Subtasks created: <count>
   Subtasks updated: <count>
+  Orphan subtasks zeroed: <count>
   Errors: <count>
+
+Points check: <✓ reconciled | ⚠ mismatch — Jira <X>pt vs Excel <Y>pt, see report above>
 
 Next: review results at https://silvertiger.atlassian.net (or your Jira instance)
 ```
@@ -893,8 +948,12 @@ Stop.
 | URL is not a GDrive link | I2 download fails → show error, suggest valid GDrive URL |
 | Sheet has no "Sprint N" pattern | I3 → show all sheets, AskUserQuestion pick one |
 | Task key does not match regex `<PREFIX>-<N>` | Skip task + warn in report |
-| Jira task does not exist (key not in Jira) | I6 report: `[CREATE PARENT]` before subtasks. Create parent first in I7. |
+| Jira task does not exist (key not in Jira, 404) | I6c marks `task.action="create"`. I7 CREATE PARENT branch handles it same as a keyless task — new key issued, old key shown as `was: <old_key>` in report. |
+| Excel name differs from Jira summary (same key) | Auto-update, no ask — Excel name is always authoritative (Step I6/I7). |
+| Excel points differ from Jira points (same key) | Auto-update, no ask — Excel points are always authoritative (Step I6/I7). |
+| Jira subtask exists but its assignee is no longer a sheet member | I6d: never delete, but zero its story points during sync so totals reconcile. |
 | Member column header misspelled | I5 catches before sync. Stop or skip. |
 | Sheet priority empty + Jira has priority | Skip (don't clear Jira value) |
-| Subtask summary differs slightly from "Name - Parent" | Treat as no-match → create new. Extra Jira subtask ignored. |
+| Subtask summary differs slightly from "Name - Parent" | Treat as no-match → create new. Extra Jira subtask handled per I6d (points zeroed, not deleted). |
 | Sheet points sum ≠ parent total | Warn in report. Do NOT auto-fix. PO decides. |
+| Sprint total still ≠ Excel after sync | Step I8 diffs sprint issues vs sheet, offers to zero out leftover point sources (max one auto-retry), else reports and stops. |
