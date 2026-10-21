@@ -1,9 +1,11 @@
 # Workflow: compass:init
 
-You are the onboarding orchestrator. Mission: set up the right thing for the right context. One entry point, two states:
+You are the onboarding orchestrator. Mission: set up the right thing for the right context. One entry point, two states, three personas (`pm` default / `dev` / `core`):
 
 - **`STATE=fresh`** — cwd has no `.compass/.state/config.json`. Run the setup wizard: if global preferences are missing, capture those first; then create a new Compass project at cwd, set up the folder structure, register in `~/.compass/projects.json`, and mark `last_active`.
 - **`STATE=existing`** — cwd already has `.compass/.state/config.json`. Ask which field(s) to update, edit in place.
+
+**`core` persona** (`/compass:init core`) exists purely to satisfy `core/shared/resolve-project.md`'s `status=ok` check with zero prompts — no AskUserQuestion at all, no GitNexus check, no folder scaffolding beyond `.compass/.state/`. Use it when the goal is "make other `/compass:*` commands stop asking about project setup," nothing else. It's strictly lighter than `dev` (which still asks 2-4 confirmation questions and offers GitNexus sync). See Step 1-CORE / Step 2-CORE.
 
 All user-facing text uses `lang` from `~/.compass/global-config.json` if set, else `en`. Apply the UX rules from `core/shared/ux-rules.md` throughout. `compass:init` is the ONE workflow that does NOT include `core/shared/resolve-project.md` at Step 0 — it IS the setup that produces the registry/global-config files the resolver depends on.
 
@@ -35,17 +37,125 @@ Then print exactly one banner before proceeding. For `STATE=existing`, load `lan
 | fresh (global config exists) | `📦 Creating Compass project at $(pwd)...` | `📦 Đang tạo project Compass tại $(pwd)...` |
 | existing | `🔧 Updating Compass config for $(basename $(pwd))...` | `🔧 Đang cập nhật cấu hình Compass cho $(basename $(pwd))...` |
 
-Branch on the echoed value:
-- If `$ARGUMENTS` contains "dev" (case-insensitive):
+Branch on the echoed value. Check `$ARGUMENTS` for "core" BEFORE "dev" — the two are mutually exclusive, and "core" is the more specific/restrictive request:
+- If `$ARGUMENTS` contains "core" (case-insensitive):
+  - `STATE=fresh` → execute Step 1-CORE (fully non-interactive minimal setup).
+  - `STATE=existing` → execute Step 2-CORE (no-op confirmation — core init is idempotent, never touches an existing config).
+- Else if `$ARGUMENTS` contains "dev" (case-insensitive):
   - `STATE=fresh` → execute Step 1-DEV (dev setup — global wizard if missing, then lightweight dev project create).
   - `STATE=existing` → execute Step 2-DEV (update existing config for dev persona).
-- Otherwise (no "dev" in `$ARGUMENTS`):
+- Otherwise (no "core"/"dev" in `$ARGUMENTS`):
   - `STATE=fresh` → execute Step 1 (fresh setup — runs global wizard first if missing, then project create).
   - `STATE=existing` → execute Step 2 (update existing project config).
 
 Do NOT ask the user which branch to take. Do NOT present `STATE` values as options.
 
+> **If core mode**: execute Step 1-CORE or Step 2-CORE below, then STOP. Never call AskUserQuestion in core mode — that's the entire point of the persona.
 > **If dev mode**: execute Step 1-DEV or Step 2-DEV below, then STOP. Do NOT continue to Step 1 (PM) or Step 2 (PM) — those are for non-dev init only.
+
+---
+
+## Step 1-CORE — Minimal setup (fresh, zero prompts)
+
+Runs when `STATE=fresh` AND `$ARGUMENTS` contains "core" (case-insensitive). Goal: the SMALLEST amount of disk state that makes `core/shared/resolve-project.md` Step 0a return `status=ok` for this directory — nothing else. No AskUserQuestion, no GitNexus, no PRD/epic/wiki folders, no CLAUDE.md/README/domain.yaml, no global-config write.
+
+### Step 1-CORE.a — Resolve language (read-only, no write)
+
+```bash
+LANG=$(compass-cli project global-config get --key lang 2>/dev/null)
+[ -z "$LANG" ] && LANG="en"
+```
+
+Do NOT call `global-config set` here even if `~/.compass/global-config.json` is missing — core mode must not create side effects outside the target project. If the PO later wants a persisted global language default, that's what the PM/dev wizards are for.
+
+### Step 1-CORE.b — Project name (auto, no confirm)
+
+```bash
+TARGET=$(pwd)
+DETECTED_NAME=$(basename "$TARGET")
+```
+
+### Step 1-CORE.c — Stack detection (auto only, never ask)
+
+Run the same detection bash block as Step 1-DEV.b (tech_stack / frameworks / test_frameworks from manifest files). If nothing is detected, leave all three as empty arrays — do NOT fall back to an AskUserQuestion the way Step 1-DEV.b does for the "no stack detected" case. Silence is the point of this persona.
+
+### Step 1-CORE.d — Create minimal structure
+
+```bash
+TARGET=$(pwd)
+mkdir -p "$TARGET/.compass/.state/sessions"
+echo "CREATED_CORE_STRUCTURE=$TARGET"
+```
+
+No `prd/`, `epics/`, `wiki/`, `prototype/`, `technical/`, `release-notes/`, `research/`. No GitNexus check/sync — do not even probe for `.gitnexus/`. If the PO wants GitNexus later, `/compass:init dev` (re-run in the same directory) adds it without disturbing this config.
+
+### Step 1-CORE.e — Write config.json
+
+```bash
+TARGET=$(pwd)
+cat > "$TARGET/.compass/.state/config.json" <<JSON
+{
+  "version": "1.1.1",
+  "lang": "<LANG from 1-CORE.a>",
+  "spec_lang": "<LANG from 1-CORE.a>",
+  "persona": "core",
+  "project": {
+    "name": "<DETECTED_NAME>"
+  },
+  "tech_stack": [<detected stacks as quoted strings, or []>],
+  "frameworks": [<detected frameworks as quoted strings, or []>],
+  "test_frameworks": [<detected test frameworks as quoted strings, or []>],
+  "mode": "standalone",
+  "created_at": "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+}
+JSON
+echo "CONFIG_WRITTEN=$TARGET/.compass/.state/config.json"
+```
+
+Same `<placeholder>` substitution rule as Step 1-DEV.e applies.
+
+### Step 1-CORE.f — Register project
+
+```bash
+TARGET=$(pwd)
+compass-cli project add "$TARGET"
+compass-cli project use "$TARGET"
+echo "PROJECT_REGISTERED=$TARGET"
+```
+
+If either call fails, surface the error — never silently swallow. (In practice this is close to redundant: `resolve()` auto-migrates an unregistered-but-configured cwd into an empty registry on its own — see `cli/src/cmd/project.rs`. But don't rely on that path when the registry is non-empty; always register explicitly here.)
+
+### Step 1-CORE.g — Hand-off
+
+Print ONE line (in `$LANG`), no banner-then-summary pattern:
+
+```
+✓ Minimal init done — <name> ready for slash commands (no wizard, no GitNexus). Run /compass:init dev anytime to add stack confirmation + code intelligence.
+```
+
+Stop. Do NOT auto-invoke any other workflow.
+
+---
+
+## Step 2-CORE — Existing project + core mode (no-op)
+
+Runs when `STATE=existing` AND `$ARGUMENTS` contains "core" (case-insensitive). Core mode NEVER modifies an existing config — it exists only to bootstrap a fresh directory. Re-running it against an already-initialized project (regardless of persona — `pm`, `dev`, or `core`) is a pure confirmation, not an edit.
+
+```bash
+CONFIG_PATH=".compass/.state/config.json"
+CURRENT_PERSONA=$(jq -r '.persona // "pm"' "$CONFIG_PATH")
+LANG=$(jq -r '.lang // "en"' "$CONFIG_PATH")
+```
+
+Print (in `$LANG`), then stop — no AskUserQuestion, no writes:
+
+```
+✓ Already initialized (persona: <CURRENT_PERSONA>). No changes made — ready for slash commands.
+   To change project fields: /compass:init
+   To add dev extras (stack confirm, GitNexus): /compass:init dev
+```
+
+Stop. Do NOT auto-invoke any other workflow.
 
 ---
 
@@ -303,16 +413,7 @@ Write back via `jq` atomic update. Never clobber existing non-empty arrays.
 
 ### 2-DEV.d — GitNexus setup (if missing)
 
-```bash
-TARGET=$(pwd)
-if [ -d "$TARGET/.gitnexus" ]; then
-  echo "GITNEXUS_AVAILABLE"
-else
-  echo "GITNEXUS_MISSING"
-fi
-```
-
-If `GITNEXUS_MISSING` → offer sync using the same AskUserQuestion as Step 1-DEV.c. If already available, print `✓ GitNexus ready` and skip.
+Apply the shared snippet from `core/shared/gitnexus-check.md` — same as Step 1-DEV.c. Do NOT reimplement the check inline; the shared snippet also catches the outdated-index case (not just missing), which a plain `[ -d .gitnexus ]` test would miss.
 
 ### 2-DEV.e — Summary
 
@@ -887,8 +988,6 @@ compass-cli project use "$(pwd)"   # idempotent — refreshes last_used
 ```
 
 (AI translates output per `$LANG` — see `core/shared/ux-rules.md` Language Policy.)
-
----
 
 ---
 
